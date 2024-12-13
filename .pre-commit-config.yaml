@@ -1,0 +1,25 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.8.2
+  hooks:
+  - id: ruff
+    args: [--fix]
+  - id: ruff-format
+- repo: https://github.com/tox-dev/pyproject-fmt
+  rev: v2.5.0
+  hooks:
+    - id: pyproject-fmt
+- repo: https://github.com/biomejs/pre-commit
+  rev: v0.5.0
+  hooks:
+  - id: biome-format
+    additional_dependencies: ["@biomejs/biome@1.9.4"]
+- repo: https://github.com/kynan/nbstripout
+  rev: "0.8.1"
+  hooks:
+    - id: nbstripout
