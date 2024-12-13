@@ -27,7 +27,7 @@ source = "vcs"
 extra-dependencies = [ "ipykernel" ]
 installer = "uv"
 [tool.hatch.envs.hatch-test]
-extra-dependencies = [ "ipykernel", "scanpy" ]
+extra-dependencies = [ "ipykernel" ]
 [tool.hatch.envs.docs]
 dependencies = [
   # jupyter
