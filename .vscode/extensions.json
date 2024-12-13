@@ -1,0 +1,8 @@
+{
+	"recommendations": [
+		"tamasfe.even-better-toml",
+		"charliermarsh.ruff",
+		"biomejs.biome",
+		"ms-python.python",
+	],
+}

@@ -1,3 +1,7 @@
-from .interface import AnnDataInterface
+"""Anndata interface for holoviews."""
 
-__all__ = ["AnnDataInterface"]
+from __future__ import annotations
+
+from .interface import AnnDataInterface, register
+
+__all__ = ["AnnDataInterface", "register"]
