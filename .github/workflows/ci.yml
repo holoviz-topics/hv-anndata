@@ -21,15 +21,14 @@ jobs:
         python-version: ["3.9", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
       - uses: astral-sh/setup-uv@v4
         with:
+          python-version: ${{ matrix.python-version }}
           cache-dependency-glob: pyproject.toml
       - run: uv tool install hatch
       - run: hatch test --cover --python=${{ matrix.python-version }}
+      - run: hatch --env hatch-test.py${{ matrix.python-version }} run coverage xml
       - uses: codecov/codecov-action@v5
         with:
-          files: .cache/coverage.xml
-          #token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
