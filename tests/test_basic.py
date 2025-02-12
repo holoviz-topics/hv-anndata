@@ -3,5 +3,5 @@
 from __future__ import annotations
 
 
-def test_basic() -> None:
-    pass
+def test_import() -> None:
+    import hv_anndata  # noqa: F401
