@@ -7,11 +7,9 @@ name = "hv-anndata"
 readme = "README.md"
 license = "BSD-3-Clause"
 authors = [ { name = "Philipp A.", email = "flying-sheep@web.de" } ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
