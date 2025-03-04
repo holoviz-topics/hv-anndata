@@ -18,7 +18,6 @@ repos:
   rev: v1.9.4
   hooks:
   - id: biome-format
-    additional_dependencies: ["@biomejs/biome@1.9.4"]
 - repo: https://github.com/kynan/nbstripout
   rev: "0.8.1"
   hooks:
