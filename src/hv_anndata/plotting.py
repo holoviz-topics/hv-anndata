@@ -11,7 +11,7 @@ import pandas as pd
 import param
 
 if TYPE_CHECKING:
-    from typing import NotRequired
+    from typing import NotRequired, Unpack
 
 hv.extension("bokeh")
 
@@ -101,11 +101,11 @@ class Dotmap(param.ParameterizedFunction):
         ].transform(lambda x: x / xmax if (xmax := x.max()) > 0 else 0)
         return df
 
-    def __call__(self, **params: _DotmatPlotParams) -> hv.Points:
+    def __call__(self, **params: Unpack[_DotmatPlotParams]) -> hv.Points:
         """Create a DotmapPlot from anndata."""
         if required := {"adata", "marker_genes", "groupby"} - params.keys():
             msg = f"Needs to have the following argument(s): {required}"
-            raise ValueError(msg)
+            raise TypeError(msg)
         self.p = param.ParamOverrides(self, params)
 
         df = self._prepare_data()  # noqa: PD901
