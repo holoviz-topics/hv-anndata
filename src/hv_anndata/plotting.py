@@ -11,7 +11,7 @@ import pandas as pd
 import param
 
 if TYPE_CHECKING:
-    from typing_extensions import NotRequired
+    from typing import NotRequired
 
 hv.extension("bokeh")
 
