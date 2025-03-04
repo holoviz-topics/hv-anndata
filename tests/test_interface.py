@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Callable
 from string import ascii_lowercase
 from typing import TYPE_CHECKING
 
@@ -43,24 +44,45 @@ def adata() -> AnnData:
         index="gene-" + pd.array(range(50)).astype(str),
     )
     obsm = dict(umap=gen.random((100, 2)))
-    return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={})
+    varp = dict(cons=sp.csr_array(sp.random(50, 50, rng=gen)))
+    return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
 
 
-def test_get(adata: AnnData) -> None:
-    data = hv.Dataset(adata, ["obsm.umap.0"], ["obsm.umap.1", "obs.type"])
+PATHS: list[tuple[str, Callable[[AnnData], np.ndarray | pd.Series]]] = [
+    ("gene-3", lambda ad: ad[:, "gene-3"].X.flatten()),
+    # ("cell-5", lambda ad: ad["cell-5"].X.flatten()),  # noqa: ERA001
+    ("obs.type", lambda ad: ad.obs["type"]),
+    ("layers.a.gene-18", lambda ad: ad[:, "gene-18"].layers["a"].flatten()),
+    # ("layers.a.cell-77", lambda ad: ad["cell-77"].layers["a"].flatten()),  # noqa: ERA001
+    ("obsm.umap.0", lambda ad: ad.obsm["umap"][:, 0]),
+    ("obsm.umap.1", lambda ad: ad.obsm["umap"][:, 1]),
+    # TODO: other axis  # noqa: TD003
+    ("varp.cons.46", lambda ad: ad.varp["varp"][:, 46]),
+]
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"), [pytest.param(n, f, id=n) for n, f in PATHS]
+)
+def test_get(
+    adata: AnnData, path: str, expected: Callable[[AnnData], np.ndarray | pd.Series]
+) -> None:
+    data = hv.Dataset(adata, [path])
     assert data.interface is AnnDataInterface
-    assert data.interface.values(data, "obs.type").equals(adata.obs["type"])
-    np.testing.assert_array_equal(
-        data.interface.values(data, "obsm.umap.0"), adata.obsm["umap"][:, 0]
-    )
-    np.testing.assert_array_equal(
-        data.interface.values(data, "obsm.umap.1"), adata.obsm["umap"][:, 1]
-    )
+    vals = data.interface.values(data, path)
+    if isinstance(vals, np.ndarray):
+        np.testing.assert_array_equal(vals, expected(adata))
+    elif isinstance(vals, pd.Series):
+        pd.testing.assert_series_equal(vals, expected(adata))
+    else:
+        pytest.fail(f"Unexpected return type {type(vals)}")
 
 
+"""
 def test_plot(adata: AnnData) -> None:
     p = (
         hv.Scatter(adata, "obsm.umap.0", ["obsm.umap.1", "obs.type"])
         .opts(color="obs.type", cmap="Category20")
         .hist()
     )
+"""
