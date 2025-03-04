@@ -11,6 +11,7 @@ from anndata import AnnData
 
 if TYPE_CHECKING:
     import numpy as np
+    import pandas as pd
 
     class Dims(TypedDict):
         """Holoviews Dimensions."""
@@ -28,12 +29,14 @@ class _AnnDataProxy:
     adata: AnnData
 
     @overload
-    def get(self, k: str, /, default: None = None) -> np.ndarray | None: ...
+    def get(self, k: str, /, default: None = None) -> np.ndarray | pd.Series | None: ...
     @overload
-    def get(self, k: str, /, default: np.ndarray | _Raise) -> np.ndarray: ...
     def get(
-        self, k: str, /, default: np.ndarray | _Raise | None = None
-    ) -> np.ndarray | None:
+        self, k: str, /, default: np.ndarray | pd.Series | _Raise
+    ) -> np.ndarray | pd.Series: ...
+    def get(
+        self, k: str, /, default: np.ndarray | pd.Series | _Raise | None = None
+    ) -> np.ndarray | pd.Series | None:
         k_orig = k
         if "." not in k:
             if default is not _Raise.Sentry and k not in self.adata.var_names:
@@ -56,7 +59,7 @@ class _AnnDataProxy:
     def __contains__(self, k: str) -> bool:
         return self.get(k) is not None
 
-    def __getitem__(self, k: str) -> object:
+    def __getitem__(self, k: str) -> np.ndarray | pd.Series:
         return self.get(k, _Raise.Sentry)
 
     def __len__(self) -> int:
@@ -91,7 +94,7 @@ class AnnDataInterface(hv.core.Interface):
         *,
         compute: bool = True,  # noqa: ARG003
         keep_index: bool = False,  # noqa: ARG003
-    ) -> np.ndarray:
+    ) -> np.ndarray | pd.Series:
         """Retrieve values for a dimension."""
         dim = data.get_dimension(dim)
         proxy = cast(_AnnDataProxy, data.data)
@@ -110,3 +113,9 @@ def register() -> None:
     if AnnDataInterface.datatype not in hv.core.data.datatypes:
         hv.core.data.datatypes.append(AnnDataInterface.datatype)
     hv.core.Interface.register(AnnDataInterface)
+
+
+def unregister() -> None:
+    """Unregister the data type and interface with holoviews."""
+    hv.core.data.datatypes.remove(AnnDataInterface.datatype)
+    del hv.core.Interface.interfaces[AnnDataInterface.datatype]
