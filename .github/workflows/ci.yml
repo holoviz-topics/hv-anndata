@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.13"]
+        python-version: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: pyproject.toml
