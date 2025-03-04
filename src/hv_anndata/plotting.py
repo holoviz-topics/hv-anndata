@@ -81,9 +81,7 @@ class Dotmap(param.ParameterizedFunction):
             )
 
         grouped = joined_df.groupby(self.p.groupby, observed=True)
-        expression_stats = grouped.apply(
-            compute_expression, include_groups=False
-        ).drop_duplicates()
+        expression_stats = grouped.apply(compute_expression, include_groups=False)
 
         # Likely faster way to do this, but harder to read
         data = [
