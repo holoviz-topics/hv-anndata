@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, TypedDict, cast, overload
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import holoviews as hv
 from anndata import AnnData
 
+from .accessors import AdAc, AdPath
+
 if TYPE_CHECKING:
     import numpy as np
+    import pandas as pd
 
     class Dims(TypedDict):
         """Holoviews Dimensions."""
@@ -19,48 +21,11 @@ if TYPE_CHECKING:
         vdims: list[str] | None
 
 
+ACCESSOR = AdAc()
+
+
 class _Raise(Enum):
     Sentry = auto()
-
-
-@dataclass
-class _AnnDataProxy:
-    adata: AnnData
-
-    @overload
-    def get(self, k: str, /, default: None = None) -> np.ndarray | None: ...
-    @overload
-    def get(self, k: str, /, default: np.ndarray | _Raise) -> np.ndarray: ...
-    def get(
-        self, k: str, /, default: np.ndarray | _Raise | None = None
-    ) -> np.ndarray | None:
-        k_orig = k
-        if "." not in k:
-            if default is not _Raise.Sentry and k not in self.adata.var_names:
-                return default
-            return self.adata[:, k].X.flatten()
-        attr_name, k = k.split(".", 1)
-        attr = getattr(self.adata, attr_name)
-        if "." not in k:
-            if default is not _Raise.Sentry and k not in attr:
-                return default
-            return attr[k]
-        k, i = k.split(".", 1)
-        arr = attr[k]
-        if "." not in i:
-            if default is not _Raise.Sentry and not (0 <= int(i) < arr.shape[1]):
-                return default
-            return arr[:, int(i)]
-        raise KeyError(k_orig)
-
-    def __contains__(self, k: str) -> bool:
-        return self.get(k) is not None
-
-    def __getitem__(self, k: str) -> object:
-        return self.get(k, _Raise.Sentry)
-
-    def __len__(self) -> int:
-        return len(self.adata)
 
 
 class AnnDataInterface(hv.core.Interface):
@@ -73,13 +38,28 @@ class AnnDataInterface(hv.core.Interface):
     def init(
         cls,
         eltype: hv.Element,  # noqa: ARG003
-        data: AnnData | _AnnDataProxy,
+        data: AnnData,
         kdims: list[str] | None,
         vdims: list[str] | None,
-    ) -> tuple[_AnnDataProxy, Dims, dict[str, Any]]:
+    ) -> tuple[AnnData, Dims, dict[str, Any]]:
         """Initialize the interface."""
-        proxy = _AnnDataProxy(data) if isinstance(data, AnnData) else data
-        return proxy, {"kdims": kdims, "vdims": vdims}, {}
+        return data, {"kdims": kdims, "vdims": vdims}, {}
+
+    @classmethod
+    def validate(cls, dataset: hv.Dataset, vdims=True):
+        dims = "all" if vdims else "key"
+        not_found = [
+            d
+            for d in cast(list[AdPath], dataset.dimensions(dims, label=False))
+            if not d.isin(dataset.data)
+        ]
+        if not_found:
+            msg = (
+                "Supplied data does not contain specified "
+                "dimensions, the following dimensions were "
+                f"not found: {not_found!r}"
+            )
+            raise hv.DataError(msg, cls)
 
     @classmethod
     def values(
@@ -91,18 +71,20 @@ class AnnDataInterface(hv.core.Interface):
         *,
         compute: bool = True,  # noqa: ARG003
         keep_index: bool = False,  # noqa: ARG003
-    ) -> np.ndarray:
+    ) -> np.ndarray | pd.api.extensions.ExtensionArray:
         """Retrieve values for a dimension."""
-        dim = data.get_dimension(dim)
-        proxy = cast(_AnnDataProxy, data.data)
-        return proxy[dim.name]
+        dim = cast(AdPath, data.get_dimension(dim))
+        adata = cast(AnnData, data.data)
+        return dim(adata)
 
     @classmethod
-    def dimension_type(cls, data: hv.Dataset, dim: hv.Dimension | str) -> np.dtype:
+    def dimension_type(
+        cls, data: hv.Dataset, dim: hv.Dimension | str
+    ) -> np.dtype | pd.api.extensions.ExtensionDtype:
         """Get the data type for a dimension."""
-        dim = data.get_dimension(dim)
-        proxy = cast(_AnnDataProxy, data.data)
-        return proxy[dim.name].dtype
+        dim = cast(AdPath, data.get_dimension(dim))
+        adata = cast(AnnData, data.data)
+        return dim(adata).dtype
 
 
 def register() -> None:
@@ -110,3 +92,9 @@ def register() -> None:
     if AnnDataInterface.datatype not in hv.core.data.datatypes:
         hv.core.data.datatypes.append(AnnDataInterface.datatype)
     hv.core.Interface.register(AnnDataInterface)
+
+
+def unregister() -> None:
+    """Unregister the data type and interface with holoviews."""
+    hv.core.data.datatypes.remove(AnnDataInterface.datatype)
+    del hv.core.Interface.interfaces[AnnDataInterface.datatype]
