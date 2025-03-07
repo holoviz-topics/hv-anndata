@@ -20,17 +20,29 @@ if TYPE_CHECKING:
 
 class AdPath(Dimension):
     _repr: str
-    __call__: Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
+    _func: Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
 
     def __init__(
         self, _repr: str, func: Callable[[AnnData], Any], /, **params: object
     ) -> None:
         super().__init__(_repr, **params)
         self._repr = _repr
-        self.__call__ = func
+        self._func = func
 
     def __repr__(self) -> str:
         return self._repr.replace("slice(None, None, None)", ":")  # TODO: prettier
+
+    def __call__(
+        self, adata: AnnData
+    ) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+        return self._func(adata)
+
+    def isin(self, adata: AnnData) -> bool:
+        try:
+            self(adata)
+        except (IndexError, KeyError):
+            return False
+        return True
 
 
 @dataclass(frozen=True)
