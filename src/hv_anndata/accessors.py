@@ -1,0 +1,118 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal
+
+import numpy as np
+from holoviews.core.dimension import Dimension
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import pandas as pd
+    from anndata import AnnData
+    from numpy.typing import NDArray
+
+    # full slices: e.g. a[:, 5] or a[18, :]
+    IdxInt2D = tuple[int, slice] | tuple[slice, int]
+    IdxStr2D = tuple[str, slice] | tuple[slice, str]
+
+
+class AdPath(Dimension):
+    _repr: str
+    __call__: Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
+
+    def __init__(
+        self, _repr: str, func: Callable[[AnnData], Any], /, **params: object
+    ) -> None:
+        super().__init__(_repr, **params)
+        self._repr = _repr
+        self.__call__ = func
+
+    def __repr__(self) -> str:
+        return self._repr.replace("slice(None, None, None)", ":")  # TODO: prettier
+
+
+@dataclass(frozen=True)
+class LayerAcc:
+    def __getitem__(self, k: str) -> LayerVecAcc:
+        return LayerVecAcc(k)
+
+
+@dataclass(frozen=True)
+class LayerVecAcc:
+    k: str
+
+    def __getitem__(self, i: IdxStr2D) -> AdPath:
+        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            return np.asarray(ad[i].layers[self.k]).flatten()  # TODO: pandas
+
+        return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get)
+
+
+@dataclass(frozen=True)
+class MetaAcc:
+    ax: Literal["obs", "var"]
+
+    def __getitem__(self, k: str) -> AdPath:
+        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            return getattr(ad, self.ax)[k]
+
+        return AdPath(f"A.{self.ax}[{k!r}]", get)
+
+
+@dataclass(frozen=True)
+class MultiAcc:
+    ax: Literal["obsm", "varm"]
+
+    def __getitem__(self, k: str) -> MultiVecAcc:
+        return MultiVecAcc(self.ax, k)
+
+
+@dataclass(frozen=True)
+class MultiVecAcc:
+    ax: Literal["obsm", "varm"]
+    k: str
+
+    def __getitem__(self, i: int) -> AdPath:
+        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            return getattr(ad, self.ax)[self.k][i]
+
+        return AdPath(f"A.{self.ax}[{self.k!r}][{i!r}]", get)
+
+
+@dataclass(frozen=True)
+class GraphAcc:
+    ax: Literal["obsp", "varp"]
+
+    def __getitem__(self, k: str) -> GraphVecAcc:
+        return GraphVecAcc(self.ax, k)
+
+
+@dataclass(frozen=True)
+class GraphVecAcc:
+    ax: Literal["obsp", "varp"]
+    k: str
+
+    def __getitem__(self, i: IdxInt2D) -> AdPath:
+        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            return getattr(ad, self.ax)[self.k][i]
+
+        return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get)
+
+
+@dataclass(frozen=True)
+class AdAc:
+    layers = LayerAcc()
+    obs = MetaAcc("obs")
+    var = MetaAcc("var")
+    obsm = MultiAcc("obsm")
+    varm = MultiAcc("varm")
+    obsp = GraphAcc("obsp")
+    varp = GraphAcc("varp")
+
+    def __getitem__(self, i: IdxStr2D) -> AdPath:
+        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            return np.asarray(ad[i].X).flatten()  # TODO: pandas
+
+        return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get)

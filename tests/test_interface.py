@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Callable
 from string import ascii_lowercase
 from typing import TYPE_CHECKING
 
@@ -14,10 +13,12 @@ import pytest
 import scipy.sparse as sp
 from anndata import AnnData
 
+from hv_anndata.accessors import AdPath
+from hv_anndata.interface import ACCESSOR as A
 from hv_anndata.interface import AnnDataInterface, register
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
 
 @pytest.fixture(autouse=True)
@@ -48,24 +49,24 @@ def adata() -> AnnData:
     return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
 
 
-PATHS: list[tuple[str, Callable[[AnnData], np.ndarray | pd.Series]]] = [
-    ("gene-3", lambda ad: ad[:, "gene-3"].X.flatten()),
-    # ("cell-5", lambda ad: ad["cell-5"].X.flatten()),  # noqa: ERA001
-    ("obs.type", lambda ad: ad.obs["type"]),
-    ("layers.a.gene-18", lambda ad: ad[:, "gene-18"].layers["a"].flatten()),
-    # ("layers.a.cell-77", lambda ad: ad["cell-77"].layers["a"].flatten()),  # noqa: ERA001
-    ("obsm.umap.0", lambda ad: ad.obsm["umap"][:, 0]),
-    ("obsm.umap.1", lambda ad: ad.obsm["umap"][:, 1]),
-    # TODO: other axis  # noqa: TD003
-    ("varp.cons.46", lambda ad: ad.varp["varp"][:, 46]),
+PATHS: list[tuple[AdPath, Callable[[AnnData], np.ndarray | pd.Series]]] = [
+    (A[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
+    (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
+    (A.obs["type"], lambda ad: ad.obs["type"]),
+    (A.layers["a"][:, "gene-18"], lambda ad: ad[:, "gene-18"].layers["a"].flatten()),
+    (A.layers["a"]["cell-77", :], lambda ad: ad["cell-77"].layers["a"].flatten()),
+    (A.obsm["umap"][0], lambda ad: ad.obsm["umap"][:, 0]),
+    (A.obsm["umap"][1], lambda ad: ad.obsm["umap"][:, 1]),
+    (A.varp["cons"][46, :], lambda ad: ad.varp["varp"][46, :]),
+    (A.varp["cons"][:, 46], lambda ad: ad.varp["varp"][:, 46]),
 ]
 
 
 @pytest.mark.parametrize(
-    ("path", "expected"), [pytest.param(n, f, id=n) for n, f in PATHS]
+    ("path", "expected"), [pytest.param(n, f, id=str(n)) for n, f in PATHS]
 )
 def test_get(
-    adata: AnnData, path: str, expected: Callable[[AnnData], np.ndarray | pd.Series]
+    adata: AnnData, path: AdPath, expected: Callable[[AnnData], np.ndarray | pd.Series]
 ) -> None:
     data = hv.Dataset(adata, [path])
     assert data.interface is AnnDataInterface

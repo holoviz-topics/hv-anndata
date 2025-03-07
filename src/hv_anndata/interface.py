@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any, TypedDict, cast, overload
 import holoviews as hv
 from anndata import AnnData
 
+from .accessors import AdAc
+
 if TYPE_CHECKING:
     import numpy as np
     import pandas as pd
@@ -18,6 +20,9 @@ if TYPE_CHECKING:
 
         kdims: list[str] | None
         vdims: list[str] | None
+
+
+ACCESSOR = AdAc()
 
 
 class _Raise(Enum):
@@ -76,19 +81,18 @@ class AnnDataInterface(hv.core.Interface):
     def init(
         cls,
         eltype: hv.Element,  # noqa: ARG003
-        data: AnnData | _AnnDataProxy,
+        data: AnnData,
         kdims: list[str] | None,
         vdims: list[str] | None,
-    ) -> tuple[_AnnDataProxy, Dims, dict[str, Any]]:
+    ) -> tuple[AnnData, Dims, dict[str, Any]]:
         """Initialize the interface."""
-        proxy = _AnnDataProxy(data) if isinstance(data, AnnData) else data
-        return proxy, {"kdims": kdims, "vdims": vdims}, {}
+        return data, {"kdims": kdims, "vdims": vdims}, {}
 
     @classmethod
     def values(
         cls,
         data: hv.Dataset,
-        dim: hv.Dimension | str,
+        dim: hv.Dimension | AdPath,
         expanded: bool = True,  # noqa: FBT001, FBT002, ARG003
         flat: bool = True,  # noqa: FBT001, FBT002, ARG003
         *,
@@ -97,14 +101,14 @@ class AnnDataInterface(hv.core.Interface):
     ) -> np.ndarray | pd.Series:
         """Retrieve values for a dimension."""
         dim = data.get_dimension(dim)
-        proxy = cast(_AnnDataProxy, data.data)
+        proxy = cast(AnnData, data.data)
         return proxy[dim.name]
 
     @classmethod
     def dimension_type(cls, data: hv.Dataset, dim: hv.Dimension | str) -> np.dtype:
         """Get the data type for a dimension."""
         dim = data.get_dimension(dim)
-        proxy = cast(_AnnDataProxy, data.data)
+        proxy = cast(AnnData, data.data)
         return proxy[dim.name].dtype
 
 
