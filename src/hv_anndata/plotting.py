@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import anndata as ad
 import holoviews as hv
@@ -12,8 +12,6 @@ import param
 
 if TYPE_CHECKING:
     from typing import NotRequired, Unpack
-
-hv.extension("bokeh")
 
 
 class _DotmatPlotParams(TypedDict):
@@ -101,6 +99,31 @@ class Dotmap(param.ParameterizedFunction):
         ].transform(lambda x: x / xmax if (xmax := x.max()) > 0 else 0)
         return df
 
+    def _get_opts(self) -> dict[str, Any]:
+        opts = dict(
+            cmap="Reds",
+            color=hv.dim("mean_expression_norm"),  # Better if we could avoid this one
+            colorbar=True,
+            show_legend=False,
+            xrotation=45,
+        )
+        size_dim = hv.dim("percentage").norm() * self.p.max_dot_size
+        match hv.Store.current_backend:
+            case "matplotlib":
+                backend_opts = {"s": size_dim}
+            case "bokeh":
+                backend_opts = {
+                    "size": size_dim,
+                    "colorbar_position": "left",
+                    "tools": ["hover"],
+                    "width": 900,
+                    "height": 500,
+                }
+            case _:
+                backend_opts = {}
+
+        return opts | backend_opts
+
     def __call__(self, **params: Unpack[_DotmatPlotParams]) -> hv.Points:
         """Create a DotmapPlot from anndata."""
         if required := {"adata", "marker_genes", "groupby"} - params.keys():
@@ -110,30 +133,5 @@ class Dotmap(param.ParameterizedFunction):
 
         df = self._prepare_data()  # noqa: PD901
         plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims, group="dotmap")
-        plot.opts(
-            # Would be better if we could avoid this one
-            color=hv.dim("mean_expression_norm"),
-            size=hv.dim("percentage").norm() * self.p.max_dot_size,
-        )
+        plot.opts(**self._get_opts())
         return plot
-
-
-hv.opts.defaults(
-    hv.opts.Points(
-        "dotmap",
-        cmap="Reds",
-        responsive=True,
-        min_height=380,
-        hover_tooltips=["marker_line", "cluster", "mean_expression", "percentage"],
-        ylabel="Cluster",
-        xlabel="Marker Cluster, Gene",
-        xrotation=45,
-        colorbar=True,
-        colorbar_position="left",
-        invert_yaxis=True,
-        show_legend=False,
-        fontscale=0.7,
-        xaxis="top",
-        clabel="Mean expression in group",
-    )
-)
