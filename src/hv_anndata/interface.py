@@ -94,14 +94,14 @@ class AnnDataInterface(hv.core.Interface):
     ) -> np.ndarray:
         """Retrieve values for a dimension."""
         dim = data.get_dimension(dim)
-        proxy = cast(_AnnDataProxy, data.data)
+        proxy = cast("_AnnDataProxy", data.data)
         return proxy[dim.name]
 
     @classmethod
     def dimension_type(cls, data: hv.Dataset, dim: hv.Dimension | str) -> np.dtype:
         """Get the data type for a dimension."""
         dim = data.get_dimension(dim)
-        proxy = cast(_AnnDataProxy, data.data)
+        proxy = cast("_AnnDataProxy", data.data)
         return proxy[dim.name].dtype
 
 
