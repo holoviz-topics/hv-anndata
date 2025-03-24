@@ -173,10 +173,10 @@ class FeatureMapApp(pn.viewable.Viewer):
 
     adata = param.ClassSelector(class_=ad.AnnData, doc="AnnData object to visualize")
     reduction = param.String(
-        default=None, doc="Initial dimension reduction method", allow_None=True
+        default=None, doc="Dimension reduction method", allow_None=True
     )
     color_by = param.String(
-        default=None, doc="Initial coloring variable", allow_None=True
+        default=None, doc="Coloring variable", allow_None=True
     )
     datashade = param.Boolean(default=True, doc="Whether to enable datashading")
     width = param.Integer(default=300, doc="Width of the plot")
