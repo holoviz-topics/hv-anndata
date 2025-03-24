@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, TypedDict
+
 import anndata as ad
 import colorcet as cc
 import datashader as ds
@@ -11,7 +13,6 @@ import numpy as np
 import panel as pn
 import param
 from panel.reactive import hold
-from typing import Any, Dict, List, Optional, Tuple, Union, TypedDict
 
 
 class FeatureMapConfig(TypedDict, total=False):
@@ -68,6 +69,7 @@ def create_featuremap_plot(
     -------
     hv.Element
         HoloViews element with the configured plot
+
     """
     # Extract config with defaults
     width = config.get("width", 300)
@@ -124,26 +126,40 @@ def create_featuremap_plot(
     if not datashading:
         # Standard plot without datashading
         plot = plot.opts(**plot_opts)
-        
+
         # Add labels if categorical and requested
         if is_categorical and labels:
             plot = _add_category_labels(
-                plot, x_data, color_data, x_dim, y_dim, 
-                xaxis_label, yaxis_label, label_opts
+                plot,
+                x_data,
+                color_data,
+                x_dim,
+                y_dim,
+                xaxis_label,
+                yaxis_label,
+                label_opts,
             )
+    # Apply datashading with different approaches for categorical vs continuous
+    elif is_categorical:
+        plot = _apply_categorical_datashading(
+            plot,
+            x_data,
+            color_data,
+            x_dim,
+            y_dim,
+            color_var,
+            cmap,
+            xaxis_label,
+            yaxis_label,
+            labels,
+            label_opts,
+        )
     else:
-        # Apply datashading with different approaches for categorical vs continuous
-        if is_categorical:
-            plot = _apply_categorical_datashading(
-                plot, x_data, color_data, x_dim, y_dim, color_var, cmap,
-                xaxis_label, yaxis_label, labels, label_opts
-            )
-        else:
-            # For continuous data, take the mean
-            aggregator = ds.mean(color_var)
-            plot = hd.rasterize(plot, aggregator=aggregator)
-            plot = hd.dynspread(plot, threshold=0.5)
-            plot = plot.opts(cmap=cmap, colorbar=colorbar)
+        # For continuous data, take the mean
+        aggregator = ds.mean(color_var)
+        plot = hd.rasterize(plot, aggregator=aggregator)
+        plot = hd.dynspread(plot, threshold=0.5)
+        plot = plot.opts(cmap=cmap, colorbar=colorbar)
 
     # Apply final options to the plot
     return plot.opts(
@@ -163,7 +179,7 @@ def _add_category_labels(
     y_dim: int,
     xaxis_label: str,
     yaxis_label: str,
-    label_opts: Dict[str, Any],
+    label_opts: dict[str, Any],
 ) -> hv.Element:
     """Add category labels to a plot.
 
@@ -190,21 +206,22 @@ def _add_category_labels(
     -------
     hv.Element
         Plot with labels added
+
     """
     unique_categories = np.unique(color_data)
     labels_data = []
-    
+
     for cat in unique_categories:
         mask = color_data == cat
         if np.any(mask):
             median_x = np.median(x_data[mask, x_dim])
             median_y = np.median(x_data[mask, y_dim])
             labels_data.append((median_x, median_y, str(cat)))
-            
-    labels_element = hv.Labels(
-        labels_data, [xaxis_label, yaxis_label], "Label"
-    ).opts(**label_opts)
-    
+
+    labels_element = hv.Labels(labels_data, [xaxis_label, yaxis_label], "Label").opts(
+        **label_opts
+    )
+
     return plot * labels_element
 
 
@@ -219,7 +236,7 @@ def _apply_categorical_datashading(
     xaxis_label: str,
     yaxis_label: str,
     labels: bool,
-    label_opts: Dict[str, Any],
+    label_opts: dict[str, Any],
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -252,18 +269,18 @@ def _apply_categorical_datashading(
     -------
     hv.Element
         Datashaded plot with optional labels and legend
+
     """
     # For categorical data, count by category
     aggregator = ds.count_cat(color_var)
     plot = hd.rasterize(plot, aggregator=aggregator)
     plot = hd.dynspread(plot, threshold=0.5)
     plot = plot.opts(cmap=cmap, tools=["hover"])
-    
+
     # Add either labels or a custom legend
     if labels:
         plot = _add_category_labels(
-            plot, x_data, color_data, x_dim, y_dim, 
-            xaxis_label, yaxis_label, label_opts
+            plot, x_data, color_data, x_dim, y_dim, xaxis_label, yaxis_label, label_opts
         )
     else:
         # Create a custom legend for datashaded categorical plot
@@ -278,9 +295,7 @@ def _apply_categorical_datashading(
         legend = hv.NdOverlay(
             {
                 str(cat): item
-                for cat, item in zip(
-                    unique_categories, legend_items, strict=False
-                )
+                for cat, item in zip(unique_categories, legend_items, strict=False)
             }
         ).opts(
             show_legend=True,
@@ -289,7 +304,7 @@ def _apply_categorical_datashading(
             legend_cols=len(unique_categories) // 10 + 1,
         )
         plot = plot * legend
-        
+
     return plot
 
 
@@ -298,7 +313,7 @@ class FeatureMapApp(pn.viewable.Viewer):
 
     This application provides widgets to select dimensionality reduction methods,
     dimensions for x and y axes, coloring variables, and display options.
-    
+
     Parameters
     ----------
     adata : ad.AnnData
@@ -317,6 +332,7 @@ class FeatureMapApp(pn.viewable.Viewer):
         Whether to show labels
     show_widgets : bool
         Whether to show control widgets
+
     """
 
     adata = param.ClassSelector(class_=ad.AnnData, doc="AnnData object to visualize")
@@ -357,10 +373,11 @@ class FeatureMapApp(pn.viewable.Viewer):
         -------
         str
             A formatted label for display
+
         """
         return dr_key.split("_")[1].upper() if "_" in dr_key else dr_key.upper()
 
-    def get_dim_labels(self, dr_key: str) -> List[str]:
+    def get_dim_labels(self, dr_key: str) -> list[str]:
         """Get labels for each dimension in a reduction method.
 
         Parameters
@@ -372,19 +389,20 @@ class FeatureMapApp(pn.viewable.Viewer):
         -------
         List[str]
             List of labels for each dimension
+
         """
         dr_label = self.get_reduction_label(dr_key)
         num_dims = self.adata.obsm[dr_key].shape[1]
         return [f"{dr_label}{i + 1}" for i in range(num_dims)]
 
     def create_plot(
-        self, 
-        dr_key: str, 
-        x_value: str, 
-        y_value: str, 
-        color_value: str, 
-        datashade_value: bool, 
-        label_value: bool
+        self,
+        dr_key: str,
+        x_value: str,
+        y_value: str,
+        color_value: str,
+        datashade_value: bool,
+        label_value: bool,
     ) -> pn.viewable.Viewable:
         """Create a feature map plot with the specified parameters.
 
@@ -407,6 +425,7 @@ class FeatureMapApp(pn.viewable.Viewer):
         -------
         pn.viewable.Viewable
             The plot or an error message
+
         """
         x_data = self.adata.obsm[dr_key]
         dr_label = self.get_reduction_label(dr_key)
@@ -466,6 +485,7 @@ class FeatureMapApp(pn.viewable.Viewer):
         -------
         pn.viewable.Viewable
             The assembled panel application
+
         """
         # Widgets
         dr_select = pn.widgets.Select.from_param(
