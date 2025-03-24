@@ -175,9 +175,7 @@ class FeatureMapApp(pn.viewable.Viewer):
     reduction = param.String(
         default=None, doc="Dimension reduction method", allow_None=True
     )
-    color_by = param.String(
-        default=None, doc="Coloring variable", allow_None=True
-    )
+    color_by = param.String(default=None, doc="Coloring variable", allow_None=True)
     datashade = param.Boolean(default=True, doc="Whether to enable datashading")
     width = param.Integer(default=300, doc="Width of the plot")
     height = param.Integer(default=300, doc="Height of the plot")
