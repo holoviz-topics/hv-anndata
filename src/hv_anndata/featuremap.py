@@ -1,8 +1,9 @@
-"""Interactive visualization of AnnData dimension reductions with HoloViews and Panel."""
+"""Interactive vizualization of AnnData dimension reductions with HoloViews and Panel."""  # noqa: E501
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, Unpack
+from warnings import warn
 
 import anndata as ad
 import colorcet as cc
@@ -14,17 +15,27 @@ import panel as pn
 import param
 from panel.reactive import hold
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 
 class FeatureMapConfig(TypedDict, total=False):
     """Configuration options for feature map plotting."""
 
     width: int
+    """width of the plot (default: 300)"""
     height: int
+    """height of the plot (default: 300)"""
     datashading: bool
+    """whether to apply datashader (default: True)"""
     labels: bool
+    """whether to overlay labels at median positions (default: False)"""
     cont_cmap: str
+    """colormap for continuous data (default: "viridis")"""
     cat_cmap: list
+    """colormap for categorical data (default: cc.b_glasbey_category10)"""
     title: str
+    """plot title (default: "")"""
 
 
 def create_featuremap_plot(
@@ -35,7 +46,7 @@ def create_featuremap_plot(
     color_var: str,
     xaxis_label: str,
     yaxis_label: str,
-    **config: Any,
+    **config: Unpack[FeatureMapConfig],
 ) -> hv.Element:
     """Create a comprehensive feature map plot with options for datashading and labels.
 
@@ -56,14 +67,7 @@ def create_featuremap_plot(
     yaxis_label : str
         Label for the y axis
     **config : Any
-        Additional configuration options including:
-        - width: int, width of the plot (default: 300)
-        - height: int, height of the plot (default: 300)
-        - datashading: bool, whether to apply datashader (default: True)
-        - labels: bool, whether to overlay labels at median positions (default: False)
-        - cont_cmap: str, colormap for continuous data (default: "viridis")
-        - cat_cmap: list, colormap for categorical data (default: cc.b_glasbey_category10)
-        - title: str, plot title (default: "")
+        Additional configuration options including, see :class:`FeatureMapConfig`.
 
     Returns
     -------
@@ -143,16 +147,16 @@ def create_featuremap_plot(
     elif is_categorical:
         plot = _apply_categorical_datashading(
             plot,
-            x_data,
-            color_data,
-            x_dim,
-            y_dim,
-            color_var,
-            cmap,
-            xaxis_label,
-            yaxis_label,
-            labels,
-            label_opts,
+            x_data=x_data,
+            color_data=color_data,
+            x_dim=x_dim,
+            y_dim=y_dim,
+            color_var=color_var,
+            cmap=cmap,
+            xaxis_label=xaxis_label,
+            yaxis_label=yaxis_label,
+            labels=labels,
+            label_opts=label_opts,
         )
     else:
         # For continuous data, take the mean
@@ -171,7 +175,7 @@ def create_featuremap_plot(
     )
 
 
-def _add_category_labels(
+def _add_category_labels(  # noqa: PLR0913
     plot: hv.Element,
     x_data: np.ndarray,
     color_data: np.ndarray,
@@ -225,14 +229,15 @@ def _add_category_labels(
     return plot * labels_element
 
 
-def _apply_categorical_datashading(
+def _apply_categorical_datashading(  # noqa: PLR0913
     plot: hv.Element,
+    *,
     x_data: np.ndarray,
     color_data: np.ndarray,
     x_dim: int,
     y_dim: int,
     color_var: str,
-    cmap: Any,
+    cmap: Sequence[str],
     xaxis_label: str,
     yaxis_label: str,
     labels: bool,
@@ -242,33 +247,32 @@ def _apply_categorical_datashading(
 
     Parameters
     ----------
-    plot : hv.Element
+    plot
         The base plot to apply datashading to
-    x_data : np.ndarray
+    x_data
         Coordinate data
-    color_data : np.ndarray
+    color_data
         Category data for coloring
-    x_dim : int
+    x_dim
         Index for x dimension
-    y_dim : int
+    y_dim
         Index for y dimension
-    color_var : str
+    color_var
         Name of the color variable
-    cmap : Any
+    cmap
         Colormap to use
-    xaxis_label : str
+    xaxis_label
         X-axis label
-    yaxis_label : str
+    yaxis_label
         Y-axis label
-    labels : bool
+    labels
         Whether to add category labels
-    label_opts : Dict[str, Any]
+    label_opts
         Options for label formatting
 
     Returns
     -------
-    hv.Element
-        Datashaded plot with optional labels and legend
+    Datashaded plot with optional labels and legend
 
     """
     # For categorical data, count by category
@@ -346,7 +350,7 @@ class FeatureMapApp(pn.viewable.Viewer):
     labels = param.Boolean(default=False, doc="Whether to show labels")
     show_widgets = param.Boolean(default=True, doc="Whether to show control widgets")
 
-    def __init__(self, **params: Any) -> None:
+    def __init__(self, **params: object) -> None:
         """Initialize the FeatureMapApp with the given parameters."""
         super().__init__(**params)
         self.dr_options = list(self.adata.obsm.keys())
@@ -397,6 +401,7 @@ class FeatureMapApp(pn.viewable.Viewer):
 
     def create_plot(
         self,
+        *,
         dr_key: str,
         x_value: str,
         y_value: str,
@@ -441,7 +446,8 @@ class FeatureMapApp(pn.viewable.Viewer):
             y_dim = int(y_value.replace(dr_label, "")) - 1
         except (ValueError, AttributeError):
             return pn.pane.Markdown(
-                f"Error parsing dimensions. Make sure to select valid {dr_label} dimensions."
+                f"Error parsing dimensions. "
+                f"Make sure to select valid {dr_label} dimensions."
             )
 
         # Get color data from .obs or X cols
@@ -456,7 +462,9 @@ class FeatureMapApp(pn.viewable.Viewer):
                 )
             except (KeyError, ValueError):
                 color_data = np.zeros(self.adata.n_obs)
-                print(f"Warning: Could not find {color_value} in obs or var")
+                warn(
+                    f"Warning: Could not find {color_value} in obs or var", stacklevel=2
+                )
 
         # Configure the plot
         config = FeatureMapConfig(
@@ -510,7 +518,7 @@ class FeatureMapApp(pn.viewable.Viewer):
 
         # Reset dimension options when reduction selection changes
         @hold()
-        def reset_dimension_options(event: Any) -> None:
+        def reset_dimension_options(event: object) -> None:
             new_dims = self.get_dim_labels(event.new)
             x_axis.param.update(options=new_dims, value=new_dims[0])
             y_axis.param.update(options=new_dims, value=new_dims[1])
