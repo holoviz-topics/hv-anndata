@@ -52,27 +52,26 @@ def create_featuremap_plot(
 
     Parameters
     ----------
-    x_data : np.ndarray
+    x_data
         Array with shape n_obs by n_dimensions containing coordinates
-    color_data : np.ndarray
+    color_data
         Array with shape n_obs containing color values (categorical or continuous)
-    x_dim : int
+    x_dim
         Index to use for x-axis data
-    y_dim : int
+    y_dim
         Index to use for y-axis data
-    color_var : str
+    color_var
         Name to give the coloring dimension
-    xaxis_label : str
+    xaxis_label
         Label for the x axis
-    yaxis_label : str
+    yaxis_label
         Label for the y axis
-    **config : Any
+    **config
         Additional configuration options including, see :class:`FeatureMapConfig`.
 
     Returns
     -------
-    hv.Element
-        HoloViews element with the configured plot
+    HoloViews element with the configured plot
 
     """
     # Extract config with defaults
@@ -189,27 +188,26 @@ def _add_category_labels(  # noqa: PLR0913
 
     Parameters
     ----------
-    plot : hv.Element
+    plot
         The base plot to add labels to
-    x_data : np.ndarray
+    x_data
         Coordinate data
-    color_data : np.ndarray
+    color_data
         Category data for coloring
-    x_dim : int
+    x_dim
         Index for x dimension
-    y_dim : int
+    y_dim
         Index for y dimension
-    xaxis_label : str
+    xaxis_label
         X-axis label
-    yaxis_label : str
+    yaxis_label
         Y-axis label
-    label_opts : Dict[str, Any]
+    label_opts
         Options for label formatting
 
     Returns
     -------
-    hv.Element
-        Plot with labels added
+    Plot with labels added
 
     """
     unique_categories = np.unique(color_data)
@@ -320,35 +318,41 @@ class FeatureMapApp(pn.viewable.Viewer):
 
     Parameters
     ----------
-    adata : ad.AnnData
+    adata
         AnnData object to visualize
-    reduction : Optional[str]
+    reduction
         Initial dimension reduction method to use
-    color_by : Optional[str]
+    color_by
         Initial variable to use for coloring
-    datashade : bool
+    datashade
         Whether to enable datashading
-    width : int
+    width
         Width of the plot
-    height : int
+    height
         Height of the plot
-    labels : bool
+    labels
         Whether to show labels
-    show_widgets : bool
+    show_widgets
         Whether to show control widgets
 
     """
 
-    adata = param.ClassSelector(class_=ad.AnnData, doc="AnnData object to visualize")
-    reduction = param.String(
+    adata: ad.AnnData = param.ClassSelector(  # type: ignore[assignment]
+        class_=ad.AnnData, doc="AnnData object to visualize"
+    )
+    reduction: str | None = param.String(  # type: ignore[assignment]
         default=None, doc="Dimension reduction method", allow_None=True
     )
-    color_by = param.String(default=None, doc="Coloring variable", allow_None=True)
-    datashade = param.Boolean(default=True, doc="Whether to enable datashading")
-    width = param.Integer(default=300, doc="Width of the plot")
-    height = param.Integer(default=300, doc="Height of the plot")
-    labels = param.Boolean(default=False, doc="Whether to show labels")
-    show_widgets = param.Boolean(default=True, doc="Whether to show control widgets")
+    color_by: str | None = param.String(  # type: ignore[assignment]
+        default=None, doc="Coloring variable", allow_None=True
+    )
+    datashade: bool = param.Boolean(default=True, doc="Whether to enable datashading")  # type: ignore[assignment]
+    width: int = param.Integer(default=300, doc="Width of the plot")  # type: ignore[assignment]
+    height: int = param.Integer(default=300, doc="Height of the plot")  # type: ignore[assignment]
+    labels: bool = param.Boolean(default=False, doc="Whether to show labels")  # type: ignore[assignment]
+    show_widgets: bool = param.Boolean(  # type: ignore[assignment]
+        default=True, doc="Whether to show control widgets"
+    )
 
     def __init__(self, **params: object) -> None:
         """Initialize the FeatureMapApp with the given parameters."""
@@ -370,13 +374,12 @@ class FeatureMapApp(pn.viewable.Viewer):
 
         Parameters
         ----------
-        dr_key : str
+        dr_key
             The dimension reduction key
 
         Returns
         -------
-        str
-            A formatted label for display
+        A formatted label for display
 
         """
         return dr_key.split("_")[1].upper() if "_" in dr_key else dr_key.upper()
@@ -386,13 +389,12 @@ class FeatureMapApp(pn.viewable.Viewer):
 
         Parameters
         ----------
-        dr_key : str
+        dr_key
             The dimension reduction key
 
         Returns
         -------
-        List[str]
-            List of labels for each dimension
+        List of labels for each dimension
 
         """
         dr_label = self.get_reduction_label(dr_key)
@@ -413,23 +415,22 @@ class FeatureMapApp(pn.viewable.Viewer):
 
         Parameters
         ----------
-        dr_key : str
+        dr_key
             Dimensionality reduction key
-        x_value : str
+        x_value
             X-axis dimension label
-        y_value : str
+        y_value
             Y-axis dimension label
-        color_value : str
+        color_value
             Variable to use for coloring
-        datashade_value : bool
+        datashade_value
             Whether to enable datashading
-        label_value : bool
+        label_value
             Whether to show labels
 
         Returns
         -------
-        pn.viewable.Viewable
-            The plot or an error message
+        The plot or an error message
 
         """
         x_data = self.adata.obsm[dr_key]
@@ -491,8 +492,7 @@ class FeatureMapApp(pn.viewable.Viewer):
 
         Returns
         -------
-        pn.viewable.Viewable
-            The assembled panel application
+        The assembled panel application
 
         """
         # Widgets
