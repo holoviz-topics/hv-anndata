@@ -19,8 +19,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class FeatureMapConfig(TypedDict, total=False):
-    """Configuration options for feature map plotting."""
+class ManifoldMapConfig(TypedDict, total=False):
+    """Configuration options for manifold map plotting."""
 
     width: int
     """width of the plot (default: 300)"""
@@ -38,7 +38,7 @@ class FeatureMapConfig(TypedDict, total=False):
     """plot title (default: "")"""
 
 
-def create_featuremap_plot(
+def create_manifoldmap_plot(
     x_data: np.ndarray,
     color_data: np.ndarray,
     x_dim: int,
@@ -48,7 +48,7 @@ def create_featuremap_plot(
     yaxis_label: str,
     **config: Unpack[FeatureMapConfig],
 ) -> hv.Element:
-    """Create a comprehensive feature map plot with options for datashading and labels.
+    """Create a comprehensive manifold map plot with options for datashading and labels.
 
     Parameters
     ----------
@@ -310,8 +310,8 @@ def _apply_categorical_datashading(  # noqa: PLR0913
     return plot
 
 
-class FeatureMapApp(pn.viewable.Viewer):
-    """Interactive feature map application for exploring AnnData objects.
+class ManifoldMap(pn.viewable.Viewer):
+    """Interactive manifold map application for exploring AnnData objects.
 
     This application provides widgets to select dimensionality reduction methods,
     dimensions for x and y axes, coloring variables, and display options.
@@ -354,8 +354,13 @@ class FeatureMapApp(pn.viewable.Viewer):
         default=True, doc="Whether to show control widgets"
     )
 
+<<<<<<< Updated upstream:src/hv_anndata/featuremap.py
     def __init__(self, **params: object) -> None:
         """Initialize the FeatureMapApp with the given parameters."""
+=======
+    def __init__(self, **params: Any) -> None:
+        """Initialize the ManifoldMap with the given parameters."""
+>>>>>>> Stashed changes:src/hv_anndata/manifoldmap.py
         super().__init__(**params)
         self.dr_options = list(self.adata.obsm.keys())
         if not self.reduction:
@@ -411,7 +416,7 @@ class FeatureMapApp(pn.viewable.Viewer):
         datashade_value: bool,
         label_value: bool,
     ) -> pn.viewable.Viewable:
-        """Create a feature map plot with the specified parameters.
+        """Create a manifold map plot with the specified parameters.
 
         Parameters
         ----------
@@ -468,7 +473,7 @@ class FeatureMapApp(pn.viewable.Viewer):
                 )
 
         # Configure the plot
-        config = FeatureMapConfig(
+        config = ManifoldMapConfig(
             width=self.width,
             height=self.height,
             datashading=datashade_value,
@@ -476,7 +481,7 @@ class FeatureMapApp(pn.viewable.Viewer):
             title=f"{dr_label}.{color_value}",
         )
 
-        return create_featuremap_plot(
+        return create_manifoldmap_plot(
             x_data,
             color_data,
             x_dim,
