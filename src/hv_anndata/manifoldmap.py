@@ -46,7 +46,7 @@ def create_manifoldmap_plot(
     color_var: str,
     xaxis_label: str,
     yaxis_label: str,
-    **config: Unpack[FeatureMapConfig],
+    **config: Unpack[ManifoldMapConfig],
 ) -> hv.Element:
     """Create a comprehensive manifold map plot with options for datashading and labels.
 
@@ -67,7 +67,7 @@ def create_manifoldmap_plot(
     yaxis_label
         Label for the y axis
     **config
-        Additional configuration options including, see :class:`FeatureMapConfig`.
+        Additional configuration options including, see :class:`ManifoldMapConfig`.
 
     Returns
     -------
@@ -354,13 +354,8 @@ class ManifoldMap(pn.viewable.Viewer):
         default=True, doc="Whether to show control widgets"
     )
 
-<<<<<<< Updated upstream:src/hv_anndata/featuremap.py
     def __init__(self, **params: object) -> None:
-        """Initialize the FeatureMapApp with the given parameters."""
-=======
-    def __init__(self, **params: Any) -> None:
-        """Initialize the ManifoldMap with the given parameters."""
->>>>>>> Stashed changes:src/hv_anndata/manifoldmap.py
+        """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
         self.dr_options = list(self.adata.obsm.keys())
         if not self.reduction:
