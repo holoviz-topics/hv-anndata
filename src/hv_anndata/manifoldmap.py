@@ -117,7 +117,7 @@ def create_manifoldmap_plot(
         alpha=0.5,
         colorbar=colorbar,
         padding=0,
-        tools=["hover"],
+        tools=["hover", "box_select", "lasso_select"],
         show_legend=show_legend,
         legend_position="right",
     )
@@ -167,7 +167,7 @@ def create_manifoldmap_plot(
     # Apply final options to the plot
     return plot.opts(
         title=title,
-        tools=["hover"],
+        tools=["hover", "box_select", "lasso_select"],
         show_legend=show_legend,
         frame_width=width,
         frame_height=height,
@@ -277,7 +277,7 @@ def _apply_categorical_datashading(  # noqa: PLR0913
     aggregator = ds.count_cat(color_var)
     plot = hd.rasterize(plot, aggregator=aggregator)
     plot = hd.dynspread(plot, threshold=0.5)
-    plot = plot.opts(cmap=cmap, tools=["hover"])
+    plot = plot.opts(cmap=cmap, tools=["hover", "box_select", "lasso_select"])
 
     # Add either labels or a custom legend
     if labels:
