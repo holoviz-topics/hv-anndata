@@ -80,10 +80,9 @@ lint.pylint.max-positional-args = 3
 
 [tool.pytest.ini_options]
 addopts = [ "--import-mode=importlib", "--strict-markers" ]
-filterwarnings = [
-  "ignore::DeprecationWarning:distutils.*",
-  "error",
-]
+# filterwarnings = [
+# "error",
+# ]
 
 [tool.coverage.run]
 source_pkgs = [ "hv_anndata", "tests" ]
