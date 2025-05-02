@@ -64,12 +64,13 @@ lint.per-file-ignores."src/hv_anndata/__main__.py" = [
   "T201", # print is fine
 ]
 lint.per-file-ignores."tests/*" = [
-  "D102",   # Missing docstring in public method
-  "D103",   # Missing docstring in public function
-  "D105",   # Missing docstring in magic method
-  "INP001", # __init__.py
-  "RUF018", # assert with := is fine
-  "S101",   # Use of assert
+  "D102",    # Missing docstring in public method
+  "D103",    # Missing docstring in public function
+  "D105",    # Missing docstring in magic method
+  "INP001",  # __init__.py
+  "PLR2004", # magic-value-comparison
+  "RUF018",  # assert with := is fine
+  "S101",    # Use of assert
 ]
 lint.allowed-confusables = [ "×", "’" ]
 lint.flake8-copyright.notice-rgx = "SPDX-License-Identifier: MPL-2\\.0"
