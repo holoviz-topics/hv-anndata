@@ -32,10 +32,27 @@ class AdPath(Dimension):
     def __repr__(self) -> str:
         return self._repr.replace("slice(None, None, None)", ":")  # TODO: prettier
 
+    def __hash__(self):
+        return hash(self._repr)
+
     def __call__(
         self, adata: AnnData
     ) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
         return self._func(adata)
+
+    def __eq__(self, dim: str | Dimension):
+        equals = super().__eq__(dim)
+        if equals or isinstance(dim, Dimension):
+            return equals
+        if isinstance(dim, str):
+            # Ensure that selections along the var and obs dimensions match
+            label = self.name.lstrip("A.").replace("['", ".").replace("']", "")
+            if (
+                (label.startswith("obs") and dim.startswith("obs")) or
+                (label.startswith("var") and dim.startswith("var"))
+            ):
+                return True
+        return False
 
     def isin(self, adata: AnnData) -> bool:
         try:
@@ -57,7 +74,7 @@ class LayerVecAcc:
 
     def __getitem__(self, i: IdxStr2D) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].layers[self.k]).flatten()  # TODO: pandas
+            return np.asarray(ad[i].layers[self.k])  # TODO: pandas
 
         return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get)
 
@@ -68,6 +85,8 @@ class MetaAcc:
 
     def __getitem__(self, k: str) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            if k == 'index':
+                return getattr(ad, self.ax).index
             return getattr(ad, self.ax)[k]
 
         return AdPath(f"A.{self.ax}[{k!r}]", get)
@@ -88,9 +107,9 @@ class MultiVecAcc:
 
     def __getitem__(self, i: int) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return getattr(ad, self.ax)[self.k][i]
+            return getattr(ad, self.ax)[self.k][:, i]
 
-        return AdPath(f"A.{self.ax}[{self.k!r}][{i!r}]", get)
+        return AdPath(f"A.{self.ax}[{self.k!r}][:, {i!r}]", get)
 
 
 @dataclass(frozen=True)
@@ -125,6 +144,22 @@ class AdAc:
 
     def __getitem__(self, i: IdxStr2D) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].X).flatten()  # TODO: pandas
+            return np.asarray(ad[i].X)  # TODO: pandas
 
         return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get)
+
+    @classmethod
+    def resolve(cls, spec: str) -> AdPath:
+        inst = cls()
+        acc, *pieces = spec.split(".")
+        pieces = list(pieces)
+        if not hasattr(inst, acc):
+            return inst[tuple(int(acc), int(pieces[0]))]
+        current = getattr(inst, acc)
+        if isinstance(current, (GraphAcc, LayerAcc, MetaAcc, MultiAcc)):
+            current = current[pieces.pop(0)]
+        if isinstance(current, MultiVecAcc):
+            current = current[int(pieces.pop(0))]
+        elif isinstance(current, (LayerVecAcc, GraphVecAcc)):
+            current = current[int(pieces.pop(0)), int(pieces.pop(0))]
+        return current
