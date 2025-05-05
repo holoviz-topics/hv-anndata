@@ -149,6 +149,16 @@ class AdAc:
         return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get)
 
     @classmethod
+    def from_dimension(cls, dim: Dimension) -> AdPath:
+        """Create accessor from another dimension."""
+        if isinstance(dim, AdPath):
+            return dim
+        rv = AdAc.resolve(dim.name)
+        if dim.name != dim.label:
+            rv.label = dim.label
+        return rv
+
+    @classmethod
     def resolve(cls, spec: str) -> AdPath:
         """Create accessor from string."""
         acc, rest = spec.split(".", 1)
