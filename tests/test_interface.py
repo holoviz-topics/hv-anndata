@@ -71,13 +71,11 @@ def test_get(
 ) -> None:
     data = hv.Dataset(adata, [path])
     assert data.interface is AnnDataInterface
-    vals = data.interface.values(data, path)
+    vals = data.interface.values(data, path, keep_index=True)
     if isinstance(vals, np.ndarray):
         np.testing.assert_array_equal(vals, expected(adata))
     elif isinstance(vals, pd.Series):
         pd.testing.assert_series_equal(vals, expected(adata))
-    elif isinstance(vals, pd.api.extensions.ExtensionArray):
-        pd.testing.assert_extension_array_equal(vals, expected(adata))
     else:
         pytest.fail(f"Unexpected return type {type(vals)}")
 
