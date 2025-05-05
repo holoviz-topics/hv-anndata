@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+import re
+from dataclasses import dataclass, fields
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import numpy as np
 from holoviews.core.dimension import Dimension
@@ -14,8 +15,8 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     # full slices: e.g. a[:, 5] or a[18, :]
-    IdxInt2D = tuple[int, slice] | tuple[slice, int]
-    IdxStr2D = tuple[str, slice] | tuple[slice, str]
+    Idx = TypeVar("Idx", int, str)
+    Idx2D = tuple[Idx, slice] | tuple[slice, Idx]
 
 
 class AdPath(Dimension):
@@ -47,9 +48,8 @@ class AdPath(Dimension):
         if isinstance(dim, str):
             # Ensure that selections along the var and obs dimensions match
             label = self.name.lstrip("A.").replace("['", ".").replace("']", "")
-            if (
-                (label.startswith("obs") and dim.startswith("obs")) or
-                (label.startswith("var") and dim.startswith("var"))
+            if (label.startswith("obs") and dim.startswith("obs")) or (
+                label.startswith("var") and dim.startswith("var")
             ):
                 return True
         return False
@@ -72,7 +72,7 @@ class LayerAcc:
 class LayerVecAcc:
     k: str
 
-    def __getitem__(self, i: IdxStr2D) -> AdPath:
+    def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return np.asarray(ad[i].layers[self.k])  # TODO: pandas
 
@@ -85,7 +85,7 @@ class MetaAcc:
 
     def __getitem__(self, k: str) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            if k == 'index':
+            if k == "index":
                 return getattr(ad, self.ax).index
             return getattr(ad, self.ax)[k]
 
@@ -125,7 +125,7 @@ class GraphVecAcc:
     ax: Literal["obsp", "varp"]
     k: str
 
-    def __getitem__(self, i: IdxInt2D) -> AdPath:
+    def __getitem__(self, i: Idx2D[int]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return getattr(ad, self.ax)[self.k][i]
 
@@ -142,7 +142,7 @@ class AdAc:
     obsp = GraphAcc("obsp")
     varp = GraphAcc("varp")
 
-    def __getitem__(self, i: IdxStr2D) -> AdPath:
+    def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return np.asarray(ad[i].X)  # TODO: pandas
 
@@ -150,16 +150,44 @@ class AdAc:
 
     @classmethod
     def resolve(cls, spec: str) -> AdPath:
-        inst = cls()
-        acc, *pieces = spec.split(".")
-        pieces = list(pieces)
-        if not hasattr(inst, acc):
-            return inst[tuple(int(acc), int(pieces[0]))]
-        current = getattr(inst, acc)
-        if isinstance(current, (GraphAcc, LayerAcc, MetaAcc, MultiAcc)):
-            current = current[pieces.pop(0)]
-        if isinstance(current, MultiVecAcc):
-            current = current[int(pieces.pop(0))]
-        elif isinstance(current, (LayerVecAcc, GraphVecAcc)):
-            current = current[int(pieces.pop(0)), int(pieces.pop(0))]
-        return current
+        """Create accessor from string."""
+        acc, rest = spec.split(".", 1)
+        if acc not in {f.name for f in fields(cls)}:
+            return cls()[_parse_idx_2d(acc, rest, str)]
+        match getattr(cls(), acc):
+            case LayerAcc() as layers:
+                if m := re.fullmatch(r"([^\[]+)\[([^,]+),\s?([^\]]+)\]", rest):
+                    layer, i, j = m.groups("")  # "" just for typing
+                    return layers[layer][_parse_idx_2d(i, j, str)]
+                msg = (
+                    f"Cannot parse layer accessor {rest!r}: "
+                    "should be `name[i,:]` or `name[:,j]`"
+                )
+            case MetaAcc() as meta:
+                return meta[rest]
+            case MultiAcc() as multi:
+                if m := re.fullmatch(r"([^.]+)\.([\d_]+)", rest):
+                    key, i = m.groups("")  # "" just for typing
+                    return multi[key][int(i)]
+                msg = f"Cannot parse multi accessor {rest!r}: should be `name.i`"
+            case GraphAcc():
+                msg = "TODO"
+                raise NotImplementedError(msg)
+            case AdPath():
+                msg = "TODO"
+                raise NotImplementedError(msg)
+            case _:
+                msg = f"Unhandled accessor {spec!r}. This is a bug!"
+                raise AssertionError(msg)
+        raise ValueError(msg)
+
+
+def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
+    match i, j:
+        case _, ":":
+            return cls(0), slice(None)
+        case ":", _:
+            return slice(None), cls(0)
+        case _:
+            msg = f"Unknown indices {i!r}, {j!r}"
+            raise ValueError(msg)
