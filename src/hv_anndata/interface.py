@@ -149,7 +149,7 @@ class AnnDataInterface(hv.core.Interface):
         return (axes[0],)
 
     @classmethod
-    def validate(cls, dataset: Dataset, *, vdims: bool = True) -> None:
+    def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002
         dims = "all" if vdims else "key"
         not_found = [
             d
