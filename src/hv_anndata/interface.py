@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 import holoviews as hv
 import numpy as np
@@ -12,15 +12,13 @@ from anndata import AnnData
 from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
-from holoviews.core.dimension import Dimension
 from holoviews.core.util import expand_grid_coords
 from holoviews.element.raster import SheetCoordinateSystem
 
 from .accessors import AdAc, AdPath
 
 if TYPE_CHECKING:
-    import numpy as np
-    import pandas as pd
+    from holoviews.core.dimension import Dimension
 
     class Dims(TypedDict):
         """Holoviews Dimensions."""
@@ -71,26 +69,29 @@ class AnnDataInterface(hv.core.Interface):
         vdim = value_dimensions and value_dimensions[0]
         ndim = 1 if not vdim else vdim(data).ndim
         if not cls.gridded and ndim > 1:
-            raise ValueError("AnnDataInterface cannot handle gridded data.")
+            msg = "AnnDataInterface cannot handle gridded data."
+            raise ValueError(msg)
         if cls.gridded and ndim == 1:
-            raise ValueError("AnnDataGriddedInterface cannot handle tabular data.")
+            msg = "AnnDataGriddedInterface cannot handle tabular data."
+            raise ValueError(msg)
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
 
     @classmethod
-    def axes(cls, dataset) -> tuple[str, ...]:
+    def axes(cls, dataset: Dataset) -> tuple[str, ...]:
         """Detects if the data is gridded or columnar and along which axes it is indexed."""
         dims = dataset.dimensions()
         vdim = dataset.vdims and dataset.vdims[0]
         ndim = 1 if not vdim else vdim(dataset.data).ndim
         axes, shapes = [], []
         if ndim > 1:
-            # Gridded data case, ensure that the key dimensions (i.e. the two-dimensional indexes)
+            # Gridded data case, ensure that the key dimensions (i.e. the 2D indexes)
             # map onto the obs and var axes.
             if len(dataset.kdims) != ndim:
-                raise DataError(
-                    "AnnData Dataset with multi-dimensional data must declare corresponding "
-                    "key dimensions."
+                msg = (
+                    "AnnData Dataset with multi-dimensional data must declare "
+                    "corresponding key dimensions."
                 )
+                raise DataError(msg)
             for dim in dims[:2]:
                 label = dim.name.lstrip("A.").replace("['", ".").replace("']", "")
                 if label.startswith("obs"):
@@ -98,16 +99,18 @@ class AnnDataInterface(hv.core.Interface):
                 elif label.startswith("var"):
                     axes.append("var")
                 else:
-                    raise DataError(
+                    msg = (
                         "AnnData Dataset key dimensions must map onto either obs or var axes. "
                         "Cannot use multi-dimensional array as index."
                     )
+                    raise DataError(msg)
                 dim_shape = dim(dataset.data).shape
                 if len(dim_shape) > 1:
-                    raise DataError(
+                    msg = (
                         "AnnData Dataset key dimensions must map onto either obs or var axes. "
                         "Cannot use multi-dimensional array as index."
                     )
+                    raise DataError(msg)
                 shapes.append(dim_shape)
             return tuple(axes)
 
@@ -115,10 +118,11 @@ class AnnDataInterface(hv.core.Interface):
         for dim in dims:
             dim_shape = dim(dataset.data).shape
             if len(dim_shape) > 1:
-                raise DataError(
-                    "AnnData Dataset with multi-dimensional data must declare corresponding "
-                    "key dimensions."
+                msg = (
+                    "AnnData Dataset with multi-dimensional data must declare "
+                    "corresponding key dimensions."
                 )
+                raise DataError(msg)
             label = (
                 repr(dim)
                 .lstrip("A.")
@@ -137,14 +141,15 @@ class AnnDataInterface(hv.core.Interface):
                 elif ":]" in label:
                     axes.append("var")
         if len(set(axes)) != 1:
-            raise DataError(
+            msg = (
                 "AnnData Dataset in tabular mode must reference data along either the "
                 "obs or the var axis, not both."
             )
+            raise DataError(msg)
         return (axes[0],)
 
     @classmethod
-    def validate(cls, dataset: Dataset, vdims=True):
+    def validate(cls, dataset: Dataset, *, vdims: bool = True) -> None:
         dims = "all" if vdims else "key"
         not_found = [
             d
@@ -161,7 +166,7 @@ class AnnDataInterface(hv.core.Interface):
         axes = cls.axes(dataset)
 
     @classmethod
-    def select(cls, dataset, selection_mask=None, **selection):
+    def select(cls, dataset: Dataset, selection_mask=None, **selection):
         obs_selections, var_selections = {}, {}
         for k, v in selection.items():
             if k.startswith("obs."):
@@ -176,7 +181,7 @@ class AnnDataInterface(hv.core.Interface):
             obs = Dataset(dataset.data.obs).select(**obs_selections).data.index
         else:
             obs = slice(None)
-        if obs_selections:
+        if var_selections:
             var = Dataset(dataset.data.var).select(**var_selections).data.index
         else:
             var = slice(None)
@@ -195,12 +200,12 @@ class AnnDataInterface(hv.core.Interface):
     ) -> np.ndarray | pd.api.extensions.ExtensionArray:
         """Retrieve values for a dimension."""
         dim = cast("AdPath", data.get_dimension(dim))
-        idx = data.get_dimension_index(dim)
         adata = cast("AnnData", data.data)
         values = dim(adata)
         if not keep_index and isinstance(values, pd.Series):
-            values = values.values
+            values = values.array
         elif flat and values.ndim > 1:
+            assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
         return values
 
@@ -214,18 +219,19 @@ class AnnDataInterface(hv.core.Interface):
         return dim(adata).dtype
 
     @classmethod
-    def dimension_type(cls, dataset, dim):
+    def dimension_type(cls, dataset: Dataset, dim):
         return cls.dtype(dataset, dim).type
 
     @classmethod
-    def iloc(cls, dataset, index):
+    def iloc(cls, dataset: Dataset, index):
         rows, cols = index
         axes = cls.axes(dataset)
         if cols != slice(None):
-            raise IndexError(
+            msg = (
                 f"When indexing using .iloc on {axes[0]} indexed data you may only select "
                 "rows along that dimension, i.e. you may not provide a column selection. "
             )
+            raise IndexError(msg)
         if axes[0] == "var":
             return dataset.data[:, rows]
         if axes[0] == "obs":
@@ -239,36 +245,48 @@ class AnnDataGriddedInterface(AnnDataInterface):
     gridded = True
 
     @classmethod
-    def shape(cls, dataset, gridded=False):
+    def shape(cls, dataset: Dataset, *, gridded: bool = False) -> tuple[int, int]:
+        del gridded
         ax1, ax2 = cls.axes(dataset)
         return (len(getattr(dataset.data, ax1)), len(getattr(dataset.data, ax2)))
 
     @classmethod
-    def iloc(cls, dataset, index):
+    def iloc(cls, dataset: Dataset, index):
         rows, cols = index
         ax1, ax2 = cls.axes(dataset)
-        if ax1 == ax2:
-            if cols != slice(None):
-                raise IndexError(
-                    f"When indexing using .iloc on pairwise variables (in this case {ax1}p) "
-                    "you may only index on rows, i.e. index using `dataset.iloc[{ax1}s]`, "
-                    f"not along two axes, as in `dataset[{ax1}s, {ax1}s2]).`"
-                )
+        if ax1 != ax2:
             if ax1 == "var":
-                return dataset.data[:, rows]
-            if ax2 == "obs":
-                return dataset.data[rows]
-        elif ax1 == "var":
-            return dataset.data[cols, rows]
-        else:
+                return dataset.data[cols, rows]
             return dataset.data[rows, cols]
 
-    @classmethod
-    def coords(cls, dataset, dim, ordered=False, expanded=False, edges=False):
-        """Returns the coordinates along a dimension.  Ordered ensures
-        coordinates are in ascending order and expanded creates
-        ND-array matching the dimensionality of the dataset.
+        if cols != slice(None):
+            msg = (
+                f"When indexing using .iloc on pairwise variables "
+                f"(in this case {ax1}p) you may only index on rows, "
+                f"i.e. index using `dataset.iloc[{ax1}s]`, "
+                f"not along two axes, as in `dataset[{ax1}s, {ax1}s2]).`"
+            )
+            raise IndexError(msg)
+        if ax1 == "var":
+            return dataset.data[:, rows]
+        if ax2 == "obs":
+            return dataset.data[rows]
+        return None
 
+    @classmethod
+    def coords(
+        cls,
+        dataset: Dataset,
+        dim: Dimension,
+        *,
+        ordered: bool = False,
+        expanded: bool = False,
+        edges: bool = False,
+    ):
+        """Get the coordinates along a dimension.
+
+        Ordered ensures coordinates are in ascending order and expanded creates
+        ND-array matching the dimensionality of the dataset.
         """
         dim = dataset.get_dimension(dim, strict=True)
         irregular = cls.irregular(dataset, dim)
@@ -276,26 +294,26 @@ class AnnDataGriddedInterface(AnnDataInterface):
         if irregular or expanded:
             data = expand_grid_coords(dataset, dim)
             if edges and data.shape == vdim(dataset.data).shape:
-                data = GridInterface._infer_interval_breaks(data, axis=1)
-                data = GridInterface._infer_interval_breaks(data, axis=0)
+                data = GridInterface._infer_interval_breaks(data, axis=1)  # noqa: SLF001
+                data = GridInterface._infer_interval_breaks(data, axis=0)  # noqa: SLF001
             return data
 
         data = dim(dataset.data)
         if ordered and np.all(data[1:] < data[:-1]):
             data = data[::-1]
-        shape = cls.shape(dataset, True)
+        shape = cls.shape(dataset, gridded=True)
         if dim in dataset.kdims:
             idx = dataset.get_dimension_index(dim)
-            isedges = (
+            is_edges = (
                 dim in dataset.kdims
                 and len(shape) == dataset.ndims
                 and len(data) == (shape[dataset.ndims - idx - 1] + 1)
             )
         else:
-            isedges = False
-        if edges and not isedges:
-            data = GridInterface._infer_interval_breaks(data)
-        elif not edges and isedges:
+            is_edges = False
+        if edges and not is_edges:
+            data = GridInterface._infer_interval_breaks(data)  # noqa: SLF001
+        elif not edges and is_edges:
             data = data[:-1] + np.diff(data) / 2.0
         return data
 
@@ -324,13 +342,17 @@ class AnnDataGriddedInterface(AnnDataInterface):
         else:
             values = dim(adata)
         if not keep_index and isinstance(values, pd.Series):
-            values = values.values
+            values = values.array
         elif flat and values.ndim > 1:
+            assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
         return values
 
     @classmethod
-    def irregular(cls, dataset, dim):
+    def irregular(cls, dataset: Dataset, dim: Dimension | str) -> Literal[False]:
+        """Tell whether a dimension is irregular (i.e. has multi-dimensional coords)."""
+        del dim
+        del dataset
         return False
 
 
