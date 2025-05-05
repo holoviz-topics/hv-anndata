@@ -13,12 +13,13 @@ import pytest
 import scipy.sparse as sp
 from anndata import AnnData
 
-from hv_anndata.accessors import AdPath
 from hv_anndata.interface import ACCESSOR as A
 from hv_anndata.interface import AnnDataInterface, register
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+
+    from hv_anndata.accessors import AdPath
 
 
 @pytest.fixture(autouse=True)
