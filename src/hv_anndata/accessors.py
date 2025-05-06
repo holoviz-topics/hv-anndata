@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     # full slices: e.g. a[:, 5] or a[18, :]
     Idx = TypeVar("Idx", int, str)
-    Idx2D = tuple[Idx, slice] | tuple[slice, Idx]
+    Idx2D = tuple[Idx | slice, Idx | slice]
 
 
 class AdPath(Dimension):

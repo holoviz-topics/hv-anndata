@@ -267,8 +267,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
         cls,
         dataset: Dataset,
         dim: Dimension,
+        ordered: bool = False,  # noqa: FBT001, FBT002
         *,
-        ordered: bool = False,
         expanded: bool = False,
         edges: bool = False,
     ) -> NDArray[np.float64]:
