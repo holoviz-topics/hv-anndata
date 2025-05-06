@@ -1,8 +1,10 @@
+"""Accessor classes for AnnData interface."""
+
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, overload
 
 import numpy as np
 from holoviews.core.dimension import Dimension
@@ -20,10 +22,12 @@ if TYPE_CHECKING:
 
 
 class AdPath(Dimension):
+    """A path referencing an array in an AnnData object."""
+
     _repr: str
     _func: Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
 
-    def __init__(
+    def __init__(  # noqa: D107
         self, _repr: str, func: Callable[[AnnData], Any], /, **params: object
     ) -> None:
         super().__init__(_repr, **params)
@@ -31,7 +35,8 @@ class AdPath(Dimension):
         self._func = func
 
     def __repr__(self) -> str:
-        return self._repr.replace("slice(None, None, None)", ":")  # TODO: prettier
+        # TODO: prettier  # noqa: TD003
+        return self._repr.replace("slice(None, None, None)", ":")
 
     def __hash__(self) -> int:
         return hash(self._repr)
@@ -39,6 +44,7 @@ class AdPath(Dimension):
     def __call__(
         self, adata: AnnData
     ) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+        """Retrieve referenced array from AnnData."""
         return self._func(adata)
 
     def __eq__(self, dim: object) -> bool:
@@ -61,6 +67,7 @@ class AdPath(Dimension):
         return False
 
     def isin(self, adata: AnnData) -> bool:
+        """Check if array is in AnnData."""
         try:
             self(adata)
         except (IndexError, KeyError):
@@ -70,12 +77,16 @@ class AdPath(Dimension):
 
 @dataclass(frozen=True)
 class LayerAcc:
+    """Accessor for layers."""
+
     def __getitem__(self, k: str) -> LayerVecAcc:
         return LayerVecAcc(k)
 
 
 @dataclass(frozen=True)
 class LayerVecAcc:
+    """Accessor for layer vectors."""
+
     k: str
 
     def __getitem__(self, i: Idx2D[str]) -> AdPath:
@@ -87,6 +98,8 @@ class LayerVecAcc:
 
 @dataclass(frozen=True)
 class MetaAcc:
+    """Accessor for metadata (obs/var)."""
+
     ax: Literal["obs", "var"]
 
     def __getitem__(self, k: str) -> AdPath:
@@ -100,6 +113,8 @@ class MetaAcc:
 
 @dataclass(frozen=True)
 class MultiAcc:
+    """Accessor for multi-dimensional array containers (obsm/varm)."""
+
     ax: Literal["obsm", "varm"]
 
     def __getitem__(self, k: str) -> MultiVecAcc:
@@ -108,6 +123,8 @@ class MultiAcc:
 
 @dataclass(frozen=True)
 class MultiVecAcc:
+    """Accessor for arrays from multi-dimensional containers (obsm/varm)."""
+
     ax: Literal["obsm", "varm"]
     k: str
 
@@ -126,6 +143,8 @@ class MultiVecAcc:
 
 @dataclass(frozen=True)
 class GraphAcc:
+    """Accessor for graph containers (obsp/varp)."""
+
     ax: Literal["obsp", "varp"]
 
     def __getitem__(self, k: str) -> GraphVecAcc:
@@ -134,6 +153,8 @@ class GraphAcc:
 
 @dataclass(frozen=True)
 class GraphVecAcc:
+    """Accessor for arrays from graph containers (obsp/varp)."""
+
     ax: Literal["obsp", "varp"]
     k: str
 
@@ -144,11 +165,13 @@ class GraphVecAcc:
         return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get)
 
 
-@dataclass(frozen=True)
 class AdAc:
+    r"""Accessor singleton to create :class:`AdPath`\ s."""
+
     ATTRS: ClassVar = frozenset(
         {"layers", "obs", "var", "obsm", "varm", "obsp", "varp"}
     )
+    _instance: ClassVar[Self]
 
     layers: ClassVar = LayerAcc()
     obs: ClassVar = MetaAcc("obs")
@@ -158,9 +181,14 @@ class AdAc:
     obsp: ClassVar = GraphAcc("obsp")
     varp: ClassVar = GraphAcc("varp")
 
+    def __new__(cls) -> Self:  # noqa: D102
+        if not hasattr(cls, "_instance"):
+            cls._instance = object.__new__(cls)
+        return cls._instance
+
     def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].X)  # TODO: pandas, sparse, …
+            return np.asarray(ad[i].X)  # TODO: pandas, sparse, …  # noqa: TD003
 
         return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get)
 
@@ -213,30 +241,19 @@ class AdAc:
             return cls()[_parse_idx_2d(acc, rest, str)]
         match getattr(cls(), acc):
             case LayerAcc() as layers:
-                if m := re.fullmatch(r"([^\[]+)\[([^,]+),\s?([^\]]+)\]", rest):
-                    layer, i, j = m.groups("")  # "" just for typing
-                    return layers[layer][_parse_idx_2d(i, j, str)]
-                msg = (
-                    f"Cannot parse layer accessor {rest!r}: "
-                    "should be `name[i,:]` or `name[:,j]`"
-                )
+                return _parse_path_layer(layers, rest)
             case MetaAcc() as meta:
                 return meta[rest]
             case MultiAcc() as multi:
-                if m := re.fullmatch(r"([^.]+)\.([\d_]+)", rest):
-                    key, i = m.groups("")  # "" just for typing
-                    return multi[key][int(i)]
-                msg = f"Cannot parse multi accessor {rest!r}: should be `name.i`"
+                return _parse_path_multi(multi, rest)
             case GraphAcc():
                 msg = "TODO"
                 raise NotImplementedError(msg)
             case AdPath():
                 msg = "TODO"
                 raise NotImplementedError(msg)
-            case _:
-                msg = f"Unhandled accessor {spec!r}. This is a bug!"
-                raise AssertionError(msg)
-        raise ValueError(msg)
+        msg = f"Unhandled accessor {spec!r}. This is a bug!"
+        raise AssertionError(msg)
 
 
 def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
@@ -248,3 +265,19 @@ def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
         case _:
             msg = f"Unknown indices {i!r}, {j!r}"
             raise ValueError(msg)
+
+
+def _parse_path_layer(layers: LayerAcc, spec: str) -> AdPath:
+    if m := re.fullmatch(r"([^\[]+)\[([^,]+),\s?([^\]]+)\]", spec):
+        layer, i, j = m.groups("")  # "" just for typing
+        return layers[layer][_parse_idx_2d(i, j, str)]
+    msg = f"Cannot parse layer accessor {spec!r}: should be `name[i,:]` or `name[:,j]`"
+    raise ValueError(msg)
+
+
+def _parse_path_multi(multi: MultiAcc, spec: str) -> AdPath:
+    if m := re.fullmatch(r"([^.]+)\.([\d_]+)", spec):
+        key, i = m.groups("")  # "" just for typing
+        return multi[key][int(i)]
+    msg = f"Cannot parse multi accessor {spec!r}: should be `name.i`"
+    raise ValueError(msg)

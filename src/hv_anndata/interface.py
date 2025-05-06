@@ -322,7 +322,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         idx = data.get_dimension_index(dim)
         adata = cast("AnnData", data.data)
         axes = cls.axes(data)
-        if idx < 2 and isinstance(data, SheetCoordinateSystem):
+        if idx <= 1 and isinstance(data, SheetCoordinateSystem):
             # On 2D datasets we generate synthetic coordinates
             ax = axes[idx]
             return np.arange(len(getattr(adata, ax)))
