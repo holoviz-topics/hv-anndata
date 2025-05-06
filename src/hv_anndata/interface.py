@@ -65,12 +65,13 @@ class AnnDataInterface(hv.core.Interface):
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
 
     @classmethod
-    def axes(cls, dataset: Dataset) -> tuple[str, ...]:
-        """Detect if the data is gridded or columnar and along which axes it is indexed."""
-        dims = dataset.dimensions()
-        vdim = dataset.vdims[0] if dataset.vdims else None
+    def axes(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
+        """Detect if the data is gridded or columnar and along which axes it is indexed."""  # noqa: E501
+        dims = cast("list[Dimension]", dataset.dimensions())
+        vdim = cast("Dimension", dataset.vdims[0]) if dataset.vdims else None
         ndim = 1 if not vdim else vdim(dataset.data).ndim
-        axes, shapes = [], []
+        axes: list[Literal["obs", "var"]] = []
+        shapes: list[tuple[int, ...]] = []
         if ndim > 1:
             # Gridded data case, ensure that the key dimensions (i.e. the 2D indexes)
             # map onto the obs and var axes.
@@ -138,6 +139,7 @@ class AnnDataInterface(hv.core.Interface):
 
     @classmethod
     def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002
+        """Check if all dimensions (or key dimensions if `vdims==False`) are present."""
         dims = "all" if vdims else "key"
         not_found = [
             d
@@ -208,23 +210,44 @@ class AnnDataInterface(hv.core.Interface):
         return dim(adata).dtype
 
     @classmethod
-    def dimension_type(cls, dataset: Dataset, dim: Dimension | str) -> type[Any]:
+    def dimension_type(cls, dataset: Dataset, dim: Dimension | str) -> type:
+        """Get the scalar type for a dimension (e.g. `np.int64`)."""
         return cls.dtype(dataset, dim).type
 
     @classmethod
-    def iloc(cls, dataset: Dataset, index):
+    def iloc(
+        cls, dataset: Dataset, index: tuple[slice[int | None], slice[None]]
+    ) -> AnnData:
+        """Implement `Dataset.iloc`."""
         rows, cols = index
         axes = cls.axes(dataset)
+        adata = cast("AnnData", dataset.data)
+
+        if (idx := cls._iloc_2d(axes, rows, cols)) is not None:
+            return adata[idx]
+
+        match axes[0]:
+            case "var":
+                return adata[:, rows]
+            case "obs":
+                return adata[rows]
+
+    @classmethod
+    def _iloc_2d(
+        cls,
+        axes: tuple[Literal["obs", "var"], ...],
+        rows: slice[int | None],  # noqa: ARG003
+        cols: slice[None],
+    ) -> tuple[slice[int | None], slice[int | None]] | None:
+        """Validate indexing. Overridden in `AnnDataGriddedInterface`."""
         if cols != slice(None):
             msg = (
-                f"When indexing using .iloc on {axes[0]} indexed data you may only select "
-                "rows along that dimension, i.e. you may not provide a column selection. "
+                f"When indexing using .iloc on {axes[0]} indexed data, "
+                "you may only select rows along that dimension, "
+                "i.e. you may not provide a column selection."
             )
             raise IndexError(msg)
-        if axes[0] == "var":
-            return dataset.data[:, rows]
-        if axes[0] == "obs":
-            return dataset.data[rows]
+        return None
 
 
 class AnnDataGriddedInterface(AnnDataInterface):
@@ -240,26 +263,25 @@ class AnnDataGriddedInterface(AnnDataInterface):
         return len(getattr(dataset.data, ax1)), len(getattr(dataset.data, ax2))
 
     @classmethod
-    def iloc(cls, dataset: Dataset, index):
-        rows, cols = index
-        ax1, ax2 = cls.axes(dataset)
-        if ax1 != ax2:
-            if ax1 == "var":
-                return dataset.data[cols, rows]
-            return dataset.data[rows, cols]
-
+    def _iloc_2d(
+        cls,
+        axes: tuple[Literal["obs", "var"], ...],
+        rows: slice[int | None],
+        cols: slice[None],
+    ) -> tuple[slice[int | None], slice[int | None]] | None:
+        if axes[0] != axes[1]:
+            if axes[0] == "var":
+                return (cols, rows)
+            return (rows, cols)
         if cols != slice(None):
+            ax = axes[0]
             msg = (
                 f"When indexing using .iloc on pairwise variables "
-                f"(in this case {ax1}p) you may only index on rows, "
-                f"i.e. index using `dataset.iloc[{ax1}s]`, "
-                f"not along two axes, as in `dataset[{ax1}s, {ax1}s2]).`"
+                f"(in this case {ax}p) you may only index on rows, "
+                f"i.e. index using `dataset.iloc[{ax}s]`, "
+                f"not along two axes, as in `dataset[{ax}s, {ax}s2]).`"
             )
             raise IndexError(msg)
-        if ax1 == "var":
-            return dataset.data[:, rows]
-        if ax2 == "obs":
-            return dataset.data[rows]
         return None
 
     @classmethod
