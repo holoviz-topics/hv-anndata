@@ -68,7 +68,7 @@ class AnnDataInterface(hv.core.Interface):
     def axes(cls, dataset: Dataset) -> tuple[str, ...]:
         """Detect if the data is gridded or columnar and along which axes it is indexed."""
         dims = dataset.dimensions()
-        vdim = dataset.vdims and dataset.vdims[0]
+        vdim = dataset.vdims[0] if dataset.vdims else None
         ndim = 1 if not vdim else vdim(dataset.data).ndim
         axes, shapes = [], []
         if ndim > 1:
@@ -141,7 +141,7 @@ class AnnDataInterface(hv.core.Interface):
         dims = "all" if vdims else "key"
         not_found = [
             d
-            for d in cast("list[AdPath]", dataset.dimensions(dims, label=False))
+            for d in cast("list[Dimension]", dataset.dimensions(dims, label=False))
             if isinstance(d, AdPath) and not d.isin(dataset.data)
         ]
         if not_found:

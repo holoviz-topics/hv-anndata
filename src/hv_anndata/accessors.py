@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, fields
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, overload
 
 import numpy as np
 from holoviews.core.dimension import Dimension
@@ -33,7 +33,7 @@ class AdPath(Dimension):
     def __repr__(self) -> str:
         return self._repr.replace("slice(None, None, None)", ":")  # TODO: prettier
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._repr)
 
     def __call__(
@@ -41,17 +41,23 @@ class AdPath(Dimension):
     ) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
         return self._func(adata)
 
-    def __eq__(self, dim: str | Dimension):
-        equals = super().__eq__(dim)
-        if equals or isinstance(dim, Dimension):
-            return equals
-        if isinstance(dim, str):
-            # Ensure that selections along the var and obs dimensions match
-            label = self.name.lstrip("A.").replace("['", ".").replace("']", "")
-            if (label.startswith("obs") and dim.startswith("obs")) or (
-                label.startswith("var") and dim.startswith("var")
+    def __eq__(self, dim: object) -> bool:
+        # shortcut if label, number, or so matches
+        if super().__eq__(dim):
+            return True
+        # try to resolve
+        if isinstance(dim, str) and (dim := AdAc.resolve(dim, strict=False)) is None:
+            return False
+        # if dim is a non-matching dimension (e.g. from a string), convert
+        if isinstance(dim, Dimension):
+            if (
+                not isinstance(dim, AdPath)
+                and (dim := AdAc.from_dimension(dim, strict=False)) is None
             ):
-                return True
+                return False
+            # dim is an AdPath, check equality
+            return hash(self) == hash(dim)
+        # some unknown type
         return False
 
     def isin(self, adata: AnnData) -> bool:
@@ -105,7 +111,13 @@ class MultiVecAcc:
     ax: Literal["obsm", "varm"]
     k: str
 
-    def __getitem__(self, i: int) -> AdPath:
+    def __getitem__(self, i: int | tuple[slice, int]) -> AdPath:
+        if isinstance(i, tuple):
+            if i[0] != slice(None):
+                msg = f"Unsupported slice {i!r}"
+                raise ValueError(msg)
+            i = i[1]
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return getattr(ad, self.ax)[self.k][:, i]
 
@@ -134,35 +146,70 @@ class GraphVecAcc:
 
 @dataclass(frozen=True)
 class AdAc:
-    layers = LayerAcc()
-    obs = MetaAcc("obs")
-    var = MetaAcc("var")
-    obsm = MultiAcc("obsm")
-    varm = MultiAcc("varm")
-    obsp = GraphAcc("obsp")
-    varp = GraphAcc("varp")
+    ATTRS: ClassVar = frozenset(
+        {"layers", "obs", "var", "obsm", "varm", "obsp", "varp"}
+    )
+
+    layers: ClassVar = LayerAcc()
+    obs: ClassVar = MetaAcc("obs")
+    var: ClassVar = MetaAcc("var")
+    obsm: ClassVar = MultiAcc("obsm")
+    varm: ClassVar = MultiAcc("varm")
+    obsp: ClassVar = GraphAcc("obsp")
+    varp: ClassVar = GraphAcc("varp")
 
     def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].X)  # TODO: pandas
+            return np.asarray(ad[i].X)  # TODO: pandas, sparse, …
 
         return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get)
 
+    @overload
     @classmethod
-    def from_dimension(cls, dim: Dimension) -> AdPath:
+    def from_dimension(
+        cls, dim: Dimension, *, strict: Literal[True] = True
+    ) -> AdPath: ...
+    @overload
+    @classmethod
+    def from_dimension(
+        cls, dim: Dimension, *, strict: Literal[False]
+    ) -> AdPath | None: ...
+
+    @classmethod
+    def from_dimension(cls, dim: Dimension, *, strict: bool = True) -> AdPath | None:
         """Create accessor from another dimension."""
+        if TYPE_CHECKING:
+            assert isinstance(dim.name, str)
+
         if isinstance(dim, AdPath):
             return dim
-        rv = AdAc.resolve(dim.name)
+        if (rv := AdAc.resolve(dim.name, strict=strict)) is None:
+            return None
         if dim.name != dim.label:
             rv.label = dim.label
         return rv
 
+    @overload
     @classmethod
-    def resolve(cls, spec: str) -> AdPath:
+    def resolve(cls, spec: str, *, strict: Literal[True] = True) -> AdPath: ...
+    @overload
+    @classmethod
+    def resolve(cls, spec: str, *, strict: Literal[False]) -> AdPath | None: ...
+
+    @classmethod
+    def resolve(cls, spec: str, *, strict: bool = True) -> AdPath | None:
         """Create accessor from string."""
+        if not strict:
+            try:
+                cls.resolve(spec)
+            except ValueError:
+                return None
+
+        if "." not in spec:
+            msg = f"Cannot parse accessor {spec!r}"
+            raise ValueError(msg)
         acc, rest = spec.split(".", 1)
-        if acc not in {f.name for f in fields(cls)}:
+        if acc not in cls.ATTRS:
             return cls()[_parse_idx_2d(acc, rest, str)]
         match getattr(cls(), acc):
             case LayerAcc() as layers:
