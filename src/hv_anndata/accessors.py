@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast, overload
 
 import numpy as np
 from holoviews.core.dimension import Dimension
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Set as AbstractSet
 
     import pandas as pd
     from anndata import AnnData
@@ -21,18 +22,39 @@ if TYPE_CHECKING:
     Idx2D = tuple[Idx | slice, Idx | slice]
 
 
+def _idx2axes(i: Idx2D[str]) -> set[Literal["obs", "var"]]:
+    """Get along which axes the referenced vector is."""
+    match i:
+        case slice(), str():
+            return {"obs"}
+        case str(), slice():
+            return {"var"}
+        case slice(), slice():
+            return {"obs", "var"}
+        case _:
+            msg = f"Invalid index: {i}"
+            raise AssertionError(msg)
+
+
 class AdPath(Dimension):
     """A path referencing an array in an AnnData object."""
 
     _repr: str
     _func: Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
+    axes: AbstractSet[Literal["obs", "var"]]
 
     def __init__(  # noqa: D107
-        self, _repr: str, func: Callable[[AnnData], Any], /, **params: object
+        self,
+        _repr: str,
+        func: Callable[[AnnData], Any],
+        axes: AbstractSet[Literal["obs", "var"]],
+        /,
+        **params: object,
     ) -> None:
         super().__init__(_repr, **params)
         self._repr = _repr
         self._func = func
+        self.axes = axes
 
     def __repr__(self) -> str:
         # TODO: prettier  # noqa: TD003
@@ -93,7 +115,7 @@ class LayerVecAcc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return np.asarray(ad[i].layers[self.k])  # TODO: pandas
 
-        return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get)
+        return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
 
 
 @dataclass(frozen=True)
@@ -108,7 +130,7 @@ class MetaAcc:
                 return getattr(ad, self.ax).index
             return getattr(ad, self.ax)[k]
 
-        return AdPath(f"A.{self.ax}[{k!r}]", get)
+        return AdPath(f"A.{self.ax}[{k!r}]", get, {self.ax})
 
 
 @dataclass(frozen=True)
@@ -138,7 +160,8 @@ class MultiVecAcc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return getattr(ad, self.ax)[self.k][:, i]
 
-        return AdPath(f"A.{self.ax}[{self.k!r}][:, {i!r}]", get)
+        ax = cast("Literal['obs', 'var']", self.ax[:-1])
+        return AdPath(f"A.{self.ax}[{self.k!r}][:, {i!r}]", get, {ax})
 
 
 @dataclass(frozen=True)
@@ -162,7 +185,8 @@ class GraphVecAcc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return getattr(ad, self.ax)[self.k][i]
 
-        return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get)
+        ax = cast("Literal['obs', 'var']", self.ax[:-1])
+        return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, {ax})
 
 
 class AdAc:
@@ -190,7 +214,7 @@ class AdAc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return np.asarray(ad[i].X)  # TODO: pandas, sparse, …  # noqa: TD003
 
-        return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get)
+        return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
 
     @overload
     @classmethod

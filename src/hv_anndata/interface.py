@@ -67,75 +67,32 @@ class AnnDataInterface(hv.core.Interface):
     @classmethod
     def axes(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
         """Detect if the data is gridded or columnar and along which axes it is indexed."""  # noqa: E501
-        dims = cast("list[Dimension]", dataset.dimensions())
         vdim = cast("Dimension", dataset.vdims[0]) if dataset.vdims else None
         ndim = 1 if not vdim else vdim(dataset.data).ndim
-        axes: list[Literal["obs", "var"]] = []
-        shapes: list[tuple[int, ...]] = []
-        if ndim > 1:
-            # Gridded data case, ensure that the key dimensions (i.e. the 2D indexes)
-            # map onto the obs and var axes.
-            if len(dataset.kdims) != ndim:
-                msg = (
-                    "AnnData Dataset with multi-dimensional data must declare "
-                    "corresponding key dimensions."
-                )
-                raise DataError(msg)
-            for dim in dims[:2]:
-                label = dim.name.lstrip("A.").replace("['", ".").replace("']", "")
-                if label.startswith("obs"):
-                    axes.append("obs")
-                elif label.startswith("var"):
-                    axes.append("var")
-                else:
-                    msg = (
-                        "AnnData Dataset key dimensions must map onto either obs or var axes. "
-                        "Cannot use multi-dimensional array as index."
-                    )
-                    raise DataError(msg)
-                dim_shape = dim(dataset.data).shape
-                if len(dim_shape) > 1:
-                    msg = (
-                        "AnnData Dataset key dimensions must map onto either obs or var axes. "
-                        "Cannot use multi-dimensional array as index."
-                    )
-                    raise DataError(msg)
-                shapes.append(dim_shape)
-            return tuple(axes)
-
-        # Tabular case where all dimensions must map onto either the obs or var dimension.
-        for dim in dims:
-            dim_shape = dim(dataset.data).shape
-            if len(dim_shape) > 1:
-                msg = (
-                    "AnnData Dataset with multi-dimensional data must declare "
-                    "corresponding key dimensions."
-                )
-                raise DataError(msg)
-            label = (
-                repr(dim)
-                .lstrip("A.")
-                .replace("['", ".")
-                .replace("']", "")
-                .replace(" ", "")
+        if ndim > 1 and len(dataset.kdims) != ndim:
+            msg = (
+                "AnnData Dataset with multi-dimensional data must declare "
+                "corresponding key dimensions."
             )
-            if label.startswith("obs"):
-                axes.append("obs")
-            elif label.startswith("var"):
-                axes.append("var")
-            elif label.startswith("layers") or dim.name.startswith("A["):
-                # Detect if dimension was sliced along obs or var dimension
-                if "[:" in label:
-                    axes.append("obs")
-                elif ":]" in label:
-                    axes.append("var")
-        if len(set(axes)) != 1:
+            raise DataError(msg)
+        dims = cast("list[AdPath]", dataset.dimensions())
+        if ndim > 1:
+            dims = dims[:2]
+
+        axes: list[Literal["obs", "var"]] = []
+        for dim in dims:
+            if len(dim.axes) > 1:
+                msg = "AnnData Dataset key dimensions must map onto obs or var axes."
+                raise DataError(msg)
+            axes.append(next(iter(dim.axes)))
+
+        if ndim == 1 and len(set(axes)) != 1:
             msg = (
                 "AnnData Dataset in tabular mode must reference data along either the "
                 "obs or the var axis, not both."
             )
             raise DataError(msg)
-        return (axes[0],)
+        return tuple(dict.fromkeys(axes).keys())
 
     @classmethod
     def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002
