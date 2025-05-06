@@ -192,7 +192,7 @@ class AnnDataInterface(hv.core.Interface):
         adata = cast("AnnData", data.data)
         values = dim(adata)
         if not keep_index and isinstance(values, pd.Series):
-            values = values.array
+            values = values.values  # noqa: PD011
         elif flat and values.ndim > 1:
             assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
@@ -331,7 +331,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         else:
             values = dim(adata)
         if not keep_index and isinstance(values, pd.Series):
-            values = values.array
+            values = values.values  # noqa: PD011
         elif flat and values.ndim > 1:
             assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
