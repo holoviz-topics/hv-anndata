@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
+DEFAULT_COLOR_BY = "cell_type"
+
+
 class ManifoldMapConfig(TypedDict, total=False):
     """Configuration options for manifold map plotting."""
 
@@ -364,8 +367,8 @@ class ManifoldMap(pn.viewable.Viewer):
         self.color_options = list(self.adata.obs.columns)
         if not self.color_by:
             self.color_by = (
-                "cell_type"
-                if "cell_type" in self.color_options
+                DEFAULT_COLOR_BY
+                if DEFAULT_COLOR_BY in self.color_options
                 else self.color_options[0]
             )
 
