@@ -506,8 +506,15 @@ class ManifoldMap(pn.viewable.Viewer):
         y_axis = pn.widgets.Select(
             name="Y-axis", options=initial_dims, value=initial_dims[1]
         )
-        color = pn.widgets.Select.from_param(
-            self.param.color_by, options=self.color_options
+        color = pn.widgets.AutocompleteInput.from_param(
+            self.param.color_by,
+            options=self.color_options,
+            min_characters=0,
+            search_strategy="includes",
+            case_sensitive=False,
+            stylesheets=[
+                ":host .bk-menu.bk-below {max-height: 200px; overflow-y: auto}"
+            ],
         )
         datashade_switch = pn.widgets.Checkbox.from_param(
             self.param.datashade, name="Datashader Rasterize For Large Datasets"
