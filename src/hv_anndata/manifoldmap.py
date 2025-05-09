@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypedDict, Unpack
-from warnings import warn
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, Unpack
 
 import anndata as ad
 import colorcet as cc
@@ -346,8 +345,12 @@ class ManifoldMap(pn.viewable.Viewer):
     reduction: str | None = param.String(  # type: ignore[assignment]
         default=None, doc="Dimension reduction method", allow_None=True
     )
-    color_by: str | None = param.String(  # type: ignore[assignment]
-        default=None, doc="Coloring variable", allow_None=True
+    color_by_dim: str = param.Selector(  # type: ignore[assignment]
+        default="obs",
+        objects={"Observations": "obs", "Genes": "cols"},
+    )
+    color_by: str = param.Selector(  # type: ignore[assignment]
+        doc="Coloring variable"
     )
     datashade: bool = param.Boolean(default=True, doc="Whether to enable datashading")  # type: ignore[assignment]
     width: int = param.Integer(default=300, doc="Width of the plot")  # type: ignore[assignment]
@@ -356,6 +359,7 @@ class ManifoldMap(pn.viewable.Viewer):
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
     )
+    _color_info: tuple = param.Tuple(length=2)  # type: ignore[assignment]
 
     def __init__(self, **params: object) -> None:
         """Initialize the ManifoldMapApp with the given parameters."""
@@ -364,13 +368,35 @@ class ManifoldMap(pn.viewable.Viewer):
         if not self.reduction:
             self.reduction = self.dr_options[0]
 
-        self.color_options = list(self.adata.obs.columns)
+        self._color_options = {
+            "obs": list(self.adata.obs.columns),
+            "cols": list(self.adata.var_names),
+        }
+        copts = self._color_options[self.color_by_dim]
+        self.param.color_by.objects = copts
         if not self.color_by:
-            self.color_by = (
-                DEFAULT_COLOR_BY
-                if DEFAULT_COLOR_BY in self.color_options
-                else self.color_options[0]
-            )
+            if (
+                self.color_by_dim == "obs"
+                and DEFAULT_COLOR_BY in self._color_options["obs"]
+            ):
+                self.color_by = DEFAULT_COLOR_BY
+            else:
+                self.color_by = self._color_options[self.color_by_dim][0]
+        elif self.color_by not in copts:
+            msg = f"color_by variable {self.color_by!r} not found."
+            raise ValueError(msg)
+        else:
+            self._update_color_info()
+
+    @param.depends("color_by_dim", watch=True)
+    def _on_color_by_dim(self) -> None:
+        values = self._color_options[self.color_by_dim]
+        self.param.color_by.objects = values
+        self.color_by = values[0]
+
+    @param.depends("color_by", watch=True)
+    def _update_color_info(self) -> None:
+        self._color_info = (self.color_by_dim, self.color_by)
 
     def get_reduction_label(self, dr_key: str) -> str:
         """Get a display label for a dimension reduction key.
@@ -410,7 +436,7 @@ class ManifoldMap(pn.viewable.Viewer):
         dr_key: str,
         x_value: str,
         y_value: str,
-        color_value: str,
+        color_info: tuple[Literal["obs", "cols"], str],
         datashade_value: bool,
         label_value: bool,
     ) -> pn.viewable.Viewable:
@@ -424,8 +450,8 @@ class ManifoldMap(pn.viewable.Viewer):
             X-axis dimension label
         y_value
             Y-axis dimension label
-        color_value
-            Variable to use for coloring
+        color_info
+            Dimension and variable to use for coloring
         datashade_value
             Whether to enable datashading
         label_value
@@ -454,21 +480,14 @@ class ManifoldMap(pn.viewable.Viewer):
                 f"Make sure to select valid {dr_label} dimensions."
             )
 
-        # Get color data from .obs or X cols
-        try:
-            color_data = self.adata.obs[color_value].values
-        except KeyError:
-            try:
-                color_data = (
-                    self.adata.X.getcol(self.adata.var_names.get_loc(color_value))
-                    .toarray()
-                    .flatten()
-                )
-            except (KeyError, ValueError):
-                color_data = np.zeros(self.adata.n_obs)
-                warn(
-                    f"Warning: Could not find {color_value} in obs or var", stacklevel=2
-                )
+        color_dim, color_key = color_info
+        if color_dim == "obs":
+            color_data = self.adata.obs[color_key].values
+        elif color_dim == "cols":
+            color_data = self.adata.obs_vector(color_key)
+        else:
+            msg = "color_dim must be obs or cols"
+            raise ValueError(msg)
 
         # Configure the plot
         config = ManifoldMapConfig(
@@ -476,7 +495,7 @@ class ManifoldMap(pn.viewable.Viewer):
             height=self.height,
             datashading=datashade_value,
             labels=label_value,
-            title=f"{dr_label}.{color_value}",
+            title=f"{dr_label}.{color_key}",
         )
 
         return create_manifoldmap_plot(
@@ -484,7 +503,7 @@ class ManifoldMap(pn.viewable.Viewer):
             color_data,
             x_dim,
             y_dim,
-            color_value,
+            color_key,
             x_value,
             y_value,
             **config,
@@ -509,9 +528,12 @@ class ManifoldMap(pn.viewable.Viewer):
         y_axis = pn.widgets.Select(
             name="Y-axis", options=initial_dims, value=initial_dims[1]
         )
+        color_dim = pn.widgets.RadioButtonGroup.from_param(
+            self.param.color_by_dim,
+        )
         color = pn.widgets.AutocompleteInput.from_param(
             self.param.color_by,
-            options=self.color_options,
+            name="",
             min_characters=0,
             search_strategy="includes",
             case_sensitive=False,
@@ -541,7 +563,7 @@ class ManifoldMap(pn.viewable.Viewer):
             dr_key=dr_select,
             x_value=x_axis,
             y_value=y_axis,
-            color_value=color,
+            color_info=self.param["_color_info"],
             datashade_value=datashade_switch,
             label_value=label_switch,
         )
@@ -551,6 +573,8 @@ class ManifoldMap(pn.viewable.Viewer):
             dr_select,
             x_axis,
             y_axis,
+            pn.pane.HTML("<strong>Color by</strong>"),
+            color_dim,
             color,
             datashade_switch,
             label_switch,

@@ -53,6 +53,7 @@ lint.ignore = [
   "S603",   # We don’t want to use `subprocess.run(shell=True)`
   "S607",   # We don’t run commands with untrusted input
   "TD002",  # No need to assign TODOs to some person
+  "TRY",
 ]
 lint.per-file-ignores."**/*.ipynb" = [
   "I002", # Missing `from __future__ import annotations` is fine
