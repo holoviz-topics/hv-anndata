@@ -134,13 +134,33 @@ def test_create_manifoldmap_plot_datashading(
 
 
 @pytest.mark.usefixtures("bokeh_backend")
-def test_manifoldmap_initialization(sadata: ad.AnnData) -> None:
+def test_manifoldmap_initialization_default(sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
 
     assert mm.dr_options == ["X_pca", "X_umap"]
-    assert mm.color_options == ["cell_type", "expression_level"]
+    assert mm.color_by_dim == "obs"
     assert mm.reduction == "X_pca"
     assert mm.color_by == "cell_type"
+    assert mm._color_options == {
+        "obs": ["cell_type", "expression_level"],
+        "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
+    }
+    assert mm._color_info == ("obs", "cell_type")
+
+
+@pytest.mark.usefixtures("bokeh_backend")
+def test_manifoldmap_initialization_color_by(sadata: ad.AnnData) -> None:
+    mm = ManifoldMap(adata=sadata, color_by_dim="cols", color_by="gene_1")
+
+    assert mm.dr_options == ["X_pca", "X_umap"]
+    assert mm.color_by_dim == "cols"
+    assert mm.reduction == "X_pca"
+    assert mm.color_by == "gene_1"
+    assert mm._color_options == {
+        "obs": ["cell_type", "expression_level"],
+        "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
+    }
+    assert mm._color_info == ("cols", "gene_1")
 
 
 @pytest.mark.usefixtures("bokeh_backend")
@@ -160,7 +180,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         dr_key="X_pca",
         x_value="PCA1",
         y_value="PCA2",
-        color_value="cell_type",
+        color_info=("obs", "cell_type"),
         datashade_value=False,
         label_value=True,
     )

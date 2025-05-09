@@ -52,6 +52,7 @@ lint.ignore = [
   "ISC001", # Incompatible with formatter
   "S603",   # We don’t want to use `subprocess.run(shell=True)`
   "S607",   # We don’t run commands with untrusted input
+  "SLF",
   "TD002",  # No need to assign TODOs to some person
   "TRY",
 ]
