@@ -183,6 +183,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         color_info=("obs", "cell_type"),
         datashade_value=False,
         label_value=True,
+        cmap=["#1f77b3", "#ff7e0e"],
     )
     mock_cmp.assert_called_once_with(
         sadata.obsm["X_pca"],
@@ -192,11 +193,13 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         "cell_type",
         "PCA1",
         "PCA2",
+        categorical=True,
         width=300,
         height=300,
         datashading=False,
         labels=True,
         title="PCA.cell_type",
+        cmap=["#1f77b3", "#ff7e0e"],
     )
 
 
