@@ -97,7 +97,7 @@ class Dotmap(param.ParameterizedFunction):
         df["mean_expression_norm"] = df.groupby("marker_line")[
             "mean_expression"
         ].transform(lambda x: x / xmax if (xmax := x.max()) > 0 else 0)
-        return df
+        return df.drop_duplicates()
 
     def _get_opts(self) -> dict[str, Any]:
         opts = dict(
