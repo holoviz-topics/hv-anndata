@@ -324,6 +324,8 @@ class ManifoldMap(pn.viewable.Viewer):
         AnnData object to visualize
     reduction
         Initial dimension reduction method to use
+    color_by_dim
+        Color by dimension, one of 'obs' (default) or 'cols.
     color_by
         Initial variable to use for coloring
     datashade
