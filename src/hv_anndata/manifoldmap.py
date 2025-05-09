@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, Unpack
 
 import anndata as ad
+import bokeh
+import bokeh.palettes
 import colorcet as cc
 import datashader as ds
 import holoviews as hv
@@ -19,6 +21,26 @@ if TYPE_CHECKING:
 
 
 DEFAULT_COLOR_BY = "cell_type"
+CAT_CMAPS = {
+    "Glasbey Cat10": cc.b_glasbey_category10,
+    "Cat20": bokeh.palettes.Category20_20,
+    "Glasbey cool": cc.glasbey_cool,
+}
+CONT_CMAPS = {
+    "Viridis": bokeh.palettes.Viridis256,
+    "Fire": cc.fire,
+    "Blues": cc.blues,
+}
+DEFAULT_CAT_CMAP = cc.b_glasbey_category10
+DEFAULT_CONT_CMAP = "viridis"
+
+
+def _is_categorical(arr: np.ndarr) -> bool:
+    return (
+        arr.dtype.name in ["category", "categorical", "bool"]
+        or np.issubdtype(arr.dtype, np.object_)
+        or np.issubdtype(arr.dtype, np.str_)
+    )
 
 
 class ManifoldMapConfig(TypedDict, total=False):
@@ -32,15 +54,13 @@ class ManifoldMapConfig(TypedDict, total=False):
     """whether to apply datashader (default: True)"""
     labels: bool
     """whether to overlay labels at median positions (default: False)"""
-    cont_cmap: str
-    """colormap for continuous data (default: "viridis")"""
-    cat_cmap: list
-    """colormap for categorical data (default: cc.b_glasbey_category10)"""
+    cmap: str | list[str]
+    """colormap"""
     title: str
     """plot title (default: "")"""
 
 
-def create_manifoldmap_plot(
+def create_manifoldmap_plot(  # noqa: PLR0913
     x_data: np.ndarray,
     color_data: np.ndarray,
     x_dim: int,
@@ -48,6 +68,7 @@ def create_manifoldmap_plot(
     color_var: str,
     xaxis_label: str,
     yaxis_label: str,
+    categorical: bool | None = None,
     **config: Unpack[ManifoldMapConfig],
 ) -> hv.Element:
     """Create a comprehensive manifold map plot with options for datashading and labels.
@@ -68,6 +89,8 @@ def create_manifoldmap_plot(
         Label for the x axis
     yaxis_label
         Label for the y axis
+    categorical: bool or None, default=None
+        Whether the data in color_var is categorical
     **config
         Additional configuration options including, see :class:`ManifoldMapConfig`.
 
@@ -81,26 +104,25 @@ def create_manifoldmap_plot(
     height = config.get("height", 300)
     datashading = config.get("datashading", True)
     labels = config.get("labels", False)
-    cont_cmap = config.get("cont_cmap", "viridis")
-    cat_cmap = config.get("cat_cmap", cc.b_glasbey_category10)
+    cmap = config.get("cmap")
     title = config.get("title", "")
 
     # Determine if color data is categorical
-    is_categorical = (
-        color_data.dtype.name in ["category", "categorical", "bool"]
-        or np.issubdtype(color_data.dtype, np.object_)
-        or np.issubdtype(color_data.dtype, np.str_)
-    )
+    if categorical is None:
+        categorical = _is_categorical(color_data)
 
     # Set colormap and plot options based on data type
-    if is_categorical:
+    if categorical:
         n_unq_cat = len(np.unique(color_data))
+        if cmap is None:
+            cmap = DEFAULT_CAT_CMAP
         # Use subset of categorical colormap to preserve distinct colors
-        cmap = cat_cmap[:n_unq_cat]
+        cmap = cmap[:n_unq_cat]
         colorbar = False
         show_legend = not labels
     else:
-        cmap = cont_cmap
+        if cmap is None:
+            cmap = DEFAULT_CONT_CMAP
         show_legend = False
         colorbar = True
 
@@ -133,7 +155,7 @@ def create_manifoldmap_plot(
         plot = plot.opts(**plot_opts)
 
         # Add labels if categorical and requested
-        if is_categorical and labels:
+        if categorical and labels:
             plot = _add_category_labels(
                 plot,
                 x_data,
@@ -145,7 +167,7 @@ def create_manifoldmap_plot(
                 label_opts,
             )
     # Apply datashading with different approaches for categorical vs continuous
-    elif is_categorical:
+    elif categorical:
         plot = _apply_categorical_datashading(
             plot,
             x_data=x_data,
@@ -328,6 +350,8 @@ class ManifoldMap(pn.viewable.Viewer):
         Color by dimension, one of 'obs' (default) or 'cols.
     color_by
         Initial variable to use for coloring
+    colormap
+        Initial colormap to use for coloring
     datashade
         Whether to enable datashading
     width
@@ -354,6 +378,7 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by: str = param.Selector(  # type: ignore[assignment]
         doc="Coloring variable"
     )
+    colormap: str = param.Selector()
     datashade: bool = param.Boolean(default=True, doc="Whether to enable datashading")  # type: ignore[assignment]
     width: int = param.Integer(default=300, doc="Width of the plot")  # type: ignore[assignment]
     height: int = param.Integer(default=300, doc="Height of the plot")  # type: ignore[assignment]
@@ -362,6 +387,7 @@ class ManifoldMap(pn.viewable.Viewer):
         default=True, doc="Whether to show control widgets"
     )
     _color_info: tuple = param.Tuple(length=2)  # type: ignore[assignment]
+    _categorical: bool = param.Boolean()  # type: ignore[assignment]
 
     def __init__(self, **params: object) -> None:
         """Initialize the ManifoldMapApp with the given parameters."""
@@ -388,7 +414,7 @@ class ManifoldMap(pn.viewable.Viewer):
             msg = f"color_by variable {self.color_by!r} not found."
             raise ValueError(msg)
         else:
-            self._update_color_info()
+            self._update_on_color_by()
 
     @param.depends("color_by_dim", watch=True)
     def _on_color_by_dim(self) -> None:
@@ -397,8 +423,20 @@ class ManifoldMap(pn.viewable.Viewer):
         self.color_by = values[0]
 
     @param.depends("color_by", watch=True)
-    def _update_color_info(self) -> None:
-        self._color_info = (self.color_by_dim, self.color_by)
+    def _update_on_color_by(self) -> None:
+        new_vals = {}
+        old_categorical = self._categorical
+        if self.color_by_dim == "obs":
+            color_data = self.adata.obs[self.color_by].values
+        elif self.color_by_dim == "cols":
+            color_data = self.adata.obs_vector(self.color_by)
+        new_vals["_categorical"] = new_categorical = _is_categorical(color_data)
+        if old_categorical != new_categorical:
+            cmaps = CAT_CMAPS if new_categorical else CONT_CMAPS
+            self.param.colormap.objects = cmaps
+            new_vals["colormap"] = next(iter(cmaps.values()))
+        new_vals["_color_info"] = (self.color_by_dim, self.color_by)
+        self.param.update(new_vals)
 
     def get_reduction_label(self, dr_key: str) -> str:
         """Get a display label for a dimension reduction key.
@@ -441,6 +479,7 @@ class ManifoldMap(pn.viewable.Viewer):
         color_info: tuple[Literal["obs", "cols"], str],
         datashade_value: bool,
         label_value: bool,
+        cmap: list[str] | str,
     ) -> pn.viewable.Viewable:
         """Create a manifold map plot with the specified parameters.
 
@@ -458,6 +497,8 @@ class ManifoldMap(pn.viewable.Viewer):
             Whether to enable datashading
         label_value
             Whether to show labels
+        cmap
+            Colormap
 
         Returns
         -------
@@ -498,6 +539,7 @@ class ManifoldMap(pn.viewable.Viewer):
             datashading=datashade_value,
             labels=label_value,
             title=f"{dr_label}.{color_key}",
+            cmap=cmap,
         )
 
         return create_manifoldmap_plot(
@@ -508,6 +550,7 @@ class ManifoldMap(pn.viewable.Viewer):
             color_key,
             x_value,
             y_value,
+            categorical=self._categorical,
             **config,
         )
 
@@ -543,6 +586,9 @@ class ManifoldMap(pn.viewable.Viewer):
                 ":host .bk-menu.bk-below {max-height: 200px; overflow-y: auto}"
             ],
         )
+        colormap = pn.widgets.ColorMap.from_param(
+            self.param.colormap,
+        )
         datashade_switch = pn.widgets.Checkbox.from_param(
             self.param.datashade, name="Datashader Rasterize For Large Datasets"
         )
@@ -568,6 +614,7 @@ class ManifoldMap(pn.viewable.Viewer):
             color_info=self.param["_color_info"],
             datashade_value=datashade_switch,
             label_value=label_switch,
+            cmap=colormap,
         )
 
         # Create widget box
@@ -578,6 +625,7 @@ class ManifoldMap(pn.viewable.Viewer):
             pn.pane.HTML("<strong>Color by</strong>"),
             color_dim,
             color,
+            colormap,
             datashade_switch,
             label_switch,
             visible=self.show_widgets,
