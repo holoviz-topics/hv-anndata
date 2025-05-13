@@ -373,7 +373,7 @@ class ManifoldMap(pn.viewable.Viewer):
     )
     color_by_dim: str = param.Selector(  # type: ignore[assignment]
         default="obs",
-        objects={"Observations": "obs", "Genes": "cols"},
+        objects={"Observations": "obs", "Variables": "cols"},
     )
     color_by: str = param.Selector(  # type: ignore[assignment]
         doc="Coloring variable"
