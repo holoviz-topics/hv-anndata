@@ -50,6 +50,7 @@ lint.ignore = [
   "D213",   # Multi-line docstring summary should start at the first instead of second line
   "FIX002", # TODOs are fine
   "ISC001", # Incompatible with formatter
+  "N",      # pep8-naming
   "S603",   # We don’t want to use `subprocess.run(shell=True)`
   "S607",   # We don’t run commands with untrusted input
   "SLF",

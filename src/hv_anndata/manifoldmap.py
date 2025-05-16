@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, Unpack
+from typing import TYPE_CHECKING, Literal, TypedDict, Unpack
 
 import anndata as ad
 import bokeh
@@ -14,6 +14,7 @@ import holoviews.operation.datashader as hd
 import numpy as np
 import panel as pn
 import param
+from holoviews.operation import Operation
 from panel.reactive import hold
 
 if TYPE_CHECKING:
@@ -41,6 +42,55 @@ def _is_categorical(arr: np.ndarr) -> bool:
         or np.issubdtype(arr.dtype, np.object_)
         or np.issubdtype(arr.dtype, np.str_)
     )
+
+
+class labeller(Operation):
+    """Add a Label element centered over categorical points."""
+
+    column = param.String()
+
+    max_labels = param.Integer(10)
+
+    min_count = param.Integer(default=100)
+
+    streams = param.List([hv.streams.RangeXY])
+
+    x_range = param.Tuple(
+        default=None,
+        length=2,
+        doc="""
+       The x_range as a tuple of min and max x-value. Auto-ranges
+       if set to None.""",
+    )
+
+    y_range = param.Tuple(
+        default=None,
+        length=2,
+        doc="""
+       The x_range as a tuple of min and max x-value. Auto-ranges
+       if set to None.""",
+    )
+
+    def _process(self, el: hv.Dataset, key=None) -> hv.Labels:  # noqa: ARG002, ANN001
+        if self.p.x_range and self.p.y_range:
+            el = el[slice(*self.p.x_range), slice(*self.p.y_range)]
+
+        df = el.dframe()  # noqa: PD901
+        xd, yd, cd = el.dimensions()[:3]
+        col = self.p.column or cd.name
+        result = (
+            df.groupby(col)
+            .agg(
+                count=(col, "size"),  # count of rows per group
+                x=(xd.name, "mean"),
+                y=(yd.name, "mean"),
+            )
+            .query(f"count > {self.p.min_count}")
+            .sort_values("count", ascending=False)
+            .iloc[: self.p.max_labels]
+            .reset_index()
+        )
+        return hv.Labels(result, ["x", "y"], col)
 
 
 class ManifoldMapConfig(TypedDict, total=False):
@@ -119,7 +169,7 @@ def create_manifoldmap_plot(  # noqa: PLR0913
         # Use subset of categorical colormap to preserve distinct colors
         cmap = cmap[:n_unq_cat]
         colorbar = False
-        show_legend = not labels
+        show_legend = True
     else:
         if cmap is None:
             cmap = DEFAULT_CONT_CMAP
@@ -127,11 +177,12 @@ def create_manifoldmap_plot(  # noqa: PLR0913
         colorbar = True
 
     # Create basic plot
-    plot = hv.Points(
+    dataset = hv.Dataset(
         (x_data[:, x_dim], x_data[:, y_dim], color_data),
         [xaxis_label, yaxis_label],
         color_var,
     )
+    plot = dataset.to(hv.Points)
 
     # Options for standard (non-datashaded) plot
     plot_opts = dict(
@@ -146,40 +197,18 @@ def create_manifoldmap_plot(  # noqa: PLR0913
         legend_position="right",
     )
 
-    # Options for labels
-    label_opts = dict(text_font_size="8pt", text_color="black")
-
     # Apply different rendering based on configuration
     if not datashading:
         # Standard plot without datashading
         plot = plot.opts(**plot_opts)
 
-        # Add labels if categorical and requested
-        if categorical and labels:
-            plot = _add_category_labels(
-                plot,
-                x_data,
-                color_data,
-                x_dim,
-                y_dim,
-                xaxis_label,
-                yaxis_label,
-                label_opts,
-            )
     # Apply datashading with different approaches for categorical vs continuous
     elif categorical:
         plot = _apply_categorical_datashading(
             plot,
-            x_data=x_data,
             color_data=color_data,
-            x_dim=x_dim,
-            y_dim=y_dim,
             color_var=color_var,
             cmap=cmap,
-            xaxis_label=xaxis_label,
-            yaxis_label=yaxis_label,
-            labels=labels,
-            label_opts=label_opts,
         )
     else:
         # For continuous data, take the mean
@@ -187,6 +216,11 @@ def create_manifoldmap_plot(  # noqa: PLR0913
         plot = hd.rasterize(plot, aggregator=aggregator)
         plot = hd.dynspread(plot, threshold=0.5)
         plot = plot.opts(cmap=cmap, colorbar=colorbar)
+
+    if categorical and labels:
+        # Options for labels
+        label_opts = dict(text_font_size="8pt", text_color="black")
+        plot = plot * labeller(dataset).opts(**label_opts)
 
     # Apply final options to the plot
     return plot.opts(
@@ -198,72 +232,12 @@ def create_manifoldmap_plot(  # noqa: PLR0913
     )
 
 
-def _add_category_labels(  # noqa: PLR0913
-    plot: hv.Element,
-    x_data: np.ndarray,
-    color_data: np.ndarray,
-    x_dim: int,
-    y_dim: int,
-    xaxis_label: str,
-    yaxis_label: str,
-    label_opts: dict[str, Any],
-) -> hv.Element:
-    """Add category labels to a plot.
-
-    Parameters
-    ----------
-    plot
-        The base plot to add labels to
-    x_data
-        Coordinate data
-    color_data
-        Category data for coloring
-    x_dim
-        Index for x dimension
-    y_dim
-        Index for y dimension
-    xaxis_label
-        X-axis label
-    yaxis_label
-        Y-axis label
-    label_opts
-        Options for label formatting
-
-    Returns
-    -------
-    Plot with labels added
-
-    """
-    unique_categories = np.unique(color_data)
-    labels_data = []
-
-    for cat in unique_categories:
-        mask = color_data == cat
-        if np.any(mask):
-            median_x = np.median(x_data[mask, x_dim])
-            median_y = np.median(x_data[mask, y_dim])
-            labels_data.append((median_x, median_y, str(cat)))
-
-    labels_element = hv.Labels(labels_data, [xaxis_label, yaxis_label], "Label").opts(
-        **label_opts
-    )
-
-    return plot * labels_element
-
-
-def _apply_categorical_datashading(  # noqa: PLR0913
+def _apply_categorical_datashading(
     plot: hv.Element,
     *,
-    x_data: np.ndarray,
     color_data: np.ndarray,
-    x_dim: int,
-    y_dim: int,
     color_var: str,
     cmap: Sequence[str],
-    xaxis_label: str,
-    yaxis_label: str,
-    labels: bool,
-    label_opts: dict[str, Any],
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -271,30 +245,16 @@ def _apply_categorical_datashading(  # noqa: PLR0913
     ----------
     plot
         The base plot to apply datashading to
-    x_data
-        Coordinate data
     color_data
         Category data for coloring
-    x_dim
-        Index for x dimension
-    y_dim
-        Index for y dimension
     color_var
         Name of the color variable
     cmap
         Colormap to use
-    xaxis_label
-        X-axis label
-    yaxis_label
-        Y-axis label
-    labels
-        Whether to add category labels
-    label_opts
-        Options for label formatting
 
     Returns
     -------
-    Datashaded plot with optional labels and legend
+    Datashaded plot with a custom legend
 
     """
     # For categorical data, count by category
@@ -303,35 +263,27 @@ def _apply_categorical_datashading(  # noqa: PLR0913
     plot = hd.dynspread(plot, threshold=0.5)
     plot = plot.opts(cmap=cmap, tools=["hover", "box_select", "lasso_select"])
 
-    # Add either labels or a custom legend
-    if labels:
-        plot = _add_category_labels(
-            plot, x_data, color_data, x_dim, y_dim, xaxis_label, yaxis_label, label_opts
-        )
-    else:
-        # Create a custom legend for datashaded categorical plot
-        unique_categories = np.unique(color_data)
-        color_key = dict(
-            zip(unique_categories, cmap[: len(unique_categories)], strict=False)
-        )
-        legend_items = [
-            hv.Points([0, 0], label=str(cat)).opts(color=color_key[cat], size=0)
-            for cat in unique_categories
-        ]
-        legend = hv.NdOverlay(
-            {
-                str(cat): item
-                for cat, item in zip(unique_categories, legend_items, strict=False)
-            }
-        ).opts(
-            show_legend=True,
-            legend_position="right",
-            legend_limit=100,
-            legend_cols=len(unique_categories) // 10 + 1,
-        )
-        plot = plot * legend
-
-    return plot
+    # Create a custom legend for datashaded categorical plot
+    unique_categories = np.unique(color_data)
+    color_key = dict(
+        zip(unique_categories, cmap[: len(unique_categories)], strict=False)
+    )
+    legend_items = [
+        hv.Points([0, 0], label=str(cat)).opts(color=color_key[cat], size=0)
+        for cat in unique_categories
+    ]
+    legend = hv.NdOverlay(
+        {
+            str(cat): item
+            for cat, item in zip(unique_categories, legend_items, strict=False)
+        }
+    ).opts(
+        show_legend=True,
+        legend_position="right",
+        legend_limit=100,
+        legend_cols=len(unique_categories) // 10 + 1,
+    )
+    return plot * legend
 
 
 class ManifoldMap(pn.viewable.Viewer):
