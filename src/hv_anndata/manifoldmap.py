@@ -566,7 +566,7 @@ class ManifoldMap(pn.viewable.Viewer):
             color_info=self.param["_color_info"],
             datashade_value=datashade_switch,
             label_value=label_switch,
-            cmap=colormap,
+            cmap=self.param["colormap"],
         )
 
         # Create widget box
