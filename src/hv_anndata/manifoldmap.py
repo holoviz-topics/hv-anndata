@@ -320,9 +320,11 @@ class ManifoldMap(pn.viewable.Viewer):
     adata: ad.AnnData = param.ClassSelector(  # type: ignore[assignment]
         class_=ad.AnnData, doc="AnnData object to visualize"
     )
-    reduction: str | None = param.String(  # type: ignore[assignment]
-        default=None, doc="Dimension reduction method", allow_None=True
+    reduction: str = param.Selector(  # type: ignore[assignment]
+        doc="Dimension reduction method"
     )
+    x_axis: str = param.Selector()  # type: ignore[assignment]
+    y_axis: str = param.Selector()  # type: ignore[assignment]
     color_by_dim: str = param.Selector(  # type: ignore[assignment]
         default="obs",
         objects={"Observations": "obs", "Variables": "cols"},
@@ -344,9 +346,10 @@ class ManifoldMap(pn.viewable.Viewer):
     def __init__(self, **params: object) -> None:
         """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
-        self.dr_options = list(self.adata.obsm.keys())
+        dr_options = list(self.adata.obsm.keys())
+        self.param["reduction"].objects = dr_options
         if not self.reduction:
-            self.reduction = self.dr_options[0]
+            self.reduction = dr_options[0]
 
         self._color_options = {
             "obs": list(self.adata.obs.columns),
@@ -367,6 +370,7 @@ class ManifoldMap(pn.viewable.Viewer):
             raise ValueError(msg)
         else:
             self._update_on_color_by()
+        self._update_axes()
 
     @param.depends("color_by_dim", watch=True)
     def _on_color_by_dim(self) -> None:
@@ -389,6 +393,19 @@ class ManifoldMap(pn.viewable.Viewer):
             new_vals["colormap"] = next(iter(cmaps.values()))
         new_vals["_color_info"] = (self.color_by_dim, self.color_by)
         self.param.update(new_vals)
+
+    @hold()
+    @param.depends("reduction", watch=True)
+    def _update_axes(self) -> None:
+        # Reset dimension options when reduction selection changes
+        new_dims = self.get_dim_labels(self.reduction)
+        vals = {
+            "x_axis": new_dims[0],
+            "y_axis": new_dims[1],
+        }
+        self.param.x_axis.objects = new_dims
+        self.param.y_axis.objects = new_dims
+        self.param.update(vals)
 
     def get_reduction_label(self, dr_key: str) -> str:
         """Get a display label for a dimension reduction key.
@@ -506,6 +523,27 @@ class ManifoldMap(pn.viewable.Viewer):
             **config,
         )
 
+    @param.depends(
+        # Only include derived parameters to avoid calling create_plot
+        # unnecessarily.
+        "x_axis",
+        "y_axis",
+        "_color_info",
+        "datashade",
+        "labels",
+        "colormap",
+    )
+    def _plot_view(self) -> pn.viewable.Viewable:
+        return self.create_plot(
+            dr_key=self.reduction,
+            x_value=self.x_axis,
+            y_value=self.y_axis,
+            color_info=self._color_info,
+            datashade_value=self.datashade,
+            label_value=self.labels,
+            cmap=self.colormap,
+        )
+
     def __panel__(self) -> pn.viewable.Viewable:
         """Create the Panel application layout.
 
@@ -515,16 +553,6 @@ class ManifoldMap(pn.viewable.Viewer):
 
         """
         # Widgets
-        dr_select = pn.widgets.Select.from_param(
-            self.param.reduction, options=self.dr_options
-        )
-        initial_dims = self.get_dim_labels(dr_select.value)
-        x_axis = pn.widgets.Select(
-            name="X-axis", options=initial_dims, value=initial_dims[0]
-        )
-        y_axis = pn.widgets.Select(
-            name="Y-axis", options=initial_dims, value=initial_dims[1]
-        )
         color_dim = pn.widgets.RadioButtonGroup.from_param(
             self.param.color_by_dim,
         )
@@ -548,32 +576,11 @@ class ManifoldMap(pn.viewable.Viewer):
             self.param.labels, name="Overlay Labels For Categorical Coloring"
         )
 
-        # Reset dimension options when reduction selection changes
-        @hold()
-        def reset_dimension_options(event: object) -> None:
-            new_dims = self.get_dim_labels(event.new)
-            x_axis.param.update(options=new_dims, value=new_dims[0])
-            y_axis.param.update(options=new_dims, value=new_dims[1])
-
-        dr_select.param.watch(reset_dimension_options, "value")
-
-        # Bind the plot creation to widget values
-        plot_pane = pn.bind(
-            self.create_plot,
-            dr_key=dr_select,
-            x_value=x_axis,
-            y_value=y_axis,
-            color_info=self.param["_color_info"],
-            datashade_value=datashade_switch,
-            label_value=label_switch,
-            cmap=self.param["colormap"],
-        )
-
         # Create widget box
         widgets = pn.WidgetBox(
-            dr_select,
-            x_axis,
-            y_axis,
+            self.param.reduction,
+            self.param.x_axis,
+            self.param.y_axis,
             pn.pane.HTML("<strong>Color by</strong>"),
             color_dim,
             color,
@@ -584,4 +591,4 @@ class ManifoldMap(pn.viewable.Viewer):
         )
 
         # Return the assembled layout
-        return pn.Row(widgets, plot_pane)
+        return pn.Row(widgets, self._plot_view)
