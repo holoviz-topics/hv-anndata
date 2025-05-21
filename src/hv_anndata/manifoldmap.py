@@ -102,7 +102,7 @@ class ManifoldMapConfig(TypedDict, total=False):
     """height of the plot (default: 300)"""
     datashading: bool
     """whether to apply datashader (default: True)"""
-    labels: bool
+    show_labels: bool
     """whether to overlay labels at median positions (default: False)"""
     cmap: str | list[str]
     """colormap"""
@@ -153,7 +153,7 @@ def create_manifoldmap_plot(  # noqa: PLR0913
     width = config.get("width", 300)
     height = config.get("height", 300)
     datashading = config.get("datashading", True)
-    labels = config.get("labels", False)
+    show_labels = config.get("show_labels", False)
     cmap = config.get("cmap")
     title = config.get("title", "")
 
@@ -217,7 +217,7 @@ def create_manifoldmap_plot(  # noqa: PLR0913
         plot = hd.dynspread(plot, threshold=0.5)
         plot = plot.opts(cmap=cmap, colorbar=colorbar)
 
-    if categorical and labels:
+    if categorical and show_labels:
         # Options for labels
         label_opts = dict(text_font_size="8pt", text_color="black")
         plot = plot * labeller(dataset).opts(**label_opts)
@@ -310,7 +310,7 @@ class ManifoldMap(pn.viewable.Viewer):
         Width of the plot
     height
         Height of the plot
-    labels
+    show_labels
         Whether to show labels
     show_widgets
         Whether to show control widgets
@@ -333,10 +333,18 @@ class ManifoldMap(pn.viewable.Viewer):
         doc="Coloring variable"
     )
     colormap: str = param.Selector()
-    datashade: bool = param.Boolean(default=True, doc="Whether to enable datashading")  # type: ignore[assignment]
+    datashade: bool = param.Boolean(  # type: ignore[assignment]
+        default=True,
+        label="Datashader Rasterize For Large Datasets",
+        doc="Whether to enable datashading",
+    )
     width: int = param.Integer(default=300, doc="Width of the plot")  # type: ignore[assignment]
     height: int = param.Integer(default=300, doc="Height of the plot")  # type: ignore[assignment]
-    labels: bool = param.Boolean(default=False, doc="Whether to show labels")  # type: ignore[assignment]
+    show_labels: bool = param.Boolean(  # type: ignore[assignment]
+        default=False,
+        label="Overlay Labels For Categorical Coloring",
+        doc="Whether to show labels",
+    )
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
     )
@@ -447,7 +455,7 @@ class ManifoldMap(pn.viewable.Viewer):
         y_value: str,
         color_info: tuple[Literal["obs", "cols"], str],
         datashade_value: bool,
-        label_value: bool,
+        show_labels: bool,
         cmap: list[str] | str,
     ) -> pn.viewable.Viewable:
         """Create a manifold map plot with the specified parameters.
@@ -464,7 +472,7 @@ class ManifoldMap(pn.viewable.Viewer):
             Dimension and variable to use for coloring
         datashade_value
             Whether to enable datashading
-        label_value
+        show_labels
             Whether to show labels
         cmap
             Colormap
@@ -506,7 +514,7 @@ class ManifoldMap(pn.viewable.Viewer):
             width=self.width,
             height=self.height,
             datashading=datashade_value,
-            labels=label_value,
+            show_labels=show_labels,
             title=f"{dr_label}.{color_key}",
             cmap=cmap,
         )
@@ -530,7 +538,7 @@ class ManifoldMap(pn.viewable.Viewer):
         "y_axis",
         "_color_info",
         "datashade",
-        "labels",
+        "show_labels",
         "colormap",
     )
     def _plot_view(self) -> pn.viewable.Viewable:
@@ -540,7 +548,7 @@ class ManifoldMap(pn.viewable.Viewer):
             y_value=self.y_axis,
             color_info=self._color_info,
             datashade_value=self.datashade,
-            label_value=self.labels,
+            show_labels=self.show_labels,
             cmap=self.colormap,
         )
 
@@ -569,13 +577,6 @@ class ManifoldMap(pn.viewable.Viewer):
         colormap = pn.widgets.ColorMap.from_param(
             self.param.colormap,
         )
-        datashade_switch = pn.widgets.Checkbox.from_param(
-            self.param.datashade, name="Datashader Rasterize For Large Datasets"
-        )
-        label_switch = pn.widgets.Checkbox.from_param(
-            self.param.labels, name="Overlay Labels For Categorical Coloring"
-        )
-
         # Create widget box
         widgets = pn.WidgetBox(
             self.param.reduction,
@@ -585,8 +586,8 @@ class ManifoldMap(pn.viewable.Viewer):
             color_dim,
             color,
             colormap,
-            datashade_switch,
-            label_switch,
+            self.param.datashade,
+            self.param.show_labels,
             visible=self.show_widgets,
         )
 
