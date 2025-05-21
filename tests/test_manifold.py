@@ -142,7 +142,7 @@ def test_create_manifoldmap_plot_datashading(
 def test_manifoldmap_initialization_default(sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
 
-    assert mm.dr_options == ["X_pca", "X_umap"]
+    assert mm.param.reduction.objects == ["X_pca", "X_umap"]
     assert mm.color_by_dim == "obs"
     assert mm.reduction == "X_pca"
     assert mm.color_by == "cell_type"
@@ -150,14 +150,13 @@ def test_manifoldmap_initialization_default(sadata: ad.AnnData) -> None:
         "obs": ["cell_type", "expression_level"],
         "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
     }
-    assert mm._color_info == ("obs", "cell_type")
 
 
 @pytest.mark.usefixtures("bokeh_backend")
 def test_manifoldmap_initialization_color_by(sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata, color_by_dim="cols", color_by="gene_1")
 
-    assert mm.dr_options == ["X_pca", "X_umap"]
+    assert mm.param.reduction.objects == ["X_pca", "X_umap"]
     assert mm.color_by_dim == "cols"
     assert mm.reduction == "X_pca"
     assert mm.color_by == "gene_1"
@@ -165,7 +164,6 @@ def test_manifoldmap_initialization_color_by(sadata: ad.AnnData) -> None:
         "obs": ["cell_type", "expression_level"],
         "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
     }
-    assert mm._color_info == ("cols", "gene_1")
 
 
 @pytest.mark.usefixtures("bokeh_backend")
@@ -185,9 +183,10 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         dr_key="X_pca",
         x_value="PCA1",
         y_value="PCA2",
-        color_info=("obs", "cell_type"),
+        color_by_dim="obs",
+        color_by="cell_type",
         datashade_value=False,
-        label_value=True,
+        show_labels=True,
         cmap=["#1f77b3", "#ff7e0e"],
     )
     mock_cmp.assert_called_once_with(
@@ -202,7 +201,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         width=300,
         height=300,
         datashading=False,
-        labels=True,
+        show_labels=True,
         title="PCA.cell_type",
         cmap=["#1f77b3", "#ff7e0e"],
     )
