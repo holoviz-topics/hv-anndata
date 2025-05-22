@@ -259,12 +259,22 @@ def _apply_categorical_datashading(
     """
     # For categorical data, count by category
     aggregator = ds.count_cat(color_by)
-    plot = hd.rasterize(plot, aggregator=aggregator)
+    # Selector used as a workaround to display categorical counts per pixel
+    # One day done directly in Bokeh, see https://github.com/bokeh/bokeh/issues/13354
+    selector = ds.first(plot.kdims[0].name)
+    plot = hd.rasterize(plot, aggregator=aggregator, selector=selector)
     plot = hd.dynspread(plot, threshold=0.5)
-    plot = plot.opts(cmap=cmap, tools=["hover", "box_select", "lasso_select"])
+    unique_categories = np.unique(color_data)
+    plot = plot.opts(
+        cmap=cmap,
+        tools=["hover", "box_select", "lasso_select"],
+        # Override hover_tooltips to exclude the selector value
+        hover_tooltips=list(unique_categories),
+        # Don't include the selector heading
+        selector_in_hovertool=False,
+    )
 
     # Create a custom legend for datashaded categorical plot
-    unique_categories = np.unique(color_data)
     color_key = dict(
         zip(unique_categories, cmap[: len(unique_categories)], strict=False)
     )

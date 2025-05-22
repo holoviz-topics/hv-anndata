@@ -124,6 +124,7 @@ def test_create_manifoldmap_plot_datashading(
         rop = dm.callback.inputs[0].callback.inputs[0].callback.operation
         assert rop.name == "rasterize"
         assert rop.p.aggregator.cat_column == color_var
+        assert rop.p.selector.column == "UMAP1"
         dop = dm.callback.inputs[0].callback.operation
         assert dop.name == "dynspread"
         assert dop.p.threshold == 0.5
