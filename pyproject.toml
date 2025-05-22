@@ -51,6 +51,7 @@ lint.ignore = [
   "FIX002",  # TODOs are fine
   "ISC001",  # Incompatible with formatter
   "N",       # pep8-naming
+  "PLR0124",
   "PLR0913", # Too many arguments in function definition
   "S603",    # We don’t want to use `subprocess.run(shell=True)`
   "S607",    # We don’t run commands with untrusted input
