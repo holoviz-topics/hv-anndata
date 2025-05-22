@@ -548,6 +548,7 @@ class ManifoldMap(pn.viewable.Viewer):
         # unnecessarily.
         "x_axis",
         "y_axis",
+        "colormap",
         "datashade",
         "show_labels",
         "_replot",
