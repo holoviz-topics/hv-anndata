@@ -52,22 +52,22 @@ class Dotmap(param.ParameterizedFunction):
     groupby = param.String(default="cell_type", doc="Column to group by.")
     expression_cutoff = param.Number(default=0.0, doc="Cutoff for expression.")
     max_dot_size = param.Integer(default=20, doc="Maximum size of the dots.")
-    
+
     standard_scale = param.Selector(
         default=None,
         objects=[None, "var", "group"],
-        doc="Whether to standardize the dimension between 0 and 1. 'var' scales each gene, 'group' scales each cell type."
+        doc="Whether to standardize the dimension between 0 and 1. 'var' scales each gene, 'group' scales each cell type.",
     )
-    
+
     use_raw = param.Selector(
         default=None,
         objects=[None, True, False],
-        doc="Use `.raw` attribute of AnnData if present. If None, uses .raw if present."
+        doc="Use `.raw` attribute of AnnData if present. If None, uses .raw if present.",
     )
-    
+
     mean_only_expressed = param.Boolean(
         default=False,
-        doc="If True, gene expression is averaged only over expressing cells."
+        doc="If True, gene expression is averaged only over expressing cells.",
     )
 
     def _prepare_data(self) -> pd.DataFrame:
@@ -81,16 +81,20 @@ class Dotmap(param.ParameterizedFunction):
         if use_raw and self.p.adata.raw is not None:
             adata_subset = self.p.adata.raw[:, all_marker_genes]
             expression_df = pd.DataFrame(
-                adata_subset.X.toarray() if hasattr(adata_subset.X, 'toarray') else adata_subset.X,
+                adata_subset.X.toarray()
+                if hasattr(adata_subset.X, "toarray")
+                else adata_subset.X,
                 index=self.p.adata.obs_names,
-                columns=all_marker_genes
+                columns=all_marker_genes,
             )
         else:
             adata_subset = self.p.adata[:, all_marker_genes]
             expression_df = pd.DataFrame(
-                adata_subset.X.toarray() if hasattr(adata_subset.X, 'toarray') else adata_subset.X,
+                adata_subset.X.toarray()
+                if hasattr(adata_subset.X, "toarray")
+                else adata_subset.X,
                 index=self.p.adata.obs_names,
-                columns=all_marker_genes
+                columns=all_marker_genes,
             )
 
         # Check if all genes are present in adata.var_names, warn about missing ones
@@ -110,14 +114,14 @@ class Dotmap(param.ParameterizedFunction):
         def compute_expression(df: pd.DataFrame) -> pd.DataFrame:
             # Separate the groupby column from gene columns
             gene_cols = [col for col in df.columns if col != self.p.groupby]
-            
+
             results = {}
             for gene in gene_cols:
                 gene_data = df[gene]
-                
+
                 # percentage of expressing cells
                 percentage = (gene_data > self.p.expression_cutoff).mean() * 100
-                
+
                 if self.p.mean_only_expressed:
                     expressing_mask = gene_data > self.p.expression_cutoff
                     if expressing_mask.any():
@@ -126,12 +130,11 @@ class Dotmap(param.ParameterizedFunction):
                         mean_expr = 0.0
                 else:
                     mean_expr = gene_data.mean()
-                
-                results[gene] = pd.Series({
-                    'percentage': percentage,
-                    'mean_expression': mean_expr
-                })
-            
+
+                results[gene] = pd.Series(
+                    {"percentage": percentage, "mean_expression": mean_expr}
+                )
+
             return pd.DataFrame(results).T
 
         grouped = joined_df.groupby(self.p.groupby, observed=True)
@@ -143,44 +146,52 @@ class Dotmap(param.ParameterizedFunction):
                 if gene in all_marker_genes:
                     gene_stats = expression_stats.xs(gene, level=1)
                     for cluster in gene_stats.index:
-                        data.append({
-                            'cluster': cluster,
-                            'gene_id': gene,
-                            'marker_cluster_name': marker_cluster_name,
-                            'percentage': gene_stats.loc[cluster, 'percentage'],
-                            'mean_expression': gene_stats.loc[cluster, 'mean_expression']
-                        })
-        
+                        data.append(
+                            {
+                                "cluster": cluster,
+                                "gene_id": gene,
+                                "marker_cluster_name": marker_cluster_name,
+                                "percentage": gene_stats.loc[cluster, "percentage"],
+                                "mean_expression": gene_stats.loc[
+                                    cluster, "mean_expression"
+                                ],
+                            }
+                        )
+
         df = pd.DataFrame(data)
 
         # Apply standard_scale if specified
         if self.p.standard_scale == "var":
             # Normalize each gene across all cell types
-            for gene in df['gene_id'].unique():
-                mask = df['gene_id'] == gene
-                gene_data = df.loc[mask, 'mean_expression']
+            for gene in df["gene_id"].unique():
+                mask = df["gene_id"] == gene
+                gene_data = df.loc[mask, "mean_expression"]
                 min_val = gene_data.min()
                 max_val = gene_data.max()
                 if max_val > min_val:
-                    df.loc[mask, 'mean_expression'] = (gene_data - min_val) / (max_val - min_val)
+                    df.loc[mask, "mean_expression"] = (gene_data - min_val) / (
+                        max_val - min_val
+                    )
                 else:
-                    df.loc[mask, 'mean_expression'] = 0.0
-                    
+                    df.loc[mask, "mean_expression"] = 0.0
+
         elif self.p.standard_scale == "group":
             # Normalize each cell type across all genes
-            for cluster in df['cluster'].unique():
-                mask = df['cluster'] == cluster
-                cluster_data = df.loc[mask, 'mean_expression']
+            for cluster in df["cluster"].unique():
+                mask = df["cluster"] == cluster
+                cluster_data = df.loc[mask, "mean_expression"]
                 min_val = cluster_data.min()
                 max_val = cluster_data.max()
                 if max_val > min_val:
-                    df.loc[mask, 'mean_expression'] = (cluster_data - min_val) / (max_val - min_val)
+                    df.loc[mask, "mean_expression"] = (cluster_data - min_val) / (
+                        max_val - min_val
+                    )
                 else:
-                    df.loc[mask, 'mean_expression'] = 0.0
-        
+                    df.loc[mask, "mean_expression"] = 0.0
+
         # Create marker_line column
         df["marker_line"] = df["marker_cluster_name"] + ", " + df["gene_id"]
-        
+
         return df
 
     def _get_opts(self) -> dict[str, Any]:
@@ -191,7 +202,7 @@ class Dotmap(param.ParameterizedFunction):
             show_legend=False,
             xrotation=45,
             line_alpha=0.2,
-            line_color='k',
+            line_color="k",
         )
         size_dim = hv.dim("percentage").norm() * self.p.max_dot_size
         match hv.Store.current_backend:
