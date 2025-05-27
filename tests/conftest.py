@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def _plotting_backend(backend: str) -> None:
     pytest.importorskip(backend)
-    if not hv.extension._loaded:  # noqa: SLF001
+    if not hv.extension._loaded:
         hv.extension(backend)
     hv.renderer(backend)
     curent_backend = hv.Store.current_backend
