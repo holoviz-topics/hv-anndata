@@ -79,23 +79,9 @@ class Dotmap(param.ParameterizedFunction):
         if use_raw is None:
             use_raw = self.p.adata.raw is not None
         if use_raw and self.p.adata.raw is not None:
-            adata_subset = self.p.adata.raw[:, all_marker_genes]
-            expression_df = pd.DataFrame(
-                adata_subset.X.toarray()
-                if hasattr(adata_subset.X, "toarray")
-                else adata_subset.X,
-                index=self.p.adata.obs_names,
-                columns=all_marker_genes,
-            )
+            expression_df = self.p.adata.raw[:, all_marker_genes].to_df()
         else:
-            adata_subset = self.p.adata[:, all_marker_genes]
-            expression_df = pd.DataFrame(
-                adata_subset.X.toarray()
-                if hasattr(adata_subset.X, "toarray")
-                else adata_subset.X,
-                index=self.p.adata.obs_names,
-                columns=all_marker_genes,
-            )
+            expression_df = self.p.adata[:, all_marker_genes].to_df()
 
         # Check if all genes are present in adata.var_names, warn about missing ones
         missing_genes = set(all_marker_genes) - set(self.p.adata.var_names)
