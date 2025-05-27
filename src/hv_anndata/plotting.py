@@ -126,25 +126,17 @@ class Dotmap(param.ParameterizedFunction):
         grouped = joined_df.groupby(self.p.groupby, observed=True)
         expression_stats = grouped.apply(compute_expression, include_groups=False)
 
-        data = []
-        for marker_cluster_name, gene_list in self.p.marker_genes.items():
-            for gene in gene_list:
-                if gene in all_marker_genes:
-                    gene_stats = expression_stats.xs(gene, level=1)
-                    for cluster in gene_stats.index:
-                        data.append(
-                            {
-                                "cluster": cluster,
-                                "gene_id": gene,
-                                "marker_cluster_name": marker_cluster_name,
-                                "percentage": gene_stats.loc[cluster, "percentage"],
-                                "mean_expression": gene_stats.loc[
-                                    cluster, "mean_expression"
-                                ],
-                            }
-                        )
-
-        df = pd.DataFrame(data)
+        data = [
+            expression_stats.xs(gene, level=1)
+            .reset_index(names="cluster")
+            .assign(
+                marker_cluster_name=marker_cluster_name,
+                gene_id=gene,
+            )
+            for marker_cluster_name, gene_list in self.p.marker_genes.items()
+            for gene in gene_list
+        ]
+        df = pd.concat(data, ignore_index=True)  # noqa: PD901
 
         # Apply standard_scale if specified
         if self.p.standard_scale == "var":
