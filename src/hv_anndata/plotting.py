@@ -107,13 +107,15 @@ class Dotmap(param.ParameterizedFunction):
             show_legend=False,
             xrotation=45,
         )
-        size_dim = hv.dim("percentage").norm() * self.p.max_dot_size
+
+        radius_dim = hv.dim("percentage").norm()
         match hv.Store.current_backend:
             case "matplotlib":
-                backend_opts = {"s": size_dim}
+                backend_opts = {"s": radius_dim * self.p.max_dot_size}
             case "bokeh":
                 backend_opts = {
-                    "size": size_dim,
+                    "radius": radius_dim / 2,
+                    "size": None,
                     "colorbar_position": "left",
                     "tools": ["hover"],
                     "width": 900,
