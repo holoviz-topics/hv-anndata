@@ -56,13 +56,16 @@ class Dotmap(param.ParameterizedFunction):
     standard_scale = param.Selector(
         default=None,
         objects=[None, "var", "group"],
-        doc="Whether to standardize the dimension between 0 and 1. 'var' scales each gene, 'group' scales each cell type.",
+        doc="""\
+        Whether to standardize the dimension between 0 and 1. 'var' scales each gene,
+        'group' scales each cell type.""",
     )
 
     use_raw = param.Selector(
         default=None,
         objects=[None, True, False],
-        doc="Use `.raw` attribute of AnnData if present. If None, uses .raw if present.",
+        doc="""\
+        Use `.raw` attribute of AnnData if present. If None, uses .raw if present.""",
     )
 
     mean_only_expressed = param.Boolean(
@@ -70,7 +73,7 @@ class Dotmap(param.ParameterizedFunction):
         doc="If True, gene expression is averaged only over expressing cells.",
     )
 
-    def _prepare_data(self) -> pd.DataFrame:
+    def _prepare_data(self) -> pd.DataFrame:  # noqa: C901, PLR0912, PLR0915
         # Flatten the marker_genes preserving order and duplicates
         all_marker_genes = list(chain.from_iterable(self.p.marker_genes.values()))
 
