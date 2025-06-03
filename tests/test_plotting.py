@@ -19,7 +19,7 @@ def test_dotmap_bokeh() -> None:
     )
 
     assert isinstance(dotmap.data, pd.DataFrame)
-    assert dotmap.data.shape == (60, 7)
+    assert dotmap.data.shape == (60, 6)
     assert list(dotmap.data.columns) == [
         "cluster",
         "percentage",
@@ -27,7 +27,6 @@ def test_dotmap_bokeh() -> None:
         "marker_cluster_name",
         "gene_id",
         "marker_line",
-        "mean_expression_norm",
     ]
     assert sorted(dotmap.data.gene_id.unique()) == sorted(markers)
     assert "size" in dotmap.opts.get().kwargs
@@ -43,7 +42,7 @@ def test_dotmap_mpl() -> None:
     )
 
     assert isinstance(dotmap.data, pd.DataFrame)
-    assert dotmap.data.shape == (60, 7)
+    assert dotmap.data.shape == (60, 6)
     assert list(dotmap.data.columns) == [
         "cluster",
         "percentage",
@@ -51,7 +50,6 @@ def test_dotmap_mpl() -> None:
         "marker_cluster_name",
         "gene_id",
         "marker_line",
-        "mean_expression_norm",
     ]
     assert sorted(dotmap.data.gene_id.unique()) == sorted(markers)
     assert "s" in dotmap.opts.get().kwargs
