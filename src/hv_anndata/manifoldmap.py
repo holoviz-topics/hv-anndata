@@ -283,6 +283,9 @@ def _apply_categorical_datashading(
     )
 
     # Create a custom legend for datashaded categorical plot
+    if len(unique_categories) > len(cmap):
+        # cmap not long enough, cycle it
+        cmap = cmap * (len(unique_categories) // len(cmap) + 1)
     color_key = dict(
         zip(unique_categories, cmap[: len(unique_categories)], strict=False)
     )
