@@ -372,6 +372,14 @@ class ManifoldMap(pn.viewable.Viewer):
         label="Datashader Rasterize For Large Datasets",
         doc="Whether to enable datashading",
     )
+    var_reference: str | None = param.String(  # type: ignore[assignment]
+        default=None,
+        allow_None=True,
+        doc="""
+        Column name in .var to use for populating the variable names, default
+        to the index names if not set.
+    """,
+    )
     width: int = param.Integer(default=300, doc="Width of the plot")  # type: ignore[assignment]
     height: int = param.Integer(default=300, doc="Height of the plot")  # type: ignore[assignment]
     show_labels: bool = param.Boolean(  # type: ignore[assignment]
@@ -393,9 +401,13 @@ class ManifoldMap(pn.viewable.Viewer):
         if not self.reduction:
             self.reduction = dr_options[0]
 
+        if self.var_reference:
+            cols = list(self.adata.var[self.var_reference])
+        else:
+            cols = list(self.adata.var_names)
         self._color_options = {
             "obs": list(self.adata.obs.columns),
-            "cols": list(self.adata.var_names),
+            "cols": cols,
         }
         copts = self._color_options[self.color_by_dim]
         self.param.color_by.objects = copts
@@ -426,7 +438,7 @@ class ManifoldMap(pn.viewable.Viewer):
         if self.color_by_dim == "obs":
             color_data = self.adata.obs[self.color_by].values
         elif self.color_by_dim == "cols":
-            color_data = self.adata.obs_vector(self.color_by)
+            color_data = self.adata.obs_vector(self._get_var())
         self._categorical = _is_categorical(color_data)
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
@@ -446,6 +458,20 @@ class ManifoldMap(pn.viewable.Viewer):
         self.param.x_axis.objects = new_dims
         self.param.y_axis.objects = new_dims
         self.param.update(vals)
+
+    def _get_var(self) -> str:
+        if self.var_reference:
+            var = self.adata.var.query(f'feature_name == "{self.color_by}"').index
+            if len(var) > 1:
+                msg = (
+                    f"More than one vars found in {self.var_reference!r} "
+                    f"for {self.color_by!r}."
+                )
+                raise RuntimeError(msg)
+            var = var.item()
+        else:
+            var = self.color_by
+        return var
 
     def get_reduction_label(self, dr_key: str) -> str:
         """Get a display label for a dimension reduction key.
@@ -538,7 +564,7 @@ class ManifoldMap(pn.viewable.Viewer):
         if color_by_dim == "obs":
             color_data = self.adata.obs[color_by].values
         elif color_by_dim == "cols":
-            color_data = self.adata.obs_vector(color_by)
+            color_data = self.adata.obs_vector(self._get_var())
         else:
             msg = "color_by_dim must be obs or cols"
             raise ValueError(msg)
