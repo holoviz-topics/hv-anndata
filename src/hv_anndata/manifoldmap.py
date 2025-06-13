@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, TypedDict, Unpack
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, Unpack
 
 import anndata as ad
 import bokeh
@@ -14,7 +14,7 @@ import holoviews.operation.datashader as hd
 import numpy as np
 import panel as pn
 import param
-from holoviews.operation import Operation
+from holoviews.operation import Operation, apply_when
 from panel.reactive import hold
 
 if TYPE_CHECKING:
@@ -34,6 +34,7 @@ CONT_CMAPS = {
 }
 DEFAULT_CAT_CMAP = cc.b_glasbey_category10
 DEFAULT_CONT_CMAP = "viridis"
+APPLY_WHEN_THRESHOLD = 1000
 
 
 def _is_categorical(arr: np.ndarr) -> bool:
@@ -221,9 +222,21 @@ def create_manifoldmap_plot(
     else:
         # For continuous data, take the mean
         aggregator = ds.mean(color_by)
-        plot = hd.rasterize(plot, aggregator=aggregator)
-        plot = hd.dynspread(plot, threshold=0.5)
-        plot = plot.opts(cmap=cmap, colorbar=colorbar)
+
+        def operation(obj: Any) -> Any:
+            obj = hd.rasterize(obj, aggregator=aggregator)
+            # Applying opts here instead of after apply_when to ensure
+            # they're applied to the right element (e.g. Points doesn't support cmap)
+            # Adding hover too as somehow it wouldn't be enabled despite
+            # the final options applied later.
+            obj = obj.opts(cmap=cmap, colorbar=colorbar, tools=["hover"])
+            return hd.dynspread(obj, threshold=0.5)
+
+        plot = apply_when(
+            plot,
+            operation=operation,
+            predicate=lambda obj: len(obj) > APPLY_WHEN_THRESHOLD,
+        )
 
     if categorical and show_labels:
         # Options for labels

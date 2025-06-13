@@ -43,6 +43,7 @@ extra-dependencies = [
 [tool.ruff]
 lint.select = [ "ALL" ]
 lint.ignore = [
+  "ANN401",
   "B019",    # functools.cache is fine to use
   "C408",    # dict(...) calls are good
   "COM812",  # Incompatible with formatter
