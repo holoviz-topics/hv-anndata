@@ -409,18 +409,16 @@ class ManifoldMap(pn.viewable.Viewer):
 
     @param.depends("color_by", watch=True)
     def _update_on_color_by(self) -> None:
-        new_vals = {}
-        old_categorical = self._categorical
+        old_is_categorical = self._categorical
         if self.color_by_dim == "obs":
             color_data = self.adata.obs[self.color_by].values
         elif self.color_by_dim == "cols":
             color_data = self.adata.obs_vector(self.color_by)
-        self._categorical = new_categorical = _is_categorical(color_data)
-        if old_categorical != new_categorical:
-            cmaps = CAT_CMAPS if new_categorical else CONT_CMAPS
+        self._categorical = _is_categorical(color_data)
+        if old_is_categorical != self._categorical or not self.colormap:
+            cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
             self.colormap = next(iter(cmaps.values()))
-        self.param.update(new_vals)
         self._replot = True
 
     @hold()
