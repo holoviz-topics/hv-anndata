@@ -136,7 +136,7 @@ class Dotmap(param.ParameterizedFunction):
         grouped = joined_df.groupby(self.p.groupby, observed=True)
         expression_stats = grouped.apply(compute_expression, include_groups=False)
 
-        data = [
+        data = [ # Likely faster way to do this, but harder to read
             expression_stats.xs(gene, level=1)
             .reset_index(names="cluster")
             .assign(
@@ -185,7 +185,7 @@ class Dotmap(param.ParameterizedFunction):
     def _get_opts(self) -> dict[str, Any]:
         opts = dict(
             cmap="Reds",
-            color=hv.dim("mean_expression"),  # Better if we could avoid this one
+            color=hv.dim("mean_expression"),
             colorbar=True,
             show_legend=False,
             xrotation=45,
