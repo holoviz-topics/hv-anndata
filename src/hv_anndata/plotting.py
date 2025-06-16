@@ -201,8 +201,8 @@ class Dotmap(param.ParameterizedFunction):
                     "tools": ["hover"],
                     "width": 900,
                     "height": 500,
-                    "line_alpha"=0.2,
-                    "line_color"="k",
+                    "line_alpha":0.2,
+                    "line_color":"k",
                 }
             case _:
                 backend_opts = {}
