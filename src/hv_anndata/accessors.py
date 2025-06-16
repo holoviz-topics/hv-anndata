@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast, overload
 
 import numpy as np
+import scipy.sparse as sp
 from holoviews.core.dimension import Dimension
 
 if TYPE_CHECKING:
@@ -113,7 +114,10 @@ class LayerVecAcc:
 
     def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].layers[self.k])  # TODO: pandas
+            ver_or_mat = ad[i].layers[self.k]
+            if isinstance(ver_or_mat, sp.spmatrix | sp.sparray):
+                ver_or_mat = ver_or_mat.toarray().flatten()
+            return ver_or_mat  # TODO: pandas  # noqa: TD003
 
         return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
 
@@ -183,7 +187,7 @@ class GraphVecAcc:
 
     def __getitem__(self, i: Idx2D[int]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return getattr(ad, self.ax)[self.k][i]
+            return getattr(ad, self.ax)[self.k][i].toarray().flatten()
 
         ax = cast("Literal['obs', 'var']", self.ax[:-1])
         return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, {ax})

@@ -50,30 +50,44 @@ def adata() -> AnnData:
     return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
 
 
-PATHS: list[tuple[AdPath, Callable[[AnnData], np.ndarray | pd.Series]]] = [
+PATHS: list[
+    tuple[AdPath, Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series]]
+] = [
     (A[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
     (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
     (A.obs["type"], lambda ad: ad.obs["type"]),
-    (A.layers["a"][:, "gene-18"], lambda ad: ad[:, "gene-18"].layers["a"].flatten()),
-    (A.layers["a"]["cell-77", :], lambda ad: ad["cell-77"].layers["a"].flatten()),
+    (
+        A.layers["a"][:, "gene-18"],
+        lambda ad: ad[:, "gene-18"].layers["a"].copy().toarray().flatten(),
+    ),
+    (
+        A.layers["a"]["cell-77", :],
+        lambda ad: ad["cell-77"].layers["a"].copy().toarray().flatten(),
+    ),
     (A.obsm["umap"][0], lambda ad: ad.obsm["umap"][:, 0]),
     (A.obsm["umap"][1], lambda ad: ad.obsm["umap"][:, 1]),
-    (A.varp["cons"][46, :], lambda ad: ad.varp["varp"][46, :]),
-    (A.varp["cons"][:, 46], lambda ad: ad.varp["varp"][:, 46]),
+    (A.varp["cons"][46, :], lambda ad: ad.varp["cons"][46, :].toarray()),
+    (A.varp["cons"][:, 46], lambda ad: ad.varp["cons"][:, 46].toarray()),
 ]
 
 
 @pytest.mark.parametrize(
-    ("path", "expected"), [pytest.param(n, f, id=str(n)) for n, f in PATHS]
+    ("path", "expected"),
+    [
+        pytest.param(n, f, id=str(n).replace("slice(None, None, None)", ":"))
+        for n, f in PATHS
+    ],
 )
 def test_get(
-    adata: AnnData, path: AdPath, expected: Callable[[AnnData], np.ndarray | pd.Series]
+    adata: AnnData,
+    path: AdPath,
+    expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
     data = hv.Dataset(adata, [path])
     assert data.interface is AnnDataInterface
     vals = data.interface.values(data, path, keep_index=True)
     if isinstance(vals, np.ndarray):
-        np.testing.assert_array_equal(vals, expected(adata))
+        np.testing.assert_array_equal(vals, expected(adata), strict=True)
     elif isinstance(vals, pd.Series):
         pd.testing.assert_series_equal(vals, expected(adata))
     else:
