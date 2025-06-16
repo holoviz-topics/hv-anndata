@@ -127,9 +127,7 @@ class Dotmap(param.ParameterizedFunction):
                 else:
                     mean_expr = gene_data.mean()
 
-                results[gene] = pd.Series(
-                    {"percentage": percentage, "mean_expression": mean_expr}
-                )
+                results[gene] = {"percentage": percentage, "mean_expression": mean_expr}
 
             return pd.DataFrame(results).T
 
