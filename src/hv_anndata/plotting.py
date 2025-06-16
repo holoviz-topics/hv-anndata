@@ -65,7 +65,16 @@ class Dotmap(param.ParameterizedFunction):
         default=None,
         objects=[None, True, False],
         doc="""\
-        Use `.raw` attribute of AnnData if present. If None, uses .raw if present.""",
+            Whether to use `.raw` attribute of AnnData if present.
+            
+            - None (default): Automatically use `.raw` if available, otherwise use `.X`
+            - True: Use `.raw` attribute. Falls back to `.X` if `.raw` is not available
+            - False: Always use `.X` (processed data), ignore `.raw` even if present
+            
+            In single-cell analysis, `.raw` typically contains the original count data before 
+            normalization, while `.X` contains processed data (e.g., log-transformed, scaled).
+            Using raw counts is sometimes preferred for visualization to show actual expression levels.
+            """
     )
 
     mean_only_expressed = param.Boolean(
