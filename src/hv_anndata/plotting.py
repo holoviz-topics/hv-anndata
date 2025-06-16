@@ -189,8 +189,6 @@ class Dotmap(param.ParameterizedFunction):
             colorbar=True,
             show_legend=False,
             xrotation=45,
-            line_alpha=0.2,
-            line_color="k",
         )
         size_dim = hv.dim("percentage").norm() * self.p.max_dot_size
         match hv.Store.current_backend:
@@ -203,6 +201,8 @@ class Dotmap(param.ParameterizedFunction):
                     "tools": ["hover"],
                     "width": 900,
                     "height": 500,
+                    "line_alpha"=0.2,
+                    "line_color"="k",
                 }
             case _:
                 backend_opts = {}
