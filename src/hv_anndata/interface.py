@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
@@ -9,7 +10,6 @@ import holoviews as hv
 import numpy as np
 import pandas as pd
 from anndata import AnnData
-from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
 from holoviews.core.util import expand_grid_coords
@@ -19,7 +19,9 @@ from .accessors import AdAc, AdPath
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from numbers import Number
 
+    from holoviews.core.data import Dataset
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray
 
@@ -28,6 +30,11 @@ if TYPE_CHECKING:
 
         kdims: Sequence[Dimension] | None
         vdims: Sequence[Dimension] | None
+
+    # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L594-L607
+    SelectionValues = tuple[Number, Number] | Sequence[Number]
+    # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L624-L627
+    SelectionSpec = type | Callable | str
 
 
 ACCESSOR = AdAc()
@@ -114,25 +121,44 @@ class AnnDataInterface(hv.core.Interface):
         del axes
 
     @classmethod
-    def select(cls, dataset: Dataset, selection_mask=None, **selection):
-        obs_selections, var_selections = {}, {}
+    def select(
+        cls,
+        dataset: Dataset,
+        selection_expr: hv.dim
+        | Mapping[Dimension | str, SelectionValues]
+        | None = None,
+        selection_specs: Sequence[SelectionSpec] | None = None,
+        **selection: SelectionValues,  # type: ignore[arg-type]
+    ) -> AnnData:
+        if selection_specs is not None:
+            msg = "selection_specs is not supported by AnnDataInterface yet."
+            raise NotImplementedError(msg)
+        if isinstance(selection_expr, Mapping):
+            if selection:
+                msg = "Cannot provide both selection and selection_expr."
+                raise TypeError(msg)
+            selection: Mapping[Dimension | str, SelectionValues] = selection_expr
+        elif selection_expr is not None:
+            msg = "selection_expr is not supported by AnnDataInterface yet."
+            raise NotImplementedError(msg)
+
+        adata = cast("AnnData", dataset.data)
+        obs = adata.obs_names
+        var = adata.var_names
         for k, v in selection.items():
-            if k.startswith("obs."):
-                obs_selections[k[4:]] = v
-            elif k.startswith("A.obs['"):
-                obs_selections[k[7:].replace("']", "")] = v
-            elif k.startswith("var."):
-                var_selections[k[4:]] = v
-            elif k.startswith("A.var['"):
-                var_selections[k[7:].replace("']", "")] = v
-        if obs_selections:
-            obs = Dataset(dataset.data.obs).select(**obs_selections).data.index
-        else:
-            obs = slice(None)
-        if var_selections:
-            var = Dataset(dataset.data.var).select(**var_selections).data.index
-        else:
-            var = slice(None)
+            k = AdAc.resolve(k) if isinstance(k, str) else AdAc.from_dimension(k)
+            if len(k.axes) > 1:
+                msg = "AnnData Dataset key dimensions must map onto obs or var axes."
+                raise DataError(msg)
+            [ax] = k.axes
+            # TODO: support ranges and sequences  # noqa: TD003
+            if ax == "obs":
+                obs &= k(adata) == v
+            elif ax == "var":
+                var &= k(adata) == v
+            else:
+                msg = f"Unknown axis: {ax}"
+                raise AssertionError(msg)
         return dataset.data[obs, var]
 
     @classmethod

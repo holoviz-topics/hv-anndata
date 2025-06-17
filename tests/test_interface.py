@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from string import ascii_lowercase
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import holoviews as hv
 import numpy as np
@@ -92,6 +92,33 @@ def test_get(
         pd.testing.assert_series_equal(vals, expected(adata))
     else:
         pytest.fail(f"Unexpected return type {type(vals)}")
+
+
+@pytest.mark.parametrize(
+    ("sel_args", "sel_kw"),
+    [
+        pytest.param(({A.obs["type"]: 0},), {}, id="dict"),
+        pytest.param((), {"obs['type']": 0}, id="kwargs"),
+        pytest.param(
+            (hv.dim(A.obs["type"]) == 0,),
+            {},
+            id="expression",
+            marks=pytest.mark.xfail(reason="Not implemented"),
+        ),
+    ],
+)
+def test_select(
+    adata: AnnData, sel_args: tuple[Any, ...], sel_kw: dict[str, Any]
+) -> None:
+    data = hv.Dataset(adata, A.obsm["umap"][0], [A.obsm["umap"][1], A.obs["type"]])
+    assert data.interface is AnnDataInterface
+    ds_sel = data.select(*sel_args, **sel_kw)
+
+    adata_subset = ds_sel.data
+    assert isinstance(adata_subset, AnnData)
+    pd.testing.assert_index_equal(
+        adata_subset.obs_names, adata[adata.obs["type"] == 0].obs_names
+    )
 
 
 """
