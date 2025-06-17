@@ -55,3 +55,19 @@ def test_dotmap_mpl() -> None:
     ]
     assert sorted(dotmap.data.gene_id.unique()) == sorted(markers)
     assert "s" in dotmap.opts.get().kwargs
+
+
+@pytest.mark.usefixtures("bokeh_backend")
+def test_dotmap_duplicate_names() -> None:
+    adata = sc.datasets.pbmc68k_reduced()
+    markers = ["C1QA", "PSAP", "CD79A", "CD79B", "CST3", "LYZ"]
+
+    dotmap = Dotmap(
+        adata=adata,
+        marker_genes={"group A": markers, "group B": markers[:1]},
+        groupby="bulk_labels",
+    )
+
+    assert isinstance(dotmap.data, pd.DataFrame)
+    # Seventy is the sum of markers across groups * 10
+    assert dotmap.data.shape == (70, 7)
