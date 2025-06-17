@@ -133,15 +133,11 @@ class AnnDataInterface(hv.core.Interface):
         if selection_specs is not None:
             msg = "selection_specs is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
-        selection: Mapping[Dimension | str, SelectionValues] = {
-            AdAc.resolve(k) if isinstance(k, str) else AdAc.from_dimension(k): v
-            for k, v in selection.items()
-        }
         if isinstance(selection_expr, Mapping):
             if selection:
                 msg = "Cannot provide both selection and selection_expr."
                 raise TypeError(msg)
-            selection = selection_expr
+            selection: Mapping[Dimension | str, SelectionValues] = selection_expr
             selection_expr = None
         elif selection_expr is not None:
             msg = "selection_expr is not supported by AnnDataInterface yet."
@@ -151,7 +147,11 @@ class AnnDataInterface(hv.core.Interface):
         obs = adata.obs_names
         var = adata.var_names
         for k, v in selection.items():
-            k = AdAc.resolve(k) if isinstance(k, str) else AdAc.from_dimension(k)
+            k = AdAc.from_dimension(
+                (dataset.get_dimension(k) or AdAc.resolve(k))
+                if isinstance(k, str)
+                else k
+            )
             if len(k.axes) > 1:
                 msg = "AnnData Dataset key dimensions must map onto obs or var axes."
                 raise DataError(msg)
