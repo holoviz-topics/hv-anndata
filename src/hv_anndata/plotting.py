@@ -66,15 +66,16 @@ class Dotmap(param.ParameterizedFunction):
         objects=[None, True, False],
         doc="""\
             Whether to use `.raw` attribute of AnnData if present.
-            
-            - None (default): Automatically use `.raw` if available, otherwise use `.X`
-            - True: Use `.raw` attribute. Falls back to `.X` if `.raw` is not available
-            - False: Always use `.X` (processed data), ignore `.raw` even if present
-            
-            In single-cell analysis, `.raw` typically contains the original count data before 
-            normalization, while `.X` contains processed data (e.g., log-transformed, scaled).
-            Using raw counts is sometimes preferred for visualization to show actual expression levels.
-            """
+
+            - None (default): Use `.raw` if available, otherwise use `.X`
+            - True: Must use `.raw` attribute (raises error if not available)
+            - False: Always use `.X`, ignore `.raw` even if present
+
+            In single-cell analysis, `.raw` typically contains the original
+            count data before normalization, while `.X` contains processed data
+            (e.g., log-transformed, scaled). Using raw counts is sometimes
+            preferred for visualization to show actual expression levels.
+            """,
     )
 
     mean_only_expressed = param.Boolean(
@@ -90,30 +91,44 @@ class Dotmap(param.ParameterizedFunction):
         use_raw = self.p.use_raw
         if use_raw is None:
             use_raw = self.p.adata.raw is not None
+        elif use_raw and self.p.adata.raw is None:
+            err = "use_raw=True but .raw attribute is not present in adata"
+            raise ValueError(err)
+
+        # Check which genes are actually present in the correct location
         if use_raw and self.p.adata.raw is not None:
-            adata_subset = self.p.adata.raw[:, all_marker_genes]
+            available_var_names = self.p.adata.raw.var_names
+        else:
+            available_var_names = self.p.adata.var_names
+
+        missing_genes = set(all_marker_genes) - set(available_var_names)
+        if missing_genes:
+            print(  # noqa: T201
+                f"Warning: The following genes are not present in the dataset and will be skipped: {missing_genes}"  # noqa: E501
+            )
+            available_marker_genes = [
+                g for g in all_marker_genes if g not in missing_genes
+            ]
+            if not available_marker_genes:
+                msg = "None of the specified marker genes are present in the dataset."
+                raise ValueError(msg)
+        else:
+            available_marker_genes = all_marker_genes
+
+        # Subset the data with only available genes
+        if use_raw and self.p.adata.raw is not None:
+            adata_subset = self.p.adata.raw[:, available_marker_genes]
             expression_df = pd.DataFrame(
                 adata_subset.X.toarray()
                 if hasattr(adata_subset.X, "toarray")
                 else adata_subset.X,
                 index=self.p.adata.obs_names,
-                columns=all_marker_genes,
+                columns=available_marker_genes,
             )
         else:
-            expression_df = self.p.adata[:, all_marker_genes].to_df()
+            expression_df = self.p.adata[:, available_marker_genes].to_df()
 
-        # Check if all genes are present in adata.var_names, warn about missing ones
-        missing_genes = set(all_marker_genes) - set(self.p.adata.var_names)
-        if missing_genes:
-            print(  # noqa: T201
-                f"Warning: The following genes are not present in the dataset and will be skipped: {missing_genes}"  # noqa: E501
-            )
-            all_marker_genes = [g for g in all_marker_genes if g not in missing_genes]
-            if not all_marker_genes:
-                msg = "None of the specified marker genes are present in the dataset."
-                raise ValueError(msg)
-
-        # expression data for the included marker genes
+        # Join with groupby column
         joined_df = expression_df.join(self.p.adata.obs[self.p.groupby])
 
         def compute_expression(df: pd.DataFrame) -> pd.DataFrame:
@@ -143,7 +158,7 @@ class Dotmap(param.ParameterizedFunction):
         grouped = joined_df.groupby(self.p.groupby, observed=True)
         expression_stats = grouped.apply(compute_expression, include_groups=False)
 
-        data = [ # Likely faster way to do this, but harder to read
+        data = [  # Likely faster way to do this, but harder to read
             expression_stats.xs(gene, level=1)
             .reset_index(names="cluster")
             .assign(
@@ -152,6 +167,8 @@ class Dotmap(param.ParameterizedFunction):
             )
             for marker_cluster_name, gene_list in self.p.marker_genes.items()
             for gene in gene_list
+            if gene
+            in available_marker_genes  # Only include genes that weren't filtered out
         ]
         df = pd.concat(data, ignore_index=True)  # noqa: PD901
 
@@ -208,8 +225,8 @@ class Dotmap(param.ParameterizedFunction):
                     "tools": ["hover"],
                     "width": 900,
                     "height": 500,
-                    "line_alpha":0.2,
-                    "line_color":"k",
+                    "line_alpha": 0.2,
+                    "line_color": "k",
                 }
             case _:
                 backend_opts = {}
