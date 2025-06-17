@@ -124,20 +124,25 @@ class AnnDataInterface(hv.core.Interface):
     def select(
         cls,
         dataset: Dataset,
-        selection_expr: hv.dim
-        | Mapping[Dimension | str, SelectionValues]
-        | None = None,
+        selection_expr: (
+            hv.dim | Mapping[Dimension | str, SelectionValues] | None
+        ) = None,
         selection_specs: Sequence[SelectionSpec] | None = None,
         **selection: SelectionValues,  # type: ignore[arg-type]
     ) -> AnnData:
         if selection_specs is not None:
             msg = "selection_specs is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
+        selection: Mapping[Dimension | str, SelectionValues] = {
+            AdAc.resolve(k) if isinstance(k, str) else AdAc.from_dimension(k): v
+            for k, v in selection.items()
+        }
         if isinstance(selection_expr, Mapping):
             if selection:
                 msg = "Cannot provide both selection and selection_expr."
                 raise TypeError(msg)
-            selection: Mapping[Dimension | str, SelectionValues] = selection_expr
+            selection = selection_expr
+            selection_expr = None
         elif selection_expr is not None:
             msg = "selection_expr is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)

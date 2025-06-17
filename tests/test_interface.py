@@ -98,7 +98,7 @@ def test_get(
     ("sel_args", "sel_kw"),
     [
         pytest.param(({A.obs["type"]: 0},), {}, id="dict"),
-        pytest.param((), {"obs['type']": 0}, id="kwargs"),
+        pytest.param((), {"obs.type": 0}, id="kwargs"),
         pytest.param(
             (hv.dim(A.obs["type"]) == 0,),
             {},

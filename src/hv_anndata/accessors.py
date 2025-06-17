@@ -265,9 +265,7 @@ class AdAc:
             msg = f"Cannot parse accessor {spec!r}"
             raise ValueError(msg)
         acc, rest = spec.split(".", 1)
-        if acc not in cls.ATTRS:
-            return cls()[_parse_idx_2d(acc, rest, str)]
-        match getattr(cls(), acc):
+        match getattr(cls(), acc, None):
             case LayerAcc() as layers:
                 return _parse_path_layer(layers, rest)
             case MetaAcc() as meta:
@@ -280,6 +278,12 @@ class AdAc:
             case AdPath():
                 msg = "TODO"
                 raise NotImplementedError(msg)
+            case None:
+                msg = (
+                    f"Unknown accessor {spec!r}. "
+                    "We support '{cls.ATTRS}.*' and `AdPath` instances."
+                )
+                raise ValueError(msg)
         msg = f"Unhandled accessor {spec!r}. This is a bug!"
         raise AssertionError(msg)
 
