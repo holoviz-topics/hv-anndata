@@ -61,9 +61,9 @@ class Dotmap(param.ParameterizedFunction):
         'group' scales each cell type.""",
     )
 
-    use_raw = param.Selector(
+    use_raw = param.Boolean(
         default=None,
-        objects=[None, True, False],
+        allow_None=True,
         doc="""\
             Whether to use `.raw` attribute of AnnData if present.
 
