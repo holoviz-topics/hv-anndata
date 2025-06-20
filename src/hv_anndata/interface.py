@@ -5,6 +5,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable, Mapping
 from enum import Enum, auto
+from itertools import product
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 import holoviews as hv
@@ -14,7 +15,9 @@ from anndata import AnnData
 from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
-from holoviews.core.util import expand_grid_coords
+from holoviews.core.element import Element
+from holoviews.core.ndmapping import NdMapping, item_check, sorted_context
+from holoviews.core.util import expand_grid_coords, get_param_values, unique_iterator
 from holoviews.element.raster import SheetCoordinateSystem
 
 from .accessors import AdAc, AdPath
@@ -288,6 +291,51 @@ class AnnDataInterface(hv.core.Interface):
             return data
         return data.iat[0,0]
 
+    @classmethod
+    def groupby(cls, dataset, dimensions, container_type, group_type, **kwargs):
+        values = {}
+        adata = cast("AnnData", dataset.data)
+        for k in dimensions:
+            k = AdAc.from_dimension(
+                (dataset.get_dimension(k) or AdAc.resolve(k))
+                if isinstance(k, str)
+                else k
+            )
+            if len(k.axes) > 1:
+                msg = "AnnData may only be grouped along the obs or var axes"
+                raise DataError(msg)
+            [ax] = k.axes
+            if ax not in ("obs", "var"):
+                msg = f"Cannot group along unknown axis: {ax}"
+                raise AssertionError(msg)
+            values[k] = unique_iterator(k(adata))
+
+        # Get dimensions information
+        dimensions = [dataset.get_dimension(d) for d in dimensions]
+        kdims = [kdim for kdim in dataset.kdims if kdim not in dimensions]
+        vdims = dataset.vdims
+
+        # Update the kwargs appropriately for Element group types
+        group_kwargs = {}
+        group_type = dict if group_type == 'raw' else group_type
+        if issubclass(group_type, Element):
+            group_kwargs.update(get_param_values(dataset))
+            group_kwargs['kdims'] = kdims
+        group_kwargs.update(kwargs)
+
+        # Generate the groupings and then start iterating over them
+        selectors = (dict(zip(values, combo)) for combo in product(*values.values()))
+        groups = []
+        for sel in selectors:
+            group = dataset.select(sel)
+            if group_type == 'raw':
+                group = group.data
+            groups.append((tuple(sel.values()), group))
+        if issubclass(container_type, NdMapping):
+            with item_check(False), sorted_context(False):
+                return container_type(groups, kdims=dimensions)
+        else:
+            return container_type(groups)
 
 
 class AnnDataGriddedInterface(AnnDataInterface):
