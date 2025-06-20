@@ -226,12 +226,15 @@ def create_manifoldmap_plot(
         def operation(obj: Any) -> Any:
             obj = hd.rasterize(obj, aggregator=aggregator)
             # Applying opts here instead of after apply_when to ensure
-            # they're applied to the right element (e.g. Points doesn't support cmap)
-            # Adding hover too as somehow it wouldn't be enabled despite
-            # the final options applied later.
-            obj = obj.opts(cmap=cmap, colorbar=colorbar, tools=["hover"])
+            # they're applied to the right element.
+            obj = obj.opts(
+                cmap=cmap,
+                colorbar=colorbar,
+                tools=["hover", "box_select", "lasso_select"],
+            )
             return hd.dynspread(obj, threshold=0.5)
 
+        plot = plot.opts(tools=["hover", "box_select", "lasso_select"])
         plot = apply_when(
             plot,
             operation=operation,
