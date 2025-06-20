@@ -77,7 +77,7 @@ class AdPath(Dimension):
         spec: str | tuple[str, str] | None = None,
         func: AdPathFunc = None,
         axes: Axes | None = None,
-        **overrides: Any,
+        **overrides: Any,  # noqa: ANN401
     ) -> Self:
         """Clones the Dimension with new parameters.
 

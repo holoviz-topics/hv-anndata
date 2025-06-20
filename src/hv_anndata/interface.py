@@ -130,6 +130,7 @@ class AnnDataInterface(hv.core.Interface):
 
     @classmethod
     def validate_selection_dim(cls, dim: AdPath, action: str) -> Literal["obs", "var"]:
+        """Validate dimension as valid axis to select on."""
         if len(dim.axes) > 1:
             msg = "AnnData Dataset key dimensions must map onto obs or var axes."
             raise DataError(msg)
@@ -144,6 +145,7 @@ class AnnDataInterface(hv.core.Interface):
     def selection_masks(
         cls, dataset: Dataset, selection: Mapping[Dimension | str, SelectionValues]
     ) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """Generate boolean masks along obs and var axes."""
         adata = cast("AnnData", dataset.data)
         obs = var = None
         for k, v in selection.items():
@@ -191,6 +193,7 @@ class AnnDataInterface(hv.core.Interface):
         selection_specs: Sequence[SelectionSpec] | None = None,
         **selection: SelectionValues,  # type: ignore[arg-type]
     ) -> AnnData:
+        """Select along obs and var axes."""
         if selection_specs is not None:
             msg = "selection_specs is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
@@ -289,8 +292,9 @@ class AnnDataInterface(hv.core.Interface):
         dataset: Dataset,
         kdims: list[Dimension | str],
         function: Callable[ValueType, ValueType],
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> tuple[pd.DataFrame, list[Dimension]]:
+        """Aggregate the current view."""
         adata_df = dataset.dframe()
         agg = Dataset(
             adata_df, kdims=kdims, vdims=[vd for vd in dataset.vdims if vd not in kdims]
@@ -298,7 +302,12 @@ class AnnDataInterface(hv.core.Interface):
         return agg.data, [d for d in dataset.dimensions() if d not in agg.dimensions()]
 
     @classmethod
-    def unpack_scalar(cls, dataset: Dataset, data: AnnData | pd.DataFrame) -> Any:
+    def unpack_scalar(
+        cls,
+        dataset: Dataset,  # noqa: ARG003
+        data: AnnData | pd.DataFrame,
+    ) -> Any:  # noqa: ANN401
+        """Unpacks scalar data if it is a DataFrame containing a single value."""
         if isinstance(data, AnnData):
             return data
         if len(data) != 1 or len(data.columns) > 1:
@@ -312,8 +321,9 @@ class AnnDataInterface(hv.core.Interface):
         dimensions: Sequence[str | AdPath],
         container_type: C,
         group_type: type[Dataset],
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> T:
+        """Group the dataset along the provided dimensions."""
         values = {}
         adata = cast("AnnData", dataset.data)
         for k in dimensions:
@@ -365,6 +375,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
 
     @classmethod
     def shape(cls, dataset: Dataset, *, gridded: bool = False) -> tuple[int, int]:
+        """Retrieve shape of 2D data."""
         del gridded
         ax1, ax2 = cls.axes(dataset)
         return len(getattr(dataset.data, ax1)), len(getattr(dataset.data, ax2))
