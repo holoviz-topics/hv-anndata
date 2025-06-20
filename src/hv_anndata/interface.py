@@ -295,11 +295,12 @@ class AnnDataInterface(hv.core.Interface):
         **kwargs: Any,  # noqa: ANN401
     ) -> tuple[pd.DataFrame, list[Dimension]]:
         """Aggregate the current view."""
-        adata_df = dataset.dframe()
         agg = Dataset(
-            adata_df, kdims=kdims, vdims=[vd for vd in dataset.vdims if vd not in kdims]
-        ).aggregate(function=function, **kwargs)
-        return agg.data, [d for d in dataset.dimensions() if d not in agg.dimensions()]
+            dataset.dframe(),
+            kdims=kdims,
+            vdims=[vd for vd in dataset.vdims if vd not in kdims],
+        )
+        return agg.interface.aggregate(agg, kdims, function=function, **kwargs)
 
     @classmethod
     def unpack_scalar(
