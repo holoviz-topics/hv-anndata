@@ -11,6 +11,7 @@ import holoviews as hv
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
 from holoviews.core.util import expand_grid_coords
@@ -270,6 +271,23 @@ class AnnDataInterface(hv.core.Interface):
             )
             raise IndexError(msg)
         return None
+
+    @classmethod
+    def aggregate(cls, dataset, kdims, function, **kwargs):
+        df = dataset.dframe()
+        agg = Dataset(
+            df, kdims=kdims, vdims=[vd for vd in dataset.vdims if vd not in kdims]
+        ).aggregate(function=function, **kwargs)
+        return agg.data, [d for d in dataset.dimensions() if d not in agg.dimensions()]
+
+    @classmethod
+    def unpack_scalar(cls, dataset, data):
+        if isinstance(data, AnnData):
+            return data
+        if len(data) != 1 or len(data.columns) > 1:
+            return data
+        return data.iat[0,0]
+
 
 
 class AnnDataGriddedInterface(AnnDataInterface):
