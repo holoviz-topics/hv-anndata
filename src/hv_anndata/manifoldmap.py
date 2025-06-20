@@ -14,6 +14,7 @@ import holoviews.operation.datashader as hd
 import numpy as np
 import panel as pn
 import param
+from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.operation import Operation, apply_when
 from panel.reactive import hold
 
@@ -201,7 +202,11 @@ def create_manifoldmap_plot(
         alpha=0.5,
         colorbar=colorbar,
         padding=0,
-        tools=["hover", "box_select", "lasso_select"],
+        tools=[
+            "hover",
+            BoxSelectTool(persistent=True),
+            LassoSelectTool(persistent=True),
+        ],
         show_legend=show_legend,
         legend_position="right",
     )
@@ -230,11 +235,21 @@ def create_manifoldmap_plot(
             obj = obj.opts(
                 cmap=cmap,
                 colorbar=colorbar,
-                tools=["hover", "box_select", "lasso_select"],
+                tools=[
+                    "hover",
+                    BoxSelectTool(persistent=True),
+                    LassoSelectTool(persistent=True),
+                ],
             )
             return hd.dynspread(obj, threshold=0.5)
 
-        plot = plot.opts(tools=["hover", "box_select", "lasso_select"])
+        plot = plot.opts(
+            tools=[
+                "hover",
+                BoxSelectTool(persistent=True),
+                LassoSelectTool(persistent=True),
+            ]
+        )
         plot = apply_when(
             plot,
             operation=operation,
@@ -249,7 +264,6 @@ def create_manifoldmap_plot(
     # Apply final options to the plot
     return plot.opts(
         title=title,
-        tools=["hover", "box_select", "lasso_select"],
         show_legend=show_legend,
         frame_width=width,
         frame_height=height,
@@ -291,7 +305,11 @@ def _apply_categorical_datashading(
     unique_categories = np.unique(color_data)
     plot = plot.opts(
         cmap=cmap,
-        tools=["hover", "box_select", "lasso_select"],
+        tools=[
+            "hover",
+            BoxSelectTool(persistent=True),
+            LassoSelectTool(persistent=True),
+        ],
         # Override hover_tooltips to exclude the selector value
         hover_tooltips=list(unique_categories),
         # Don't include the selector heading
