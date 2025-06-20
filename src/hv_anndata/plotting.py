@@ -1,4 +1,4 @@
-"""DotmapPlot using AnnData as input and return a holoviews plot."""
+"""HoloViz plotting using AnnData as input."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from typing import NotRequired, Unpack
 
 
-class _DotmatPlotParams(TypedDict):
+class _DotmapPlotParams(TypedDict):
     kdims: NotRequired[list[str | hv.Dimension]]
     vdims: NotRequired[list[str | hv.Dimension]]
     adata: ad.AnnData
@@ -233,7 +233,7 @@ class Dotmap(param.ParameterizedFunction):
 
         return opts | backend_opts
 
-    def __call__(self, **params: Unpack[_DotmatPlotParams]) -> hv.Points:
+    def __call__(self, **params: Unpack[_DotmapPlotParams]) -> hv.Points:
         """Create a DotmapPlot from anndata."""
         if required := {"adata", "marker_genes", "groupby"} - params.keys():
             msg = f"Needs to have the following argument(s): {required}"
