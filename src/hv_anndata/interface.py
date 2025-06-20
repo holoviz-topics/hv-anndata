@@ -154,7 +154,7 @@ class AnnDataInterface(hv.core.Interface):
                 if isinstance(k, str)
                 else k
             )
-            ax = cls.validate_selection_dim(dim)
+            ax = cls.validate_selection_dim(dim, "select")
             values = dim(adata)
             mask = None
             sel = slice(*v) if isinstance(v, tuple) else v
