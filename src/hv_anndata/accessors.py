@@ -85,23 +85,29 @@ class AdPath(Dimension):
         Returns
         -------
         Cloned Dimension object
+
         """
         settings = dict(self.param.values(), **overrides)
-        func = settings.pop('func', self._func)
-        axes = settings.pop('axes', self.axes)
+        func = settings.pop("func", self._func)
+        axes = settings.pop("axes", self.axes)
 
         if spec is None:
-            spec = (self.name, overrides.get('label', self.label))
-        if 'label' in overrides and isinstance(spec, str) :
-            spec = (spec, overrides['label'])
-        elif 'label' in overrides and isinstance(spec, tuple) :
-            if overrides['label'] != spec[1]:
+            spec = (self.name, overrides.get("label", self.label))
+        if "label" in overrides and isinstance(spec, str):
+            spec = (spec, overrides["label"])
+        elif "label" in overrides and isinstance(spec, tuple):
+            if overrides["label"] != spec[1]:
                 self.param.warning(
-                    f'Using label as supplied by keyword ({overrides["label"]!r}), '
-                    f'ignoring tuple value {spec[1]!r}')
-            spec = (spec[0],  overrides['label'])
-        return self.__class__(spec, func, axes, **{k:v for k,v in settings.items()
-                                                   if k not in ['name', 'label']})
+                    f"Using label as supplied by keyword ({overrides['label']!r}), "
+                    f"ignoring tuple value {spec[1]!r}"
+                )
+            spec = (spec[0], overrides["label"])
+        return self.__class__(
+            spec,
+            func,
+            axes,
+            **{k: v for k, v in settings.items() if k not in ["name", "label"]},
+        )
 
     def __eq__(self, dim: object) -> bool:
         # shortcut if label, number, or so matches

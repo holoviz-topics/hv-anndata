@@ -289,7 +289,7 @@ class AnnDataInterface(hv.core.Interface):
             return data
         if len(data) != 1 or len(data.columns) > 1:
             return data
-        return data.iat[0,0]
+        return data.iat[0, 0]
 
     @classmethod
     def groupby(cls, dataset, dimensions, container_type, group_type, **kwargs):
@@ -317,18 +317,21 @@ class AnnDataInterface(hv.core.Interface):
 
         # Update the kwargs appropriately for Element group types
         group_kwargs = {}
-        group_type = dict if group_type == 'raw' else group_type
+        group_type = dict if group_type == "raw" else group_type
         if issubclass(group_type, Element):
             group_kwargs.update(get_param_values(dataset))
-            group_kwargs['kdims'] = kdims
+            group_kwargs["kdims"] = kdims
         group_kwargs.update(kwargs)
 
         # Generate the groupings and then start iterating over them
-        selectors = (dict(zip(values, combo)) for combo in product(*values.values()))
+        selectors = (
+            dict(zip(values, combo, strict=False))
+            for combo in product(*values.values())
+        )
         groups = []
         for sel in selectors:
             group = dataset.select(sel)
-            if group_type == 'raw':
+            if group_type == "raw":
                 group = group.data
             groups.append((tuple(sel.values()), group))
         if issubclass(container_type, NdMapping):
