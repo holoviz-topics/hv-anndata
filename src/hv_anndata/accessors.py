@@ -70,6 +70,39 @@ class AdPath(Dimension):
         """Retrieve referenced array from AnnData."""
         return self._func(adata)
 
+    def clone(self, spec=None, **overrides):
+        """Clones the Dimension with new parameters
+
+        Derive a new Dimension that inherits existing parameters
+        except for the supplied, explicit overrides
+
+        Parameters
+        ----------
+        spec : tuple, optional
+            Dimension tuple specification
+        **overrides: Dimension parameter overrides
+
+        Returns
+        -------
+        Cloned Dimension object
+        """
+        settings = dict(self.param.values(), **overrides)
+        func = settings.pop('func', self._func)
+        axes = settings.pop('axes', self.axes)
+
+        if spec is None:
+            spec = (self.name, overrides.get('label', self.label))
+        if 'label' in overrides and isinstance(spec, str) :
+            spec = (spec, overrides['label'])
+        elif 'label' in overrides and isinstance(spec, tuple) :
+            if overrides['label'] != spec[1]:
+                self.param.warning(
+                    f'Using label as supplied by keyword ({overrides["label"]!r}), '
+                    f'ignoring tuple value {spec[1]!r}')
+            spec = (spec[0],  overrides['label'])
+        return self.__class__(spec, func, axes, **{k:v for k,v in settings.items()
+                                                   if k not in ['name', 'label']})
+
     def __eq__(self, dim: object) -> bool:
         # shortcut if label, number, or so matches
         if super().__eq__(dim):
