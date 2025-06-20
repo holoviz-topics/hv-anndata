@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Callable, Mapping
 from enum import Enum, auto
 from itertools import product
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar, cast
 
 import holoviews as hv
 import numpy as np
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from numbers import Number
 
-    from holoviews.core.data import Dataset
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray
 
@@ -40,6 +39,10 @@ if TYPE_CHECKING:
     SelectionValues = tuple[Number, Number] | Sequence[Number]
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L624-L627
     SelectionSpec = type | Callable | str
+
+    T = TypeVar("T")
+    C = TypeVar("C", bound=Callable[..., T])
+    ValueType = np.ndarray | pd.api.extensions.ExtensionArray
 
 
 ACCESSOR = AdAc()
@@ -126,6 +129,59 @@ class AnnDataInterface(hv.core.Interface):
         del axes
 
     @classmethod
+    def validate_selection_dim(cls, dim: AdPath, action: str) -> Literal["obs", "var"]:
+        if len(dim.axes) > 1:
+            msg = "AnnData Dataset key dimensions must map onto obs or var axes."
+            raise DataError(msg)
+        [ax] = dim.axes
+        # TODO: support ranges and sequences  # noqa: TD003
+        if ax not in ("obs", "var"):
+            msg = f"Cannot {action} along unknown axis: {ax}"
+            raise AssertionError(msg)
+        return ax
+
+    @classmethod
+    def selection_masks(
+        cls, dataset: Dataset, selection: Mapping[Dimension | str, SelectionValues]
+    ) -> tuple[np.ndarray | None, np.ndarray | None]:
+        adata = cast("AnnData", dataset.data)
+        obs = var = None
+        for k, v in selection.items():
+            dim = AdAc.from_dimension(
+                (dataset.get_dimension(k) or AdAc.resolve(k))
+                if isinstance(k, str)
+                else k
+            )
+            ax = cls.validate_selection_dim(dim)
+            values = dim(adata)
+            mask = None
+            sel = slice(*v) if isinstance(v, tuple) else v
+            if isinstance(sel, slice):
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", r"invalid value encountered")
+                    if sel.start is not None:
+                        mask = sel.start <= values
+                    if sel.stop is not None:
+                        stop_mask = values < sel.stop
+                        mask = stop_mask if mask is None else (mask & stop_mask)
+            elif isinstance(sel, (set, list)):
+                iter_slcs = []
+                for ik in sel:
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", r"invalid value encountered")
+                        iter_slcs.append(values == ik)
+                mask = np.logical_or.reduce(iter_slcs)
+            elif callable(sel):
+                mask = sel(values)
+            else:
+                mask = values == sel
+            if ax == "obs":
+                obs = mask if obs is None else (obs & mask)
+            elif ax == "var":
+                var = mask if var is None else (var & mask)
+        return obs, var
+
+    @classmethod
     def select(
         cls,
         dataset: Dataset,
@@ -148,56 +204,8 @@ class AnnDataInterface(hv.core.Interface):
             msg = "selection_expr is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
 
+        obs, var = cls.selection_masks(dataset, selection)
         adata = cast("AnnData", dataset.data)
-        obs = var = None
-        for k, sel in selection.items():
-            k = AdAc.from_dimension(
-                (dataset.get_dimension(k) or AdAc.resolve(k))
-                if isinstance(k, str)
-                else k
-            )
-            if len(k.axes) > 1:
-                msg = "AnnData Dataset key dimensions must map onto obs or var axes."
-                raise DataError(msg)
-            [ax] = k.axes
-            # TODO: support ranges and sequences  # noqa: TD003
-            if ax not in ("obs", "var"):
-                msg = f"Cannot select along unknown axis: {ax}"
-                raise AssertionError(msg)
-
-            values = k(adata)
-            mask = None
-            if isinstance(sel, tuple):
-                sel = slice(*sel)
-            if isinstance(sel, slice):
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", r"invalid value encountered")
-                    if sel.start is not None:
-                        mask = sel.start <= values
-                    if sel.stop is not None:
-                        stop_mask = values < sel.stop
-                        mask = stop_mask if mask is None else (mask & stop_mask)
-            elif isinstance(sel, (set, list)):
-                iter_slcs = []
-                for ik in sel:
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings("ignore", r"invalid value encountered")
-                        iter_slcs.append(values == ik)
-                mask = np.logical_or.reduce(iter_slcs)
-            elif callable(sel):
-                mask = sel(values)
-            else:
-                mask = values == sel
-            if ax == "obs":
-                if obs is None:
-                    obs = mask
-                else:
-                    obs &= mask
-            elif ax == "var":
-                if var is None:
-                    var = mask
-                else:
-                    var &= mask
         if obs is None:
             return adata if var is None else dataset.data[:, var]
         if var is None:
@@ -214,7 +222,7 @@ class AnnDataInterface(hv.core.Interface):
         *,
         compute: bool = True,  # noqa: ARG003
         keep_index: bool = False,
-    ) -> np.ndarray | pd.api.extensions.ExtensionArray:
+    ) -> ValueType:
         """Retrieve values for a dimension."""
         dim = cast("AdPath", data.get_dimension(dim))
         adata = cast("AnnData", data.data)
@@ -276,44 +284,50 @@ class AnnDataInterface(hv.core.Interface):
         return None
 
     @classmethod
-    def aggregate(cls, dataset, kdims, function, **kwargs):
-        df = dataset.dframe()
+    def aggregate(
+        cls,
+        dataset: Dataset,
+        kdims: list[Dimension | str],
+        function: Callable[ValueType, ValueType],
+        **kwargs: Any,
+    ) -> tuple[pd.DataFrame, list[Dimension]]:
+        adata_df = dataset.dframe()
         agg = Dataset(
-            df, kdims=kdims, vdims=[vd for vd in dataset.vdims if vd not in kdims]
+            adata_df, kdims=kdims, vdims=[vd for vd in dataset.vdims if vd not in kdims]
         ).aggregate(function=function, **kwargs)
         return agg.data, [d for d in dataset.dimensions() if d not in agg.dimensions()]
 
     @classmethod
-    def unpack_scalar(cls, dataset, data):
+    def unpack_scalar(cls, dataset: Dataset, data: AnnData | pd.DataFrame) -> Any:
         if isinstance(data, AnnData):
             return data
         if len(data) != 1 or len(data.columns) > 1:
             return data
-        return data.iat[0, 0]
+        return data.iloc[0, 0]
 
     @classmethod
-    def groupby(cls, dataset, dimensions, container_type, group_type, **kwargs):
+    def groupby(
+        cls,
+        dataset: Dataset,
+        dimensions: Sequence[str | AdPath],
+        container_type: C,
+        group_type: type[Dataset],
+        **kwargs: Any,
+    ) -> T:
         values = {}
         adata = cast("AnnData", dataset.data)
         for k in dimensions:
-            k = AdAc.from_dimension(
+            dim = AdAc.from_dimension(
                 (dataset.get_dimension(k) or AdAc.resolve(k))
                 if isinstance(k, str)
                 else k
             )
-            if len(k.axes) > 1:
-                msg = "AnnData may only be grouped along the obs or var axes"
-                raise DataError(msg)
-            [ax] = k.axes
-            if ax not in ("obs", "var"):
-                msg = f"Cannot group along unknown axis: {ax}"
-                raise AssertionError(msg)
-            values[k] = unique_iterator(k(adata))
+            cls.validate_selection_dim(dim, "group")
+            values[k] = unique_iterator(dim(adata))
 
         # Get dimensions information
         dimensions = [dataset.get_dimension(d) for d in dimensions]
         kdims = [kdim for kdim in dataset.kdims if kdim not in dimensions]
-        vdims = dataset.vdims
 
         # Update the kwargs appropriately for Element group types
         group_kwargs = {}
@@ -333,9 +347,11 @@ class AnnDataInterface(hv.core.Interface):
             group = dataset.select(sel)
             if group_type == "raw":
                 group = group.data
+            if type(group) is not group_type:
+                group = group.clone(new_type=group_type)
             groups.append((tuple(sel.values()), group))
         if issubclass(container_type, NdMapping):
-            with item_check(False), sorted_context(False):
+            with item_check(enabled=False), sorted_context(enabled=False):
                 return container_type(groups, kdims=dimensions)
         else:
             return container_type(groups)
@@ -429,7 +445,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         *,
         compute: bool = True,  # noqa: ARG003
         keep_index: bool = False,
-    ) -> np.ndarray | pd.api.extensions.ExtensionArray:
+    ) -> ValueType:
         """Retrieve values for a dimension."""
         dim = cast("AdPath", data.get_dimension(dim))
         idx = data.get_dimension_index(dim)

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     # full slices: e.g. a[:, 5] or a[18, :]
     Idx = TypeVar("Idx", int, str)
     Idx2D = tuple[Idx | slice, Idx | slice]
+    AdPathFunc = Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
+    Axes = AbstractSet[Literal["obs", "var"]]
 
 
 def _idx2axes(i: Idx2D[str]) -> set[Literal["obs", "var"]]:
@@ -41,19 +43,19 @@ class AdPath(Dimension):
     """A path referencing an array in an AnnData object."""
 
     _repr: str
-    _func: Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
-    axes: AbstractSet[Literal["obs", "var"]]
+    _func: AdPathFunc
+    axes: Axes
 
     def __init__(  # noqa: D107
         self,
-        _repr: str,
-        func: Callable[[AnnData], Any],
-        axes: AbstractSet[Literal["obs", "var"]],
+        _repr: str | tuple[str, str],
+        func: AdPathFunc,
+        axes: Axes,
         /,
         **params: object,
     ) -> None:
         super().__init__(_repr, **params)
-        self._repr = _repr
+        self._repr = _repr[0] if isinstance(_repr, tuple) else _repr
         self._func = func
         self.axes = axes
 
@@ -70,8 +72,14 @@ class AdPath(Dimension):
         """Retrieve referenced array from AnnData."""
         return self._func(adata)
 
-    def clone(self, spec=None, **overrides):
-        """Clones the Dimension with new parameters
+    def clone(
+        self,
+        spec: str | tuple[str, str] | None = None,
+        func: AdPathFunc = None,
+        axes: Axes | None = None,
+        **overrides: Any,
+    ) -> Self:
+        """Clones the Dimension with new parameters.
 
         Derive a new Dimension that inherits existing parameters
         except for the supplied, explicit overrides
@@ -80,7 +88,13 @@ class AdPath(Dimension):
         ----------
         spec : tuple, optional
             Dimension tuple specification
-        **overrides: Dimension parameter overrides
+        func : Function[AnnData, np.ndarray], optional
+            Function to resolve the dimension values
+            given the AnnData object.
+        axes : AbstractSet[Literal["obs", "var"]], optional
+            The axes represented by the Dimension
+        **overrides:
+            Dimension parameter overrides
 
         Returns
         -------
