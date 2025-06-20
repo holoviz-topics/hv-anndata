@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Mapping
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
@@ -144,9 +145,8 @@ class AnnDataInterface(hv.core.Interface):
             raise NotImplementedError(msg)
 
         adata = cast("AnnData", dataset.data)
-        obs = adata.obs_names
-        var = adata.var_names
-        for k, v in selection.items():
+        obs = var = None
+        for k, sel in selection.items():
             k = AdAc.from_dimension(
                 (dataset.get_dimension(k) or AdAc.resolve(k))
                 if isinstance(k, str)
@@ -157,14 +157,48 @@ class AnnDataInterface(hv.core.Interface):
                 raise DataError(msg)
             [ax] = k.axes
             # TODO: support ranges and sequences  # noqa: TD003
-            if ax == "obs":
-                obs &= k(adata) == v
-            elif ax == "var":
-                var &= k(adata) == v
-            else:
-                msg = f"Unknown axis: {ax}"
+            if ax not in ("obs", "var"):
+                msg = f"Cannot select along unknown axis: {ax}"
                 raise AssertionError(msg)
-        return dataset.data[obs, var]
+
+            values = k(adata)
+            mask = None
+            if isinstance(sel, tuple):
+                sel = slice(*sel)
+            if isinstance(sel, slice):
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', r'invalid value encountered')
+                    if sel.start is not None:
+                        mask = sel.start <= values
+                    if sel.stop is not None:
+                        stop_mask = values < sel.stop
+                        mask = stop_mask if mask is None else (mask & stop_mask)
+            elif isinstance(sel, (set, list)):
+                iter_slcs = []
+                for ik in sel:
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings('ignore', r'invalid value encountered')
+                        iter_slcs.append(values == ik)
+                mask = np.logical_or.reduce(iter_slcs)
+            elif callable(sel):
+                mask = sel(values)
+            else:
+                mask = values == sel
+            if ax == "obs":
+                if obs is None:
+                    obs = mask
+                else:
+                    obs &= mask
+            elif ax == "var":
+                if var is None:
+                    var = mask
+                else:
+                    var &= mask
+        if obs is None:
+            return adata if var is None else dataset.data[:, var]
+        elif var is None:
+            return adata[obs]
+        return adata[obs, var]
 
     @classmethod
     def values(
