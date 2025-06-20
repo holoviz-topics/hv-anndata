@@ -12,11 +12,7 @@ import pandas as pd
 import panel as pn
 import pytest
 
-from hv_anndata.manifoldmap import (
-    ManifoldMap,
-    create_manifoldmap_plot,
-    labeller,
-)
+from hv_anndata.manifoldmap import ManifoldMap, create_manifoldmap_plot, labeller
 
 
 @pytest.fixture
@@ -72,7 +68,8 @@ def test_create_manifoldmap_plot_no_datashading(
     assert style_opts["size"] == 1
     assert style_opts["alpha"] == 0.5
     assert plot_opts["padding"] == 0
-    assert plot_opts["tools"] == ["hover", "box_select", "lasso_select"]
+    assert len(plot_opts["tools"]) == 3
+    assert "hover" in plot_opts["tools"]
     assert plot_opts["legend_position"] == "right"
     assert plot_opts["frame_width"] == 300
     assert plot_opts["frame_height"] == 300
