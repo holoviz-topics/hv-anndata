@@ -167,7 +167,7 @@ class AnnDataInterface(hv.core.Interface):
                 sel = slice(*sel)
             if isinstance(sel, slice):
                 with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore', r'invalid value encountered')
+                    warnings.filterwarnings("ignore", r"invalid value encountered")
                     if sel.start is not None:
                         mask = sel.start <= values
                     if sel.stop is not None:
@@ -177,7 +177,7 @@ class AnnDataInterface(hv.core.Interface):
                 iter_slcs = []
                 for ik in sel:
                     with warnings.catch_warnings():
-                        warnings.filterwarnings('ignore', r'invalid value encountered')
+                        warnings.filterwarnings("ignore", r"invalid value encountered")
                         iter_slcs.append(values == ik)
                 mask = np.logical_or.reduce(iter_slcs)
             elif callable(sel):
@@ -196,7 +196,7 @@ class AnnDataInterface(hv.core.Interface):
                     var &= mask
         if obs is None:
             return adata if var is None else dataset.data[:, var]
-        elif var is None:
+        if var is None:
             return adata[obs]
         return adata[obs, var]
 
