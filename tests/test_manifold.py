@@ -108,7 +108,7 @@ def test_create_manifoldmap_plot_datashading(
     )
 
     if color_kind == "categorical":
-        legend = plot.callback.inputs[0].callback.inputs[1]
+        legend = plot.callback.inputs[0].callback.inputs[0].callback.inputs[1]
         assert legend.keys() == ["A", "B"]
         assert all(legend[color].label == color for color in ["A", "B"])
         assert (
@@ -118,7 +118,7 @@ def test_create_manifoldmap_plot_datashading(
             legend["B"].opts.get("style").kwargs["color"] == cc.b_glasbey_category10[1]
         )
 
-        dm = plot.callback.inputs[0].callback.inputs[0]
+        dm = plot.callback.inputs[0].callback.inputs[0].callback.inputs[0]
         rop = dm.callback.inputs[0].callback.inputs[0].callback.operation
         assert rop.name == "rasterize"
         assert rop.p.aggregator.cat_column == color_var
@@ -127,7 +127,7 @@ def test_create_manifoldmap_plot_datashading(
         assert dop.name == "dynspread"
         assert dop.p.threshold == 0.5
     elif color_kind == "continuous":
-        dm = plot.callback.inputs[0].callback.inputs[0]
+        dm = plot.callback.inputs[0].callback.inputs[0].callback.inputs[0]
         rop = dm.callback.inputs[0].callback.operation
         assert rop.name == "rasterize"
         assert rop.p.aggregator.__class__.__name__ == "mean"
