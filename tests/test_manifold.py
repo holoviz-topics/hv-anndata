@@ -218,7 +218,7 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 
 
 def test_labeller() -> None:
-    df = pd.DataFrame(  # noqa: PD901
+    df = pd.DataFrame(
         {
             "UMAP1": [0, 1, 2, 3, 10],
             "UMAP2": [0, 1, 2, 3, 10],
