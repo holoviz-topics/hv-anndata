@@ -233,7 +233,15 @@ def create_manifoldmap_plot(
         aggregator = ds.mean(color_by)
         plot = hd.rasterize(plot, aggregator=aggregator)
         plot = hd.dynspread(plot, threshold=0.5)
-        plot = plot.opts(cmap=cmap, colorbar=colorbar)
+        plot = plot.opts(
+            cmap=cmap,
+            colorbar=colorbar,
+            tools=[
+                "hover",
+                BoxSelectTool(persistent=True),
+                LassoSelectTool(persistent=True),
+            ],
+        )
 
     if categorical and show_labels:
         # Options for labels
