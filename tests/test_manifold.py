@@ -127,7 +127,7 @@ def test_create_manifoldmap_plot_datashading(
         assert dop.p.threshold == 0.5
     elif color_kind == "continuous":
         dm = plot.callback.inputs[0].callback.inputs[0]
-        rop = dm.callback.inputs[0].callback.inputs[0].callback.operation
+        rop = dm.callback.inputs[0].callback.operation
         assert rop.name == "rasterize"
         assert rop.p.aggregator.__class__.__name__ == "mean"
         assert rop.p.aggregator.column == color_var
