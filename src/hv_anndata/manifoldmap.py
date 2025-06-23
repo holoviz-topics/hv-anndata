@@ -98,9 +98,11 @@ class ManifoldMapConfig(TypedDict, total=False):
     """Configuration options for manifold map plotting."""
 
     width: int
-    """width of the plot (default: 300)"""
+    """width of the plot (default: 300).
+    If responsive is True, this is the minimum width."""
     height: int
-    """height of the plot (default: 300)"""
+    """minimum height of the plot (default: 300)
+    If responsive is True, this is the minimum height."""
     datashading: bool
     """whether to apply datashader (default: True)"""
     show_labels: bool
@@ -109,6 +111,8 @@ class ManifoldMapConfig(TypedDict, total=False):
     """colormap"""
     title: str
     """plot title (default: "")"""
+    responsive: bool
+    """whether to make the plot size-responsive. (default: True)"""
 
 
 def create_manifoldmap_plot(
@@ -157,6 +161,7 @@ def create_manifoldmap_plot(
     show_labels = config.get("show_labels", False)
     cmap = config.get("cmap")
     title = config.get("title", "")
+    responsive = config.get("responsive", True)
 
     # Determine if color data is categorical
     if categorical is None:
@@ -235,12 +240,23 @@ def create_manifoldmap_plot(
         label_opts = dict(text_font_size="8pt", text_color="black")
         plot = plot * labeller(dataset).opts(**label_opts)
 
+    if not responsive:
+        plot = plot.opts(
+            responsive=False,
+            frame_height=height,
+            frame_width=width,
+        )
+    else:
+        plot = plot.opts(
+            responsive=True,
+            min_height=height,
+            min_width=width,
+        )
+
     # Apply final options to the plot
     return plot.opts(
         title=title,
         show_legend=show_legend,
-        frame_width=width,
-        frame_height=height,
     )
 
 
@@ -336,13 +352,17 @@ class ManifoldMap(pn.viewable.Viewer):
     datashade
         Whether to enable datashading
     width
-        Width of the plot
+        Minimum width of the plot.
+        If responsive is True, this is the minimum width.
     height
-        Height of the plot
+        Minimum height of the plot.
+        If responsive is True, this is the minimum height.
     show_labels
         Whether to show labels
     show_widgets
         Whether to show control widgets
+    responsive
+        Whether to make the plot size-responsive
 
     """
 
@@ -375,8 +395,8 @@ class ManifoldMap(pn.viewable.Viewer):
         to the index names if not set.
     """,
     )
-    width: int = param.Integer(default=300, doc="Width of the plot")  # type: ignore[assignment]
-    height: int = param.Integer(default=300, doc="Height of the plot")  # type: ignore[assignment]
+    width: int = param.Integer(default=300, doc="Minimum width of the plot")  # type: ignore[assignment]
+    height: int = param.Integer(default=300, doc="Minimum height of the plot")  # type: ignore[assignment]
     show_labels: bool = param.Boolean(  # type: ignore[assignment]
         default=False,
         label="Overlay Labels For Categorical Coloring",
@@ -384,6 +404,10 @@ class ManifoldMap(pn.viewable.Viewer):
     )
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
+    )
+    responsive: bool = param.Boolean(  # type: ignore[assignment]
+        default=True,
+        doc="Whether to make the plot size-responsive",
     )
     _replot: bool = param.Event()  # type: ignore[assignment]
 
@@ -572,9 +596,10 @@ class ManifoldMap(pn.viewable.Viewer):
             show_labels=show_labels,
             title=f"{dr_label}.{color_by}",
             cmap=cmap,
+            responsive=self.responsive,
         )
 
-        return create_manifoldmap_plot(
+        self.plot = create_manifoldmap_plot(
             x_data,
             color_data,
             x_dim,
@@ -585,6 +610,8 @@ class ManifoldMap(pn.viewable.Viewer):
             categorical=self._categorical,
             **config,
         )
+
+        return self.plot
 
     @param.depends(
         # Only include derived parameters to avoid calling create_plot
