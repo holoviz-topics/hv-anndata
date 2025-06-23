@@ -71,8 +71,9 @@ def test_create_manifoldmap_plot_no_datashading(
     assert len(plot_opts["tools"]) == 3
     assert "hover" in plot_opts["tools"]
     assert plot_opts["legend_position"] == "right"
-    assert plot_opts["frame_width"] == 300
-    assert plot_opts["frame_height"] == 300
+    assert plot_opts["min_width"] == 300
+    assert plot_opts["min_height"] == 300
+    assert plot_opts["responsive"]
 
     if color_kind == "categorical":
         assert (
@@ -202,6 +203,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         show_labels=True,
         title="PCA.cell_type",
         cmap=["#1f77b3", "#ff7e0e"],
+        responsive=True,
     )
 
 
