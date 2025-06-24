@@ -17,10 +17,13 @@ classifiers = [
 dynamic = [ "description", "version" ]
 dependencies = [
   "anndata",
+  "bokeh",
   "datashader",
   "holoviews>=1.21.0rc0",
   "numpy",
+  "pandas",
   "panel",
+  "param",
 ]
 
 [tool.hatch.metadata.hooks.docstring-description]
