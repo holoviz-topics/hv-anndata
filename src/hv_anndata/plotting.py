@@ -232,7 +232,7 @@ class Dotmap(param.ParameterizedFunction):
                     "line_color": "k",
                 }
                 if _HOLOVIEWS_VERSION >= (1, 21, 0):
-                    backend_opts |= {"radius": radius_dim / 2, "size": None}
+                    backend_opts |= {"radius": radius_dim / 2}
                 else:
                     backend_opts |= {"size": radius_dim * self.p.max_dot_size}
             case _:
