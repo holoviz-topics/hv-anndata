@@ -170,7 +170,7 @@ class Dotmap(param.ParameterizedFunction):
             if gene
             in available_marker_genes  # Only include genes that weren't filtered out
         ]
-        df = pd.concat(data, ignore_index=True)  # noqa: PD901
+        df = pd.concat(data, ignore_index=True)
 
         # Apply standard_scale if specified
         if self.p.standard_scale == "var":
@@ -240,7 +240,7 @@ class Dotmap(param.ParameterizedFunction):
             raise TypeError(msg)
         self.p = param.ParamOverrides(self, params)
 
-        df = self._prepare_data()  # noqa: PD901
+        df = self._prepare_data()
         plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims, group="dotmap")
         plot.opts(**self._get_opts())
         return plot
