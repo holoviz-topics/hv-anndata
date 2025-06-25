@@ -424,8 +424,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
         if irregular or expanded:
             data = expand_grid_coords(dataset, dim)
             if edges and data.shape == vdim(dataset.data).shape:
-                data = GridInterface._infer_interval_breaks(data, axis=1)  # noqa: SLF001
-                data = GridInterface._infer_interval_breaks(data, axis=0)  # noqa: SLF001
+                data = GridInterface._infer_interval_breaks(data, axis=1)
+                data = GridInterface._infer_interval_breaks(data, axis=0)
             return data
 
         data = dim(dataset.data)
@@ -442,7 +442,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         else:
             is_edges = False
         if edges and not is_edges:
-            data = GridInterface._infer_interval_breaks(data)  # noqa: SLF001
+            data = GridInterface._infer_interval_breaks(data)
         elif not edges and is_edges:
             data = data[:-1] + np.diff(data) / 2.0
         return data
