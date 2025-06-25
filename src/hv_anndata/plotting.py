@@ -9,6 +9,9 @@ import anndata as ad
 import holoviews as hv
 import pandas as pd
 import param
+from packaging.version import Version
+
+_HOLOVIEWS_VERSION = Version(hv.__version__).release
 
 if TYPE_CHECKING:
     from typing import NotRequired, Unpack
@@ -214,20 +217,23 @@ class Dotmap(param.ParameterizedFunction):
             show_legend=False,
             xrotation=45,
         )
-        size_dim = hv.dim("percentage").norm() * self.p.max_dot_size
+
+        radius_dim = hv.dim("percentage").norm()
         match hv.Store.current_backend:
             case "matplotlib":
-                backend_opts = {"s": size_dim}
+                backend_opts = {"s": radius_dim * self.p.max_dot_size}
             case "bokeh":
                 backend_opts = {
-                    "size": size_dim,
                     "colorbar_position": "left",
+                    "min_height": 300,
                     "tools": ["hover"],
-                    "width": 900,
-                    "height": 500,
                     "line_alpha": 0.2,
                     "line_color": "k",
                 }
+                if _HOLOVIEWS_VERSION >= (1, 21, 0):
+                    backend_opts |= {"radius": radius_dim / 2}
+                else:
+                    backend_opts |= {"size": radius_dim * self.p.max_dot_size}
             case _:
                 backend_opts = {}
 
@@ -241,6 +247,6 @@ class Dotmap(param.ParameterizedFunction):
         self.p = param.ParamOverrides(self, params)
 
         df = self._prepare_data()  # noqa: PD901
-        plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims, group="dotmap")
+        plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims)
         plot.opts(**self._get_opts())
         return plot
