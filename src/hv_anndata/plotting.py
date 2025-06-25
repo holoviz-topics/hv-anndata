@@ -225,9 +225,8 @@ class Dotmap(param.ParameterizedFunction):
             case "bokeh":
                 backend_opts = {
                     "colorbar_position": "left",
+                    "min_height": 300,
                     "tools": ["hover"],
-                    "width": 900,
-                    "height": 500,
                     "line_alpha": 0.2,
                     "line_color": "k",
                 }
@@ -248,6 +247,6 @@ class Dotmap(param.ParameterizedFunction):
         self.p = param.ParamOverrides(self, params)
 
         df = self._prepare_data()  # noqa: PD901
-        plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims, group="dotmap")
+        plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims)
         plot.opts(**self._get_opts())
         return plot
