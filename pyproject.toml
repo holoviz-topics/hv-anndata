@@ -17,10 +17,13 @@ classifiers = [
 dynamic = [ "description", "version" ]
 dependencies = [
   "anndata",
+  "bokeh",
   "datashader",
   "holoviews>=1.21.0rc0",
   "numpy",
+  "pandas",
   "panel",
+  "param",
 ]
 
 [tool.hatch.metadata.hooks.docstring-description]
@@ -54,6 +57,7 @@ lint.ignore = [
   "COM812",  # Incompatible with formatter
   "D203",    # 0 instead of 1 blank lines before class docstring
   "D213",    # Multi-line docstring summary should start at the first instead of second line
+  "ERA001",
   "FIX002",  # TODOs are fine
   "ISC001",  # Incompatible with formatter
   "N",       # pep8-naming
