@@ -89,7 +89,8 @@ class Dotmap(param.ParameterizedFunction):
 
     def _prepare_data(self) -> pd.DataFrame:  # noqa: C901, PLR0912, PLR0915
         # Flatten the marker_genes preserving order and duplicates
-        if isinstance(self.p.marker_genes, Mapping):
+        is_mapping_marker_genes = isinstance(self.p.marker_genes, Mapping)
+        if is_mapping_marker_genes:
             all_marker_genes = list(chain.from_iterable(self.p.marker_genes.values()))
         else:
             all_marker_genes = list(self.p.marker_genes)
@@ -165,7 +166,7 @@ class Dotmap(param.ParameterizedFunction):
         grouped = joined_df.groupby(self.p.groupby, observed=True)
         expression_stats = grouped.apply(compute_expression, include_groups=False)
 
-        if isinstance(self.p.marker_genes, Mapping):
+        if is_mapping_marker_genes:
             data = [  # Likely faster way to do this, but harder to read
                 expression_stats.xs(gene, level=1)
                 .reset_index(names="cluster")
@@ -220,7 +221,7 @@ class Dotmap(param.ParameterizedFunction):
                     df.loc[mask, "mean_expression"] = 0.0
 
         # Create marker_line column
-        if isinstance(self.p.marker_genes, Mapping):
+        if is_mapping_marker_genes:
             df["marker_line"] = df["marker_cluster_name"] + ", " + df["gene_id"]
         else:
             df["marker_line"] = df["gene_id"]
