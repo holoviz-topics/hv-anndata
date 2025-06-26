@@ -46,7 +46,7 @@ class Dotmap(param.ParameterizedFunction):
             "gene_id",
             "mean_expression",
             "percentage",
-            # "marker_cluster_name",
+            "marker_cluster_name",
         ],
         doc="Value dimensions representing expression metrics and metadata.",
     )
@@ -224,6 +224,7 @@ class Dotmap(param.ParameterizedFunction):
             df["marker_line"] = df["marker_cluster_name"] + ", " + df["gene_id"]
         else:
             df["marker_line"] = df["gene_id"]
+            df["marker_cluster_name"] = None
 
         return df
 
@@ -241,12 +242,18 @@ class Dotmap(param.ParameterizedFunction):
             case "matplotlib":
                 backend_opts = {"s": radius_dim * self.p.max_dot_size}
             case "bokeh":
+                hover_tooltips = [*self.p.kdims, *self.p.vdims]
+                if "marker_cluster_name" in hover_tooltips and (
+                    not isinstance(self.p.marker_genes, Mapping)
+                ):
+                    hover_tooltips.remove("marker_cluster_name")
                 backend_opts = {
                     "colorbar_position": "left",
                     "min_height": 300,
                     "tools": ["hover"],
                     "line_alpha": 0.2,
                     "line_color": "k",
+                    "hover_tooltips": hover_tooltips,
                 }
                 if _HOLOVIEWS_VERSION >= (1, 21, 0):
                     backend_opts |= {"radius": radius_dim / 2}
