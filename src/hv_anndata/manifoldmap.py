@@ -76,7 +76,7 @@ class labeller(Operation):
         if self.p.x_range and self.p.y_range:
             el = el[slice(*self.p.x_range), slice(*self.p.y_range)]
 
-        df = el.dframe()  # noqa: PD901
+        df = el.dframe()
         xd, yd, cd = el.dimensions()[:3]
         col = self.p.column or cd.name
         result = (
