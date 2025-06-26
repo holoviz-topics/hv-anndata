@@ -8,48 +8,58 @@ import scanpy as sc
 
 from hv_anndata.plotting import Dotmap
 
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 @pytest.mark.usefixtures("bokeh_backend")
-def test_dotmap_bokeh() -> None:
+@pytest.mark.parametrize(
+    "marker_func", [lambda x: {"group A": x}, list], ids=["dict", "list"]
+)
+def test_dotmap_bokeh(marker_func: Callable) -> None:
     adata = sc.datasets.pbmc68k_reduced()
     markers = ["C1QA", "PSAP", "CD79A", "CD79B", "CST3", "LYZ"]
 
     dotmap = Dotmap(
-        adata=adata, marker_genes={"group A": markers}, groupby="bulk_labels"
+        adata=adata, marker_genes=marker_func(markers), groupby="bulk_labels"
     )
 
     assert isinstance(dotmap.data, pd.DataFrame)
     assert dotmap.data.shape == (60, 6)
-    assert list(dotmap.data.columns) == [
+    assert sorted(dotmap.data.columns) == [
         "cluster",
-        "percentage",
-        "mean_expression",
-        "marker_cluster_name",
         "gene_id",
+        "marker_cluster_name",
         "marker_line",
+        "mean_expression",
+        "percentage",
     ]
     assert sorted(dotmap.data.gene_id.unique()) == sorted(markers)
     assert "size" in dotmap.opts.get().kwargs
 
 
 @pytest.mark.usefixtures("mpl_backend")
-def test_dotmap_mpl() -> None:
+@pytest.mark.parametrize(
+    "marker_func", [lambda x: {"group A": x}, list], ids=["dict", "list"]
+)
+def test_dotmap_mpl(marker_func: Callable) -> None:
     adata = sc.datasets.pbmc68k_reduced()
     markers = ["C1QA", "PSAP", "CD79A", "CD79B", "CST3", "LYZ"]
 
     dotmap = Dotmap(
-        adata=adata, marker_genes={"group A": markers}, groupby="bulk_labels"
+        adata=adata, marker_genes=marker_func(markers), groupby="bulk_labels"
     )
 
     assert isinstance(dotmap.data, pd.DataFrame)
     assert dotmap.data.shape == (60, 6)
-    assert list(dotmap.data.columns) == [
+    assert sorted(dotmap.data.columns) == [
         "cluster",
-        "percentage",
-        "mean_expression",
-        "marker_cluster_name",
         "gene_id",
+        "marker_cluster_name",
         "marker_line",
+        "mean_expression",
+        "percentage",
     ]
     assert sorted(dotmap.data.gene_id.unique()) == sorted(markers)
     assert "s" in dotmap.opts.get().kwargs
