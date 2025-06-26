@@ -136,11 +136,17 @@ class Dotmap(param.ParameterizedFunction):
 
         def compute_expression(df: pd.DataFrame) -> pd.DataFrame:
             # Separate the groupby column from gene columns
-            gene_cols = [col for col in df.columns if col != self.p.groupby]
+            gene_cols = [
+                col for col in dict.fromkeys(df.columns) if col != self.p.groupby
+            ]
 
             results = {}
             for gene in gene_cols:
                 gene_data = df[gene]
+
+                # Only take the first column if there is duplicates
+                if isinstance(gene_data, pd.DataFrame):
+                    gene_data = gene_data.iloc[:, 0]
 
                 # percentage of expressing cells
                 percentage = (gene_data > self.p.expression_cutoff).mean() * 100
