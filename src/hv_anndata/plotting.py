@@ -87,8 +87,10 @@ class Dotmap(param.ParameterizedFunction):
     )
 
     def _prepare_data(self) -> pd.DataFrame:  # noqa: C901, PLR0912, PLR0915
-        # Flatten the marker_genes preserving order and duplicates
-        all_marker_genes = list(chain.from_iterable(self.p.marker_genes.values()))
+        # Flatten the marker_genes preserving order
+        all_marker_genes = list(
+            dict.fromkeys(chain.from_iterable(self.p.marker_genes.values()))
+        )
 
         # Determine to use raw or processed
         use_raw = self.p.use_raw
