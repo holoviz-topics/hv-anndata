@@ -15,6 +15,7 @@
 			"source.organizeImports": "always",
 		},
 	},
+	"notebook.formatOnSave.enabled": true,
 	"python.analysis.typeCheckingMode": "basic",
 	"python.testing.pytestArgs": ["--color=yes", "-vv"],
 	"python.testing.pytestEnabled": true,

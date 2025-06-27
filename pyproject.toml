@@ -42,6 +42,7 @@ extra-dependencies = [
   "ipykernel",
   "ipywidgets",
   "scanpy",
+  "pooch",
   "plotly",
   "sphinx",
   "furo",
@@ -72,6 +73,7 @@ lint.ignore = [
 ]
 lint.per-file-ignores."**/*.ipynb" = [
   "I002", # Missing `from __future__ import annotations` is fine
+  "T201", # print is fine
 ]
 lint.per-file-ignores."docs/conf.py" = [
   "INP001", # __init__.py
