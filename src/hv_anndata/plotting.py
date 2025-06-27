@@ -87,8 +87,10 @@ class Dotmap(param.ParameterizedFunction):
     )
 
     def _prepare_data(self) -> pd.DataFrame:  # noqa: C901, PLR0912, PLR0915
-        # Flatten the marker_genes preserving order and duplicates
-        all_marker_genes = list(chain.from_iterable(self.p.marker_genes.values()))
+        # Flatten the marker_genes preserving order
+        all_marker_genes = list(
+            dict.fromkeys(chain.from_iterable(self.p.marker_genes.values()))
+        )
 
         # Determine to use raw or processed
         use_raw = self.p.use_raw
@@ -173,7 +175,7 @@ class Dotmap(param.ParameterizedFunction):
             if gene
             in available_marker_genes  # Only include genes that weren't filtered out
         ]
-        df = pd.concat(data, ignore_index=True)  # noqa: PD901
+        df = pd.concat(data, ignore_index=True)
 
         # Apply standard_scale if specified
         if self.p.standard_scale == "var":
@@ -246,7 +248,7 @@ class Dotmap(param.ParameterizedFunction):
             raise TypeError(msg)
         self.p = param.ParamOverrides(self, params)
 
-        df = self._prepare_data()  # noqa: PD901
+        df = self._prepare_data()
         plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims)
         plot.opts(**self._get_opts())
         return plot
