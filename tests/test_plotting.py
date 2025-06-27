@@ -95,3 +95,11 @@ def test_dotmap_all_missing_genes_bokeh() -> None:
         Dotmap(
             adata=adata, marker_genes={"A": ["FAKE1", "FAKE2"]}, groupby="bulk_labels"
         )
+
+
+@pytest.mark.usefixtures("bokeh_backend")
+def test_dotmap_duplicate_genes_bokeh() -> None:
+    adata = sc.datasets.pbmc68k_reduced()
+    sel_marker_genes = {"A": ["FCN1"], "B": ["FCN1"]}
+    dotmap = Dotmap(adata=adata, marker_genes=sel_marker_genes, groupby="bulk_labels")
+    assert dotmap.data.shape == (20, 6)

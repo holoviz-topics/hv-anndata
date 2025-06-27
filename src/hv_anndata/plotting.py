@@ -88,10 +88,12 @@ class Dotmap(param.ParameterizedFunction):
     )
 
     def _prepare_data(self) -> pd.DataFrame:  # noqa: C901, PLR0912, PLR0915
-        # Flatten the marker_genes preserving order and duplicates
+        # Flatten the marker_genes preserving order
         is_mapping_marker_genes = isinstance(self.p.marker_genes, Mapping)
         if is_mapping_marker_genes:
-            all_marker_genes = list(chain.from_iterable(self.p.marker_genes.values()))
+            all_marker_genes = list(
+                dict.fromkeys(chain.from_iterable(self.p.marker_genes.values()))
+            )
         else:
             all_marker_genes = list(self.p.marker_genes)
 
