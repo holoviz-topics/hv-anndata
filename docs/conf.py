@@ -40,8 +40,13 @@ nb_execution_timeout = 60  # seconds
 
 # https://github.com/executablebooks/MyST-NB/issues/574
 def _patch_myst_nb() -> None:
-    from jupyter_cache.executors import utils  # type: ignore[import-not-found]
-    from myst_nb.core.execute import cache, direct  # type: ignore[import-not-found]
+    from jupyter_cache.executors import (  # type: ignore[import-not-found]  # noqa: PLC0415
+        utils,
+    )
+    from myst_nb.core.execute import (  # type: ignore[import-not-found]  # noqa: PLC0415
+        cache,
+        direct,
+    )
 
     run(
         ["hatch", "-v", "run", "docs:install-kernel"],
