@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from itertools import chain
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -87,8 +88,14 @@ class Dotmap(param.ParameterizedFunction):
     )
 
     def _prepare_data(self) -> pd.DataFrame:  # noqa: C901, PLR0912, PLR0915
-        # Flatten the marker_genes preserving order and duplicates
-        all_marker_genes = list(chain.from_iterable(self.p.marker_genes.values()))
+        # Flatten the marker_genes preserving order
+        is_mapping_marker_genes = isinstance(self.p.marker_genes, Mapping)
+        if is_mapping_marker_genes:
+            all_marker_genes = list(
+                dict.fromkeys(chain.from_iterable(self.p.marker_genes.values()))
+            )
+        else:
+            all_marker_genes = list(self.p.marker_genes)
 
         # Determine to use raw or processed
         use_raw = self.p.use_raw
@@ -161,18 +168,29 @@ class Dotmap(param.ParameterizedFunction):
         grouped = joined_df.groupby(self.p.groupby, observed=True)
         expression_stats = grouped.apply(compute_expression, include_groups=False)
 
-        data = [  # Likely faster way to do this, but harder to read
-            expression_stats.xs(gene, level=1)
-            .reset_index(names="cluster")
-            .assign(
-                marker_cluster_name=marker_cluster_name,
-                gene_id=gene,
-            )
-            for marker_cluster_name, gene_list in self.p.marker_genes.items()
-            for gene in gene_list
-            if gene
-            in available_marker_genes  # Only include genes that weren't filtered out
-        ]
+        if is_mapping_marker_genes:
+            data = [  # Likely faster way to do this, but harder to read
+                expression_stats.xs(gene, level=1)
+                .reset_index(names="cluster")
+                .assign(
+                    marker_cluster_name=marker_cluster_name,
+                    gene_id=gene,
+                )
+                for marker_cluster_name, gene_list in self.p.marker_genes.items()
+                for gene in gene_list
+                # Only include genes that weren't filtered out
+                if gene in available_marker_genes
+            ]
+        else:
+            data = [  # Likely faster way to do this, but harder to read
+                expression_stats.xs(gene, level=1)
+                .reset_index(names="cluster")
+                .assign(gene_id=gene)
+                for gene in self.p.marker_genes
+                # Only include genes that weren't filtered out
+                if gene in available_marker_genes
+            ]
+
         df = pd.concat(data, ignore_index=True)
 
         # Apply standard_scale if specified
@@ -205,7 +223,11 @@ class Dotmap(param.ParameterizedFunction):
                     df.loc[mask, "mean_expression"] = 0.0
 
         # Create marker_line column
-        df["marker_line"] = df["marker_cluster_name"] + ", " + df["gene_id"]
+        if is_mapping_marker_genes:
+            df["marker_line"] = df["marker_cluster_name"] + ", " + df["gene_id"]
+        else:
+            df["marker_line"] = df["gene_id"]
+            df["marker_cluster_name"] = None
 
         return df
 
@@ -223,12 +245,18 @@ class Dotmap(param.ParameterizedFunction):
             case "matplotlib":
                 backend_opts = {"s": radius_dim * self.p.max_dot_size}
             case "bokeh":
+                hover_tooltips = [*self.p.kdims, *self.p.vdims]
+                if "marker_cluster_name" in hover_tooltips and (
+                    not isinstance(self.p.marker_genes, Mapping)
+                ):
+                    hover_tooltips.remove("marker_cluster_name")
                 backend_opts = {
                     "colorbar_position": "left",
                     "min_height": 300,
                     "tools": ["hover"],
                     "line_alpha": 0.2,
                     "line_color": "k",
+                    "hover_tooltips": hover_tooltips,
                 }
                 if _HOLOVIEWS_VERSION >= (1, 21, 0):
                     backend_opts |= {"radius": radius_dim / 2}

@@ -123,6 +123,7 @@ def create_manifoldmap_plot(
     color_by: str,
     xaxis_label: str,
     yaxis_label: str,
+    *,
     categorical: bool | None = None,
     **config: Unpack[ManifoldMapConfig],
 ) -> hv.Element:
