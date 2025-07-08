@@ -56,6 +56,7 @@ lint.ignore = [
   "B019",    # functools.cache is fine to use
   "C408",    # dict(...) calls are good
   "COM812",  # Incompatible with formatter
+  "D105",    # magic methods are usually self-explanatory
   "D203",    # 0 instead of 1 blank lines before class docstring
   "D213",    # Multi-line docstring summary should start at the first instead of second line
   "ERA001",
