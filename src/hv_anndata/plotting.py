@@ -257,6 +257,7 @@ class Dotmap(param.ParameterizedFunction):
                     "line_alpha": 0.2,
                     "line_color": "k",
                     "hover_tooltips": hover_tooltips,
+                    "responsive": True,
                 }
                 if _HOLOVIEWS_VERSION >= (1, 21, 0):
                     backend_opts |= {"radius": radius_dim / 2}
