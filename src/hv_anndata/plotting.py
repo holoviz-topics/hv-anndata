@@ -52,7 +52,9 @@ class Dotmap(param.ParameterizedFunction):
     )
 
     adata = param.ClassSelector(class_=ad.AnnData)
-    marker_genes = param.Dict(default={}, doc="Dictionary of marker genes.")
+    marker_genes = param.ClassSelector(
+        default={}, class_=(dict, list), doc="Dictionary or list of marker genes."
+    )
     groupby = param.String(default="cell_type", doc="Column to group by.")
     expression_cutoff = param.Number(default=0.0, doc="Cutoff for expression.")
     max_dot_size = param.Integer(default=20, doc="Maximum size of the dots.")
