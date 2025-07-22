@@ -193,7 +193,10 @@ class Dotmap(param.ParameterizedFunction):
                 if gene in available_marker_genes
             ]
 
-        df = pd.concat(data, ignore_index=True)
+        if data:
+            df = pd.concat(data, ignore_index=True)
+        else:
+            df = pd.DataFrame({k: [] for k in self.p.kdims + self.p.vdims})
 
         # Apply standard_scale if specified
         if self.p.standard_scale == "var":
@@ -225,7 +228,9 @@ class Dotmap(param.ParameterizedFunction):
                     df.loc[mask, "mean_expression"] = 0.0
 
         # Create marker_line column
-        if is_mapping_marker_genes:
+        if df.empty:
+            df["marker_line"] = None
+        elif is_mapping_marker_genes:
             df["marker_line"] = df["marker_cluster_name"] + ", " + df["gene_id"]
         else:
             df["marker_line"] = df["gene_id"]
