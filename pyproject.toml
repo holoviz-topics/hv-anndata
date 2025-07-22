@@ -23,6 +23,7 @@ dependencies = [
   "numpy",
   "pandas",
   "panel",
+  "panel-material-ui",
   "param",
 ]
 
