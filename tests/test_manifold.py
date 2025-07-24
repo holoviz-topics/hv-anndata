@@ -9,7 +9,7 @@ import colorcet as cc
 import holoviews as hv
 import numpy as np
 import pandas as pd
-import panel as pn
+import panel_material_ui as pmui
 import pytest
 
 from hv_anndata.manifoldmap import ManifoldMap, create_manifoldmap_plot, labeller
@@ -213,7 +213,7 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 
     layout = mm.__panel__()
 
-    assert isinstance(layout, pn.layout.Row)
+    assert isinstance(layout, pmui.layout.Row)
     assert len(layout) == 2
 
 
