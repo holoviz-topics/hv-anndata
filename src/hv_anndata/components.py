@@ -136,9 +136,3 @@ class AutoCompleteMultiChoice(PyComponent):
             self._multi_choice,
             self._json_editor,
         )
-
-
-if pn.state.served:
-    w = AutoCompleteMultiChoice(value={"a": [1, 2]})
-    # w = AutoCompleteMultiChoice(options=["xxxx", "yyyy"])
-    w.servable()
