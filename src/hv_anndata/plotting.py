@@ -10,6 +10,7 @@ import anndata as ad
 import holoviews as hv
 import pandas as pd
 import param
+from holoviews.core.operation import Operation
 from packaging.version import Version
 
 _HOLOVIEWS_VERSION = Version(hv.__version__).release
@@ -279,3 +280,15 @@ class Dotmap(param.ParameterizedFunction):
         plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims)
         plot.opts(**self._get_opts())
         return plot
+
+
+class DotmapOp(Operation):
+    marker_genes = param.Dict(default={}, doc="Dictionary of marker genes.")
+    groupby = param.String(default="cell_type", doc="Column to group by.")
+
+    def _process(self, element, key=None, groupby=False):
+        return Dotmap(
+            adata=element.data,
+            marker_genes=self.p.marker_genes,
+            groupby=self.p.groupby,
+        )

@@ -187,6 +187,7 @@ class AnnDataInterface(hv.core.Interface):
     def select(
         cls,
         dataset: Dataset,
+        selection_mask=None,
         selection_expr: (
             hv.dim | Mapping[Dimension | str, SelectionValues] | None
         ) = None,
@@ -197,6 +198,8 @@ class AnnDataInterface(hv.core.Interface):
         if selection_specs is not None:
             msg = "selection_specs is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
+        if selection_mask is not None:
+            return dataset.data[selection_mask]
         if isinstance(selection_expr, Mapping):
             if selection:
                 msg = "Cannot provide both selection and selection_expr."
