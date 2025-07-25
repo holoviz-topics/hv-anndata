@@ -18,6 +18,8 @@ from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.operation import Operation
 from panel.reactive import hold
 
+from .interface import ACCESSOR as AnnAcc
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -116,6 +118,8 @@ class ManifoldMapConfig(TypedDict, total=False):
 
 
 def create_manifoldmap_plot(
+    adata: ad.AnnData,
+    dr_key: str,
     x_data: np.ndarray,
     color_data: np.ndarray,
     x_dim: int,
@@ -192,16 +196,20 @@ def create_manifoldmap_plot(
         colorbar = True
 
     # Create basic plot
-    dataset = hv.Dataset(
-        (x_data[:, x_dim], x_data[:, y_dim], color_data),
-        [xaxis_label, yaxis_label],
-        color_by,
-    )
-    plot = dataset.to(hv.Points)
+    if color_by in adata.obs:
+        vdim = AnnAcc.obs[color_by]
+    else:
+        vdim = AnnAcc[:, color_by]
 
+    dataset = hv.Dataset(
+        adata,
+        [AnnAcc.obsm[dr_key][:, x_dim], AnnAcc.obsm[dr_key][:, y_dim]],
+        [vdim],
+    )
+    plot = hv.Points(dataset)
     # Options for standard (non-datashaded) plot
     plot_opts = dict(
-        color=color_by,
+        color=vdim,
         cmap=cmap,
         size=1,
         alpha=0.5,
@@ -226,12 +234,12 @@ def create_manifoldmap_plot(
         plot = _apply_categorical_datashading(
             plot,
             color_data=color_data,
-            color_by=color_by,
+            color_by=vdim.name,
             cmap=cmap,
         )
     else:
         # For continuous data, take the mean
-        aggregator = ds.mean(color_by)
+        aggregator = ds.mean(vdim.name)
         plot = hd.rasterize(plot, aggregator=aggregator)
         plot = hd.dynspread(plot, threshold=0.5)
         plot = plot.opts(
@@ -609,6 +617,8 @@ class ManifoldMap(pn.viewable.Viewer):
         )
 
         self.plot = create_manifoldmap_plot(
+            self.adata,
+            dr_key,
             x_data,
             color_data,
             x_dim,

@@ -269,7 +269,10 @@ class AdAc:
 
     def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].X)  # TODO: pandas, sparse, …  # noqa: TD003
+            arr = np.asarray(ad[i].X)  # TODO: pandas, sparse, …  # noqa: TD003
+            if arr.shape[1] == 1:
+                arr = np.ravel(arr)
+            return arr
 
         return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
 
