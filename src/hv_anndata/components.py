@@ -51,6 +51,7 @@ class AutoCompleteMultiChoice(WidgetBase, PyComponent):
             placeholder="Enter/select key name",
             restrict=False,
             min_characters=0,
+            description="",
             sizing_mode="stretch_width",
         )
 
@@ -62,6 +63,7 @@ class AutoCompleteMultiChoice(WidgetBase, PyComponent):
             restrict=False,
             min_characters=0,
             disabled=self.param._input_key.rx().rx.bool().rx.not_(),
+            description="",
             sizing_mode="stretch_width",
         )
 
@@ -71,6 +73,7 @@ class AutoCompleteMultiChoice(WidgetBase, PyComponent):
             name="Values for the selected group",
             searchable=True,
             disabled=self._value_input.param.disabled,
+            description="",
             sizing_mode="stretch_width",
         )
 
