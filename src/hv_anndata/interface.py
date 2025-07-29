@@ -187,7 +187,7 @@ class AnnDataInterface(hv.core.Interface):
     def select(
         cls,
         dataset: Dataset,
-        selection_mask=None,
+        selection_mask: np.ndarray | None = None,
         selection_expr: (
             hv.dim | Mapping[Dimension | str, SelectionValues] | None
         ) = None,
@@ -198,8 +198,6 @@ class AnnDataInterface(hv.core.Interface):
         if selection_specs is not None:
             msg = "selection_specs is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
-        if selection_mask is not None:
-            return dataset.data[selection_mask]
         if isinstance(selection_expr, Mapping):
             if selection:
                 msg = "Cannot provide both selection and selection_expr."
@@ -210,7 +208,13 @@ class AnnDataInterface(hv.core.Interface):
             msg = "selection_expr is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
 
-        obs, var = cls.selection_masks(dataset, selection)
+        if selection_mask is None:
+            obs, var = cls.selection_masks(dataset, selection)
+        else:
+            axes = cls.axes(dataset)
+            obs, var = (
+                (selection_mask, None) if axes == ("obs",) else (None, selection_mask)
+            )
         adata = cast("AnnData", dataset.data)
         if obs is None:
             return adata if var is None else dataset.data[:, var]
