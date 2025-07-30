@@ -659,6 +659,7 @@ class ManifoldMap(pn.viewable.Viewer):
         # Widgets
         color_by_dim = pmui.widgets.RadioButtonGroup.from_param(
             self.param.color_by_dim,
+            sizing_mode="stretch_width",
         )
         color = pmui.widgets.AutocompleteInput.from_param(
             self.param.color_by,
@@ -666,22 +667,58 @@ class ManifoldMap(pn.viewable.Viewer):
             min_characters=0,
             search_strategy="includes",
             case_sensitive=False,
+            description="",
+            sizing_mode="stretch_width",
         )
+        stylesheet = """
+        label {
+            color: rgba(0, 0, 0, 0.6);
+        }
+        .bk-input {
+            border-color: #ccc;
+            height: 48px;
+        }
+        .bk-input:hover {
+            border: 1px solid rgba(0, 0, 0, 0.87) !important;
+        }
+        """
         colormap = pn.widgets.ColorMap.from_param(
             self.param.colormap,
+            stylesheets=[stylesheet],
+            sizing_mode="stretch_width",
         )
         # Create widget box
         widgets = pmui.Column(
-            self.param.reduction,
-            self.param.x_axis,
-            self.param.y_axis,
+            pmui.widgets.Select.from_param(
+                self.param.reduction,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Select.from_param(
+                self.param.x_axis,
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Select.from_param(
+                self.param.y_axis,
+                sizing_mode="stretch_width",
+            ),
             color_by_dim,
             color,
             colormap,
-            self.param.datashade,
-            self.param.show_labels,
-            visible=self.show_widgets,
+            pmui.widgets.Checkbox.from_param(
+                self.param.datashade,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Checkbox.from_param(
+                self.param.show_labels,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            visible=self.param.show_widgets,
             sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
+            sizing_mode="stretch_width",
+            max_width=400,
         )
 
         # Return the assembled layout
