@@ -13,6 +13,7 @@ import holoviews as hv
 import holoviews.operation.datashader as hd
 import numpy as np
 import panel as pn
+import panel_material_ui as pmui
 import param
 from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.operation import Operation
@@ -386,6 +387,7 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by_dim: str = param.Selector(  # type: ignore[assignment]
         default="obs",
         objects={"Observations": "obs", "Variables": "cols"},
+        label="Color By",
     )
     color_by: str = param.Selector(  # type: ignore[assignment]
         doc="Coloring variable"
@@ -462,6 +464,8 @@ class ManifoldMap(pn.viewable.Viewer):
 
     @param.depends("color_by", watch=True)
     def _update_on_color_by(self) -> None:
+        if not self.color_by:
+            return
         old_is_categorical = self._categorical
         if self.color_by_dim == "obs":
             color_data = self.adata.obs[self.color_by].values
@@ -575,7 +579,7 @@ class ManifoldMap(pn.viewable.Viewer):
         dr_label = self.get_reduction_label(dr_key)
 
         if x_value == y_value:
-            return pn.pane.Markdown(
+            return pmui.pane.Typography(
                 "Please select different dimensions for X and Y axes."
             )
 
@@ -584,7 +588,7 @@ class ManifoldMap(pn.viewable.Viewer):
             x_dim = int(x_value.replace(dr_label, "")) - 1
             y_dim = int(y_value.replace(dr_label, "")) - 1
         except (ValueError, AttributeError):
-            return pn.pane.Markdown(
+            return pmui.pane.Typography(
                 f"Error parsing dimensions. "
                 f"Make sure to select valid {dr_label} dimensions."
             )
@@ -653,35 +657,69 @@ class ManifoldMap(pn.viewable.Viewer):
 
         """
         # Widgets
-        color_by_dim = pn.widgets.RadioButtonGroup.from_param(
+        color_by_dim = pmui.widgets.RadioButtonGroup.from_param(
             self.param.color_by_dim,
+            sizing_mode="stretch_width",
         )
-        color = pn.widgets.AutocompleteInput.from_param(
+        color = pmui.widgets.AutocompleteInput.from_param(
             self.param.color_by,
             name="",
             min_characters=0,
             search_strategy="includes",
             case_sensitive=False,
-            stylesheets=[
-                ":host .bk-menu.bk-below {max-height: 200px; overflow-y: auto}"
-            ],
+            description="",
+            sizing_mode="stretch_width",
         )
+        stylesheet = """
+        label {
+            color: rgba(0, 0, 0, 0.6);
+        }
+        .bk-input {
+            border-color: #ccc;
+            height: 48px;
+        }
+        .bk-input:hover {
+            border: 1px solid rgba(0, 0, 0, 0.87) !important;
+        }
+        """
         colormap = pn.widgets.ColorMap.from_param(
             self.param.colormap,
+            stylesheets=[stylesheet],
+            sizing_mode="stretch_width",
         )
         # Create widget box
-        widgets = pn.WidgetBox(
-            self.param.reduction,
-            self.param.x_axis,
-            self.param.y_axis,
-            pn.pane.HTML("<strong>Color by</strong>"),
+        widgets = pmui.Column(
+            pmui.widgets.Select.from_param(
+                self.param.reduction,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Select.from_param(
+                self.param.x_axis,
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Select.from_param(
+                self.param.y_axis,
+                sizing_mode="stretch_width",
+            ),
             color_by_dim,
             color,
             colormap,
-            self.param.datashade,
-            self.param.show_labels,
-            visible=self.show_widgets,
+            pmui.widgets.Checkbox.from_param(
+                self.param.datashade,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Checkbox.from_param(
+                self.param.show_labels,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            visible=self.param.show_widgets,
+            sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
+            sizing_mode="stretch_width",
+            max_width=400,
         )
 
         # Return the assembled layout
-        return pn.Row(widgets, self._plot_view)
+        return pmui.Row(widgets, self._plot_view)
