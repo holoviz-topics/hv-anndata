@@ -240,3 +240,12 @@ def test_labeller() -> None:
         labels.data.sort_values("cell_type"),
         expected_data.sort_values("cell_type"),
     )
+
+
+@pytest.mark.usefixtures("bokeh_backend")
+def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
+    bounds_xy = hv.streams.BoundsXY()
+    mm = ManifoldMap(adata=sadata, streams=[bounds_xy])
+    assert bounds_xy.source is None
+    mm.__panel__()
+    assert bounds_xy.source is not None
