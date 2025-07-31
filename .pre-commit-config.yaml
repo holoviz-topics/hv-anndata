@@ -18,7 +18,3 @@ repos:
   rev: v2.1.2
   hooks:
   - id: biome-format
-- repo: https://github.com/kynan/nbstripout
-  rev: "0.8.1"
-  hooks:
-    - id: nbstripout
