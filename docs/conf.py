@@ -58,4 +58,4 @@ def _patch_myst_nb() -> None:
     )
 
 
-# _patch_myst_nb()
+_patch_myst_nb()
