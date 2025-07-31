@@ -42,6 +42,7 @@ scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata -
 extra-dependencies = [
   "ipykernel",
   "ipywidgets",
+  "jupyter-bokeh",
   "scanpy",
   "pooch",
   "plotly",
