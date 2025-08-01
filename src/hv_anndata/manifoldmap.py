@@ -17,11 +17,12 @@ import panel_material_ui as pmui
 import param
 from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.operation import Operation
-from holoviews.streams import Stream
 from panel.reactive import hold
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from holoviews.streams import Stream
 
 
 DEFAULT_COLOR_BY = "cell_type"
@@ -173,16 +174,15 @@ def create_manifoldmap_plot(
     if categorical is None:
         categorical = _is_categorical(color_data)
 
-    # Add a NaN category to handle and display data points with no category
+    # Set colormap and plot options based on data type
     if categorical:
+        # Add a NaN category to handle and display data points with no category
         color_data = np.where(
             color_data != color_data,
             "NaN",
             color_data,
         )  # np.nan != np.nan is True
 
-    # Set colormap and plot options based on data type
-    if categorical:
         n_unq_cat = len(np.unique(color_data))
         if cmap is None:
             cmap = DEFAULT_CAT_CMAP
