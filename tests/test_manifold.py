@@ -201,6 +201,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         height=300,
         datashading=False,
         show_labels=True,
+        streams=[],
         title="PCA.cell_type",
         cmap=["#1f77b3", "#ff7e0e"],
         responsive=True,
