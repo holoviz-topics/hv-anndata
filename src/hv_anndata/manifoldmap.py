@@ -22,6 +22,8 @@ from panel.reactive import hold
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from holoviews.streams import Stream
+
 
 DEFAULT_COLOR_BY = "cell_type"
 CAT_CMAPS = {
@@ -114,6 +116,8 @@ class ManifoldMapConfig(TypedDict, total=False):
     """plot title (default: "")"""
     responsive: bool
     """whether to make the plot size-responsive. (default: True)"""
+    streams: list[Stream]
+    """list of streams to use for dynamic updates (default: [])"""
 
 
 def create_manifoldmap_plot(
@@ -164,21 +168,21 @@ def create_manifoldmap_plot(
     cmap = config.get("cmap")
     title = config.get("title", "")
     responsive = config.get("responsive", True)
+    streams = config.get("streams", [])
 
     # Determine if color data is categorical
     if categorical is None:
         categorical = _is_categorical(color_data)
 
-    # Add a NaN category to handle and display data points with no category
+    # Set colormap and plot options based on data type
     if categorical:
+        # Add a NaN category to handle and display data points with no category
         color_data = np.where(
             color_data != color_data,
             "NaN",
             color_data,
         )  # np.nan != np.nan is True
 
-    # Set colormap and plot options based on data type
-    if categorical:
         n_unq_cat = len(np.unique(color_data))
         if cmap is None:
             cmap = DEFAULT_CAT_CMAP
@@ -199,6 +203,10 @@ def create_manifoldmap_plot(
         color_by,
     )
     plot = dataset.to(hv.Points)
+
+    # Attach streams
+    for stream in streams:
+        stream.source = plot
 
     # Options for standard (non-datashaded) plot
     plot_opts = dict(
@@ -416,6 +424,10 @@ class ManifoldMap(pn.viewable.Viewer):
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
     )
+    streams = param.List(  # type: ignore[assignment]
+        default=[],
+        doc="List of streams to use for dynamic updates",
+    )
     responsive: bool = param.Boolean(  # type: ignore[assignment]
         default=True,
         doc="Whether to make the plot size-responsive",
@@ -610,6 +622,7 @@ class ManifoldMap(pn.viewable.Viewer):
             title=f"{dr_label}.{color_by}",
             cmap=cmap,
             responsive=self.responsive,
+            streams=self.streams,
         )
 
         self.plot = create_manifoldmap_plot(
