@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import sys
 from functools import partial
 from importlib.metadata import metadata
+from pathlib import Path
 from subprocess import run
+
+HERE = Path(__file__).parent
+sys.path.insert(0, str(HERE / "ext"))
 
 _info = metadata("hv-anndata")
 
@@ -19,6 +24,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
     "myst_nb",
+    "paramdoc",
 ]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 nitpicky = True
@@ -27,6 +33,7 @@ suppress_warnings = ["mystnb.unknown_mime_type"]
 intersphinx_mapping = dict(
     python=("https://docs.python.org/3/", None),
     holoviews=("https://holoviews.org/", None),
+    panel=("https://panel.holoviz.org/", None),
 )
 
 always_use_bars_union = True
@@ -36,6 +43,11 @@ typehints_defaults = "comma"
 nb_execution_mode = "cache"
 nb_execution_show_tb = True
 nb_execution_timeout = 60  # seconds
+
+# autodoc/autosummary
+autodoc_default_options = {
+    "members": False,
+}
 
 
 # https://github.com/executablebooks/MyST-NB/issues/574
