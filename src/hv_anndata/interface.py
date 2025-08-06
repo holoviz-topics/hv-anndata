@@ -87,7 +87,7 @@ class AnnDataInterface(hv.core.Interface):
         if ndim > 1 and len(dataset.kdims) != ndim:
             msg = (
                 "AnnData Dataset with multi-dimensional data must declare "
-                "corresponding key dimensions."
+                f"corresponding key dimensions (got {len(dataset.kdims)}, not {ndim})."
             )
             raise DataError(msg)
         dims = cast("list[AdPath]", dataset.dimensions())
