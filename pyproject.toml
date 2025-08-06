@@ -38,6 +38,7 @@ installer = "uv"
 extra-dependencies = [ "ipykernel", "scanpy" ]
 [tool.hatch.envs.docs]
 scripts.build = "sphinx-build -W --keep-going -b html docs docs/_build/html {args}"
+scripts.clean = "git clean -fdX -- {args:docs}"
 scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
 extra-dependencies = [
   "ipykernel",
