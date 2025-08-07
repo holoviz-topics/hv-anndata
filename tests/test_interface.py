@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from string import ascii_lowercase
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import holoviews as hv
 import numpy as np
@@ -12,9 +12,10 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 from anndata import AnnData
+from holoviews.core.data.interface import DataError
 
 from hv_anndata.interface import ACCESSOR as A
-from hv_anndata.interface import AnnDataInterface, register
+from hv_anndata.interface import AnnDataGriddedInterface, AnnDataInterface, register
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -119,6 +120,55 @@ def test_select(
     pd.testing.assert_index_equal(
         adata_subset.obs_names, adata[adata.obs["type"] == 0].obs_names
     )
+
+
+@pytest.mark.parametrize(
+    ("iface", "vdims", "err_msg_pat"),
+    [
+        pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab_x_2d"),
+        pytest.param("grid", [A[:, "3"]], None, id="grid_x_1d"),  # can be 2D as well
+        pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid_obs"),
+    ],
+)
+def test_init_errors(
+    iface: Literal["tab", "grid"], vdims: list[AdPath], err_msg_pat: str
+) -> None:
+    cls = AnnDataInterface if iface == "tab" else AnnDataGriddedInterface
+    adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
+    with (
+        contextlib.nullcontext()
+        if err_msg_pat is None
+        else pytest.raises(ValueError, match=err_msg_pat)
+    ):
+        cls.init(hv.Element, adata, [], vdims)
+
+
+@pytest.mark.parametrize(
+    ("kdims", "vdims", "err_msg_pat"),
+    [
+        pytest.param(
+            [A.obs["index"], A.var["index"]],
+            [A.obs["x"]],
+            r"either.*obs.*or.*var",
+            id="grid_obs",
+        ),
+        pytest.param(
+            [A.obs["index"], A.var["index"]], [A[:, "3"]], None, id="grid_x_1d"
+        ),
+        # TODO: other errors  # noqa: TD003
+    ],
+)
+def test_axes_errors(
+    kdims: list[AdPath], vdims: list[AdPath], err_msg_pat: str
+) -> None:
+    adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
+    with (
+        contextlib.nullcontext()
+        if err_msg_pat is None
+        else pytest.raises(DataError, match=err_msg_pat)
+    ):
+        # Dataset.__init__ calls self.interface.axes after initializing the interface
+        hv.Dataset(adata, kdims, vdims)
 
 
 """

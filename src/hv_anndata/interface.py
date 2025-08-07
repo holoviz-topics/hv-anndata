@@ -72,10 +72,10 @@ class AnnDataInterface(hv.core.Interface):
         vdim = value_dimensions[0] if value_dimensions else None
         ndims = cls._ndims(vdim, data)
         if not cls.gridded and 1 not in ndims:
-            msg = "AnnDataInterface cannot handle gridded data."
+            msg = f"{cls.__name__} cannot handle gridded data."
             raise ValueError(msg)
         if cls.gridded and set(ndims) == {1}:
-            msg = "AnnDataGriddedInterface cannot handle tabular data."
+            msg = f"{cls.__name__} cannot handle tabular data."
             raise ValueError(msg)
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
 
