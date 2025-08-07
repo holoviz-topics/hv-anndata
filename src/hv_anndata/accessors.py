@@ -54,14 +54,13 @@ class AdPath(Dimension):
         /,
         **params: object,
     ) -> None:
+        # TODO: prettier  # noqa: TD003
+        if isinstance(_repr, str):
+            _repr = _repr.replace("slice(None, None, None)", ":")
         super().__init__(_repr, **params)
         self._repr = _repr[0] if isinstance(_repr, tuple) else _repr
         self._func = func
         self.axes = axes
-
-    def __repr__(self) -> str:
-        # TODO: prettier  # noqa: TD003
-        return self._repr.replace("slice(None, None, None)", ":")
 
     def __hash__(self) -> int:
         return hash(self._repr)
