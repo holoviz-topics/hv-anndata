@@ -34,7 +34,7 @@ def _idx2axes(i: Idx2D[str]) -> set[Literal["obs", "var"]]:
             return {"var"}
         case slice(), slice():
             return {"obs", "var"}
-        case _:
+        case _:  # pragma: no cover
             msg = f"Invalid index: {i}"
             raise AssertionError(msg)
 
@@ -344,6 +344,7 @@ class AdAc:
                     "We support '{cls.ATTRS}.*' and `AdPath` instances."
                 )
                 raise ValueError(msg)
+        # pragma: no cover
         msg = f"Unhandled accessor {spec!r}. This is a bug!"
         raise AssertionError(msg)
 

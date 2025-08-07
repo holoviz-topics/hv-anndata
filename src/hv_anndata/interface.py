@@ -136,7 +136,7 @@ class AnnDataInterface(hv.core.Interface):
             raise DataError(msg)
         [ax] = dim.axes
         # TODO: support ranges and sequences  # noqa: TD003
-        if ax not in ("obs", "var"):
+        if ax not in ("obs", "var"):  # pragma: no cover
             msg = f"Cannot {action} along unknown axis: {ax}"
             raise AssertionError(msg)
         return ax
