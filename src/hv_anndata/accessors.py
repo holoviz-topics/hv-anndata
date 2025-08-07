@@ -181,11 +181,18 @@ class MetaAcc:
 
     ax: Literal["obs", "var"]
 
+    @property
+    def index(self) -> AdPath:
+        """Index accessor."""
+
+        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            return cast("pd.DataFrame", getattr(ad, self.ax)).index.values
+
+        return AdPath(f"A.{self.ax}.index", get, {self.ax})
+
     def __getitem__(self, k: str) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            if k == "index":
-                return getattr(ad, self.ax).index
-            return getattr(ad, self.ax)[k]
+            return cast("pd.DataFrame", getattr(ad, self.ax))[k].values
 
         return AdPath(f"A.{self.ax}[{k!r}]", get, {self.ax})
 

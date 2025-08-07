@@ -56,31 +56,25 @@ extra-dependencies = [
 [tool.ruff]
 lint.select = [ "ALL" ]
 lint.ignore = [
-  "B019",    # functools.cache is fine to use
-  "C408",    # dict(...) calls are good
-  "COM812",  # Incompatible with formatter
-  "D105",    # magic methods are usually self-explanatory
-  "D203",    # 0 instead of 1 blank lines before class docstring
-  "D213",    # Multi-line docstring summary should start at the first instead of second line
-  "ERA001",
-  "FIX002",  # TODOs are fine
-  "ISC001",  # Incompatible with formatter
-  "N",       # pep8-naming
-  "PD901",   # Deprecated
-  "PLR0124",
-  "PLR0913", # Too many arguments in function definition
-  "S603",    # We don’t want to use `subprocess.run(shell=True)`
-  "S607",    # We don’t run commands with untrusted input
-  "SLF",
-  "TD002",   # No need to assign TODOs to some person
-  "TRY",
+  "B019",   # functools.cache is fine to use
+  "C408",   # dict(...) calls are good
+  "COM812", # Incompatible with formatter
+  "D105",   # magic methods are usually self-explanatory
+  "D203",   # 0 instead of 1 blank lines before class docstring
+  "D213",   # Multi-line docstring summary should start at the first instead of second line
+  "FIX002", # TODOs are fine
+  "ISC001", # Incompatible with formatter
+  "PD011",  # We actually do want `.values` give us a numpy or extension array
+  "S603",   # We don’t want to use `subprocess.run(shell=True)`
+  "S607",   # We don’t run commands with untrusted input
+  "TD002",  # No need to assign TODOs to some person
 ]
 lint.per-file-ignores."**/*.ipynb" = [
-  "ANN001",
-  "ANN201",
-  "D103",
-  "I002",   # Missing `from __future__ import annotations` is fine
-  "T201",   # print is fine
+  "ANN",  # missing annotations in notebooks are OK
+  "D",    # Missing docstrings in notebooks are OK
+  "ERA",  # commented-out code in notebooks is fine
+  "I002", # Missing `from __future__ import annotations` is fine
+  "T201", # print is fine
 ]
 lint.per-file-ignores."docs/conf.py" = [
   "INP001", # __init__.py
@@ -89,19 +83,18 @@ lint.per-file-ignores."src/hv_anndata/__main__.py" = [
   "T201", # print is fine
 ]
 lint.per-file-ignores."tests/*" = [
-  "D102",    # Missing docstring in public method
-  "D103",    # Missing docstring in public function
-  "D105",    # Missing docstring in magic method
-  "INP001",  # __init__.py
+  "D",       # Missing docstrings in tests are OK
+  "INP001",  # __init__.py should not be in tests
   "PLR2004", # magic-value-comparison
   "RUF018",  # assert with := is fine
   "S101",    # Use of assert
+  "SLF",     # private member access in tests is fine
 ]
 lint.allowed-confusables = [ "×", "’" ]
 lint.flake8-copyright.notice-rgx = "SPDX-License-Identifier: MPL-2\\.0"
 lint.isort.known-first-party = [ "hv_anndata" ]
 lint.isort.required-imports = [ "from __future__ import annotations" ]
-lint.pylint.max-args = 7
+lint.pylint.max-args = 8
 lint.pylint.max-positional-args = 3
 
 [tool.pytest.ini_options]

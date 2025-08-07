@@ -46,7 +46,7 @@ class AutoCompleteMultiChoice(WidgetBase, PyComponent):
         self._current_key = ""
 
         self._key_input = pmui.AutocompleteInput.from_param(
-            self.param._input_key,
+            self.param._input_key,  # noqa: SLF001
             name="Group Key",
             placeholder="Enter/select key name",
             restrict=False,
@@ -56,19 +56,19 @@ class AutoCompleteMultiChoice(WidgetBase, PyComponent):
         )
 
         self._value_input = pmui.AutocompleteInput.from_param(
-            self.param._input_value,
+            self.param._input_value,  # noqa: SLF001
             options=self.param.options,
             placeholder="Enter/select value",
             name="Available values",
             restrict=False,
             min_characters=0,
-            disabled=self.param._input_key.rx().rx.bool().rx.not_(),
+            disabled=self.param._input_key.rx().rx.bool().rx.not_(),  # noqa: SLF001
             description="",
             sizing_mode="stretch_width",
         )
 
         self._multi_choice = pmui.MultiChoice.from_param(
-            self.param._current_selection,
+            self.param._current_selection,  # noqa: SLF001
             options=self.param.options,
             name="Values for the selected group",
             searchable=True,

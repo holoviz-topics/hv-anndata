@@ -46,7 +46,7 @@ def _is_categorical(arr: np.ndarr) -> bool:
     )
 
 
-class labeller(Operation):
+class labeller(Operation):  # noqa: N801
     """Add a Label element centered over categorical points."""
 
     column = param.String()
@@ -171,11 +171,7 @@ def create_manifoldmap_plot(
 
     # Add a NaN category to handle and display data points with no category
     if categorical:
-        color_data = np.where(
-            color_data != color_data,
-            "NaN",
-            color_data,
-        )  # np.nan != np.nan is True
+        color_data = np.where(np.isnan(color_data), "NaN", color_data)
 
     # Set colormap and plot options based on data type
     if categorical:
