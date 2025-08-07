@@ -338,7 +338,7 @@ class AdAc:
             case AdPath():
                 msg = "TODO"
                 raise NotImplementedError(msg)
-            case None:
+            case None:  # pragma: no cover
                 msg = (
                     f"Unknown accessor {spec!r}. "
                     "We support '{cls.ATTRS}.*' and `AdPath` instances."
