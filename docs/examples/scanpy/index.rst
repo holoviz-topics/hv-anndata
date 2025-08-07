@@ -1,0 +1,6 @@
+Scanpy plotting
+===============
+
+.. toctree::
+
+   Basic
