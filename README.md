@@ -13,4 +13,4 @@ hatch env find docs  # if you need the path for e.g. VS Code
 
 - Tests: `hatch test`
 - Docs: `hatch docs:build`
-- Lints: `pre-commit run --all-files` (use `pre-commit install` to install Git hooks)
+- Lints: `pre-commit run --all-files` (use `pre-commit install` and `nbstripout --install` to install Git hooks)

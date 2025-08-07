@@ -12,6 +12,7 @@ import datashader as ds
 import holoviews as hv
 import holoviews.operation.datashader as hd
 import numpy as np
+import pandas as pd
 import panel as pn
 import panel_material_ui as pmui
 import param
@@ -48,7 +49,7 @@ def _is_categorical(arr: np.ndarr) -> bool:
     )
 
 
-class labeller(Operation):
+class labeller(Operation):  # noqa: N801
     """Add a Label element centered over categorical points."""
 
     column = param.String()
@@ -152,7 +153,7 @@ def create_manifoldmap_plot(
         Label for the y axis
     categorical: bool or None, default=None
         Whether the data in color_by is categorical
-    **config
+    config
         Additional configuration options including, see :class:`ManifoldMapConfig`.
 
     Returns
@@ -177,11 +178,7 @@ def create_manifoldmap_plot(
     # Set colormap and plot options based on data type
     if categorical:
         # Add a NaN category to handle and display data points with no category
-        color_data = np.where(
-            color_data != color_data,
-            "NaN",
-            color_data,
-        )  # np.nan != np.nan is True
+        color_data = np.where(pd.isna(color_data), "NaN", color_data)
 
         n_unq_cat = len(np.unique(color_data))
         if cmap is None:
