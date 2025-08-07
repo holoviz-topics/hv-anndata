@@ -57,6 +57,7 @@ PATHS: list[
     (A[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
     (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
     (A.obs["type"], lambda ad: ad.obs["type"]),
+    (A.obs.index, lambda ad: ad.obs.index.values),
     (
         A.layers["a"][:, "gene-18"],
         lambda ad: ad[:, "gene-18"].layers["a"].copy().toarray().flatten(),
@@ -89,9 +90,7 @@ def test_get(
     vals = data.interface.values(data, path, keep_index=True)
     if isinstance(vals, np.ndarray):
         np.testing.assert_array_equal(vals, expected(adata), strict=True)
-    elif isinstance(vals, pd.Series):
-        pd.testing.assert_series_equal(vals, expected(adata))
-    else:
+    else:  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
 
 
@@ -147,14 +146,12 @@ def test_init_errors(
     ("kdims", "vdims", "err_msg_pat"),
     [
         pytest.param(
-            [A.obs["index"], A.var["index"]],
+            [A.obs.index, A.var.index],
             [A.obs["x"]],
             r"either.*obs.*or.*var",
             id="grid_obs",
         ),
-        pytest.param(
-            [A.obs["index"], A.var["index"]], [A[:, "3"]], None, id="grid_x_1d"
-        ),
+        pytest.param([A.obs.index, A.var.index], [A[:, "3"]], None, id="grid_x_1d"),
         # TODO: other errors  # noqa: TD003
     ],
 )
