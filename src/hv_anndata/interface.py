@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Container, Mapping
 from enum import Enum, auto
 from itertools import product
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar, cast
@@ -70,11 +70,11 @@ class AnnDataInterface(hv.core.Interface):
         key_dimensions = [AdAc.from_dimension(d) for d in kdims or []]
         value_dimensions = [AdAc.from_dimension(d) for d in vdims or []]
         vdim = value_dimensions[0] if value_dimensions else None
-        ndim = 1 if not vdim else vdim(data).ndim
-        if not cls.gridded and ndim > 1:
+        ndims = cls._ndims(vdim, data)
+        if not cls.gridded and 1 not in ndims:
             msg = "AnnDataInterface cannot handle gridded data."
             raise ValueError(msg)
-        if cls.gridded and ndim == 1:
+        if cls.gridded and set(ndims) == {1}:
             msg = "AnnDataGriddedInterface cannot handle tabular data."
             raise ValueError(msg)
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
@@ -82,16 +82,16 @@ class AnnDataInterface(hv.core.Interface):
     @classmethod
     def axes(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
         """Detect if the data is gridded or columnar and along which axes it is indexed."""  # noqa: E501
-        vdim = cast("Dimension", dataset.vdims[0]) if dataset.vdims else None
-        ndim = 1 if not vdim else vdim(dataset.data).ndim
-        if ndim > 1 and len(dataset.kdims) != ndim:
+        vdim = cast("AdPath", dataset.vdims[0]) if dataset.vdims else None
+        ndims = cls._ndims(vdim, dataset.data)
+        if 1 not in ndims and len(dataset.kdims) not in ndims:
             msg = (
                 "AnnData Dataset with multi-dimensional data must declare "
-                f"corresponding key dimensions (got {len(dataset.kdims)}, not {ndim})."
+                f"corresponding key dimensions ({len(dataset.kdims)} ∉ {ndims})."
             )
             raise DataError(msg)
         dims = cast("list[AdPath]", dataset.dimensions())
-        if ndim > 1:
+        if set(ndims) != {1}:
             dims = dims[:2]
 
         axes: list[Literal["obs", "var"]] = []
@@ -101,13 +101,20 @@ class AnnDataInterface(hv.core.Interface):
                 raise DataError(msg)
             axes.append(next(iter(dim.axes)))
 
-        if ndim == 1 and len(set(axes)) != 1:
+        if set(ndims) == {1} and len(set(axes)) != 1:
             msg = (
                 "AnnData Dataset in tabular mode must reference data along either the "
                 "obs or the var axis, not both."
             )
             raise DataError(msg)
         return tuple(dict.fromkeys(axes).keys())
+
+    @staticmethod
+    def _ndims(vdim: AdPath | None, data: AnnData) -> Container[int]:
+        if not vdim:
+            return {1}
+        d = vdim(data)
+        return range(sum(ax > 1 for ax in d.shape), d.ndim + 1)
 
     @classmethod
     def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002
