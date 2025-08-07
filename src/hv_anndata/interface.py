@@ -136,7 +136,7 @@ class AnnDataInterface(hv.core.Interface):
             raise DataError(msg)
         [ax] = dim.axes
         # TODO: support ranges and sequences  # noqa: TD003
-        if ax not in ("obs", "var"):
+        if ax not in ("obs", "var"):  # pragma: no cover
             msg = f"Cannot {action} along unknown axis: {ax}"
             raise AssertionError(msg)
         return ax
@@ -231,7 +231,7 @@ class AnnDataInterface(hv.core.Interface):
         adata = cast("AnnData", data.data)
         values = dim(adata)
         if not keep_index and isinstance(values, pd.Series):
-            values = values.values  # noqa: PD011
+            values = values.values
         elif flat and values.ndim > 1:
             assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
@@ -424,8 +424,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
         if irregular or expanded:
             data = expand_grid_coords(dataset, dim)
             if edges and data.shape == vdim(dataset.data).shape:
-                data = GridInterface._infer_interval_breaks(data, axis=1)
-                data = GridInterface._infer_interval_breaks(data, axis=0)
+                data = GridInterface._infer_interval_breaks(data, axis=1)  # noqa: SLF001
+                data = GridInterface._infer_interval_breaks(data, axis=0)  # noqa: SLF001
             return data
 
         data = dim(dataset.data)
@@ -442,7 +442,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         else:
             is_edges = False
         if edges and not is_edges:
-            data = GridInterface._infer_interval_breaks(data)
+            data = GridInterface._infer_interval_breaks(data)  # noqa: SLF001
         elif not edges and is_edges:
             data = data[:-1] + np.diff(data) / 2.0
         return data
@@ -472,7 +472,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         else:
             values = dim(adata)
         if not keep_index and isinstance(values, pd.Series):
-            values = values.values  # noqa: PD011
+            values = values.values
         elif flat and values.ndim > 1:
             assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
