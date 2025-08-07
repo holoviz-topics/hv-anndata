@@ -344,9 +344,8 @@ class AdAc:
                     "We support '{cls.ATTRS}.*' and `AdPath` instances."
                 )
                 raise ValueError(msg)
-        # pragma: no cover
-        msg = f"Unhandled accessor {spec!r}. This is a bug!"
-        raise AssertionError(msg)
+        msg = f"Unhandled accessor {spec!r}. This is a bug!"  # pragma: no cover
+        raise AssertionError(msg)  # pragma: no cover
 
 
 def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
