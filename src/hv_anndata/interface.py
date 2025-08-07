@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Container, Mapping
+from collections.abc import Callable, Collection, Mapping
 from enum import Enum, auto
 from itertools import product
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar, cast
@@ -110,7 +110,7 @@ class AnnDataInterface(hv.core.Interface):
         return tuple(dict.fromkeys(axes).keys())
 
     @staticmethod
-    def _ndims(vdim: AdPath | None, data: AnnData) -> Container[int]:
+    def _ndims(vdim: AdPath | None, data: AnnData) -> Collection[int]:
         if not vdim:
             return {1}
         d = vdim(data)
