@@ -18,6 +18,7 @@ import panel_material_ui as pmui
 import param
 from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.operation import Operation
+from holoviews.selection import link_selections
 from panel.reactive import hold
 
 from .interface import ACCESSOR as AnnAcc
@@ -121,6 +122,7 @@ class ManifoldMapConfig(TypedDict, total=False):
     """whether to make the plot size-responsive. (default: True)"""
     streams: list[Stream]
     """list of streams to use for dynamic updates (default: [])"""
+    ls: link_selections | None
 
 
 def create_manifoldmap_plot(
@@ -174,6 +176,7 @@ def create_manifoldmap_plot(
     title = config.get("title", "")
     responsive = config.get("responsive", True)
     streams = config.get("streams", [])
+    ls = config.get("ls", [])
 
     # Determine if color data is categorical
     if categorical is None:
@@ -239,10 +242,7 @@ def create_manifoldmap_plot(
     # Apply datashading with different approaches for categorical vs continuous
     elif categorical:
         plot = _apply_categorical_datashading(
-            plot,
-            color_data=color_data,
-            color_by=vdim.name,
-            cmap=cmap,
+            plot, color_data=color_data, color_by=vdim.name, cmap=cmap, ls=ls
         )
     else:
         # For continuous data, take the mean
@@ -258,6 +258,8 @@ def create_manifoldmap_plot(
                 LassoSelectTool(persistent=True),
             ],
         )
+        if ls is not None:
+            plot = ls(plot)
 
     if categorical and show_labels:
         # Options for labels
@@ -290,6 +292,7 @@ def _apply_categorical_datashading(
     color_data: np.ndarray,
     color_by: str,
     cmap: Sequence[str],
+    ls: link_selections = None,
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -352,6 +355,8 @@ def _apply_categorical_datashading(
         legend_limit=100,
         legend_cols=len(unique_categories) // 10 + 1,
     )
+    if ls:
+        plot = ls(plot)
     return plot * legend
 
 
@@ -430,6 +435,7 @@ class ManifoldMap(pn.viewable.Viewer):
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
     )
+    ls = param.ClassSelector(class_=link_selections)
     streams = param.List(  # type: ignore[assignment]
         default=[],
         doc="List of streams to use for dynamic updates",
@@ -629,6 +635,7 @@ class ManifoldMap(pn.viewable.Viewer):
             cmap=cmap,
             responsive=self.responsive,
             streams=self.streams,
+            ls=self.ls,
         )
 
         self.plot = create_manifoldmap_plot(

@@ -223,6 +223,10 @@ class AnnDataInterface(hv.core.Interface):
         return adata[obs, var]
 
     @classmethod
+    def reindex(cls, dataset, kdims=None, vdims=None):
+        return dataset.data
+
+    @classmethod
     def values(
         cls,
         data: Dataset,
