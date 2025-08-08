@@ -34,7 +34,7 @@ def _idx2axes(i: Idx2D[str]) -> set[Literal["obs", "var"]]:
             return {"var"}
         case slice(), slice():
             return {"obs", "var"}
-        case _:
+        case _:  # pragma: no cover
             msg = f"Invalid index: {i}"
             raise AssertionError(msg)
 
@@ -181,11 +181,18 @@ class MetaAcc:
 
     ax: Literal["obs", "var"]
 
+    @property
+    def index(self) -> AdPath:
+        """Index accessor."""
+
+        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
+            return cast("pd.DataFrame", getattr(ad, self.ax)).index.values
+
+        return AdPath(f"A.{self.ax}.index", get, {self.ax})
+
     def __getitem__(self, k: str) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            if k == "index":
-                return getattr(ad, self.ax).index
-            return getattr(ad, self.ax)[k]
+            return cast("pd.DataFrame", getattr(ad, self.ax))[k].values
 
         return AdPath(f"A.{self.ax}[{k!r}]", get, {self.ax})
 
@@ -334,14 +341,14 @@ class AdAc:
             case AdPath():
                 msg = "TODO"
                 raise NotImplementedError(msg)
-            case None:
+            case None:  # pragma: no cover
                 msg = (
                     f"Unknown accessor {spec!r}. "
                     "We support '{cls.ATTRS}.*' and `AdPath` instances."
                 )
                 raise ValueError(msg)
-        msg = f"Unhandled accessor {spec!r}. This is a bug!"
-        raise AssertionError(msg)
+        msg = f"Unhandled accessor {spec!r}. This is a bug!"  # pragma: no cover
+        raise AssertionError(msg)  # pragma: no cover
 
 
 def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:

@@ -12,7 +12,9 @@ import datashader as ds
 import holoviews as hv
 import holoviews.operation.datashader as hd
 import numpy as np
+import pandas as pd
 import panel as pn
+import panel_material_ui as pmui
 import param
 from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.operation import Operation
@@ -22,6 +24,8 @@ from .interface import ACCESSOR as AnnAcc
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from holoviews.streams import Stream
 
 
 DEFAULT_COLOR_BY = "cell_type"
@@ -47,7 +51,7 @@ def _is_categorical(arr: np.ndarr) -> bool:
     )
 
 
-class labeller(Operation):
+class labeller(Operation):  # noqa: N801
     """Add a Label element centered over categorical points."""
 
     column = param.String()
@@ -115,6 +119,8 @@ class ManifoldMapConfig(TypedDict, total=False):
     """plot title (default: "")"""
     responsive: bool
     """whether to make the plot size-responsive. (default: True)"""
+    streams: list[Stream]
+    """list of streams to use for dynamic updates (default: [])"""
 
 
 def create_manifoldmap_plot(
@@ -151,7 +157,7 @@ def create_manifoldmap_plot(
         Label for the y axis
     categorical: bool or None, default=None
         Whether the data in color_by is categorical
-    **config
+    config
         Additional configuration options including, see :class:`ManifoldMapConfig`.
 
     Returns
@@ -167,21 +173,17 @@ def create_manifoldmap_plot(
     cmap = config.get("cmap")
     title = config.get("title", "")
     responsive = config.get("responsive", True)
+    streams = config.get("streams", [])
 
     # Determine if color data is categorical
     if categorical is None:
         categorical = _is_categorical(color_data)
 
-    # Add a NaN category to handle and display data points with no category
-    if categorical:
-        color_data = np.where(
-            color_data != color_data,
-            "NaN",
-            color_data,
-        )  # np.nan != np.nan is True
-
     # Set colormap and plot options based on data type
     if categorical:
+        # Add a NaN category to handle and display data points with no category
+        color_data = np.where(pd.isna(color_data), "NaN", color_data)
+
         n_unq_cat = len(np.unique(color_data))
         if cmap is None:
             cmap = DEFAULT_CAT_CMAP
@@ -206,7 +208,12 @@ def create_manifoldmap_plot(
         [AnnAcc.obsm[dr_key][:, x_dim], AnnAcc.obsm[dr_key][:, y_dim]],
         [vdim],
     )
-    plot = hv.Points(dataset)
+    plot = dataset.to(hv.Points)
+
+    # Attach streams
+    for stream in streams:
+        stream.source = plot
+
     # Options for standard (non-datashaded) plot
     plot_opts = dict(
         color=vdim,
@@ -394,6 +401,7 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by_dim: str = param.Selector(  # type: ignore[assignment]
         default="obs",
         objects={"Observations": "obs", "Variables": "cols"},
+        label="Color By",
     )
     color_by: str = param.Selector(  # type: ignore[assignment]
         doc="Coloring variable"
@@ -421,6 +429,10 @@ class ManifoldMap(pn.viewable.Viewer):
     )
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
+    )
+    streams = param.List(  # type: ignore[assignment]
+        default=[],
+        doc="List of streams to use for dynamic updates",
     )
     responsive: bool = param.Boolean(  # type: ignore[assignment]
         default=True,
@@ -470,6 +482,8 @@ class ManifoldMap(pn.viewable.Viewer):
 
     @param.depends("color_by", watch=True)
     def _update_on_color_by(self) -> None:
+        if not self.color_by:
+            return
         old_is_categorical = self._categorical
         if self.color_by_dim == "obs":
             color_data = self.adata.obs[self.color_by].values
@@ -583,7 +597,7 @@ class ManifoldMap(pn.viewable.Viewer):
         dr_label = self.get_reduction_label(dr_key)
 
         if x_value == y_value:
-            return pn.pane.Markdown(
+            return pmui.pane.Typography(
                 "Please select different dimensions for X and Y axes."
             )
 
@@ -592,7 +606,7 @@ class ManifoldMap(pn.viewable.Viewer):
             x_dim = int(x_value.replace(dr_label, "")) - 1
             y_dim = int(y_value.replace(dr_label, "")) - 1
         except (ValueError, AttributeError):
-            return pn.pane.Markdown(
+            return pmui.pane.Typography(
                 f"Error parsing dimensions. "
                 f"Make sure to select valid {dr_label} dimensions."
             )
@@ -614,6 +628,7 @@ class ManifoldMap(pn.viewable.Viewer):
             title=f"{dr_label}.{color_by}",
             cmap=cmap,
             responsive=self.responsive,
+            streams=self.streams,
         )
 
         self.plot = create_manifoldmap_plot(
@@ -663,35 +678,69 @@ class ManifoldMap(pn.viewable.Viewer):
 
         """
         # Widgets
-        color_by_dim = pn.widgets.RadioButtonGroup.from_param(
+        color_by_dim = pmui.widgets.RadioButtonGroup.from_param(
             self.param.color_by_dim,
+            sizing_mode="stretch_width",
         )
-        color = pn.widgets.AutocompleteInput.from_param(
+        color = pmui.widgets.AutocompleteInput.from_param(
             self.param.color_by,
             name="",
             min_characters=0,
             search_strategy="includes",
             case_sensitive=False,
-            stylesheets=[
-                ":host .bk-menu.bk-below {max-height: 200px; overflow-y: auto}"
-            ],
+            description="",
+            sizing_mode="stretch_width",
         )
+        stylesheet = """
+        label {
+            color: rgba(0, 0, 0, 0.6);
+        }
+        .bk-input {
+            border-color: #ccc;
+            height: 48px;
+        }
+        .bk-input:hover {
+            border: 1px solid rgba(0, 0, 0, 0.87) !important;
+        }
+        """
         colormap = pn.widgets.ColorMap.from_param(
             self.param.colormap,
+            stylesheets=[stylesheet],
+            sizing_mode="stretch_width",
         )
         # Create widget box
-        widgets = pn.WidgetBox(
-            self.param.reduction,
-            self.param.x_axis,
-            self.param.y_axis,
-            pn.pane.HTML("<strong>Color by</strong>"),
+        widgets = pmui.Column(
+            pmui.widgets.Select.from_param(
+                self.param.reduction,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Select.from_param(
+                self.param.x_axis,
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Select.from_param(
+                self.param.y_axis,
+                sizing_mode="stretch_width",
+            ),
             color_by_dim,
             color,
             colormap,
-            self.param.datashade,
-            self.param.show_labels,
-            visible=self.show_widgets,
+            pmui.widgets.Checkbox.from_param(
+                self.param.datashade,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            pmui.widgets.Checkbox.from_param(
+                self.param.show_labels,
+                description="",
+                sizing_mode="stretch_width",
+            ),
+            visible=self.param.show_widgets,
+            sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
+            sizing_mode="stretch_width",
+            max_width=400,
         )
 
         # Return the assembled layout
-        return pn.Row(widgets, self._plot_view)
+        return pmui.Row(widgets, self._plot_view)

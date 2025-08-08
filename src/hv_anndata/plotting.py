@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from itertools import chain
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 import anndata as ad
 import holoviews as hv
@@ -27,7 +27,7 @@ class _DotmapPlotParams(TypedDict):
     groupby: str
     expression_cutoff: NotRequired[float]
     max_dot_size: NotRequired[int]
-    standard_scale: NotRequired[str | None]
+    standard_scale: NotRequired[Literal["var", "group", None]]
     use_raw: NotRequired[bool | None]
     mean_only_expressed: NotRequired[bool]
 

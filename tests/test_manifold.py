@@ -9,7 +9,7 @@ import colorcet as cc
 import holoviews as hv
 import numpy as np
 import pandas as pd
-import panel as pn
+import panel_material_ui as pmui
 import pytest
 
 from hv_anndata.manifoldmap import ManifoldMap, create_manifoldmap_plot, labeller
@@ -201,6 +201,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         height=300,
         datashading=False,
         show_labels=True,
+        streams=[],
         title="PCA.cell_type",
         cmap=["#1f77b3", "#ff7e0e"],
         responsive=True,
@@ -213,7 +214,7 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 
     layout = mm.__panel__()
 
-    assert isinstance(layout, pn.layout.Row)
+    assert isinstance(layout, pmui.layout.Row)
     assert len(layout) == 2
 
 
@@ -240,3 +241,12 @@ def test_labeller() -> None:
         labels.data.sort_values("cell_type"),
         expected_data.sort_values("cell_type"),
     )
+
+
+@pytest.mark.usefixtures("bokeh_backend")
+def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
+    bounds_xy = hv.streams.BoundsXY()
+    mm = ManifoldMap(adata=sadata, streams=[bounds_xy])
+    assert bounds_xy.source is None
+    mm.__panel__()
+    assert bounds_xy.source is not None
