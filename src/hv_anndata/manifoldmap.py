@@ -18,7 +18,10 @@ import panel_material_ui as pmui
 import param
 from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.operation import Operation
+from holoviews.selection import link_selections
 from panel.reactive import hold
+
+from .interface import ACCESSOR as AnnAcc
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -119,9 +122,12 @@ class ManifoldMapConfig(TypedDict, total=False):
     """whether to make the plot size-responsive. (default: True)"""
     streams: list[Stream]
     """list of streams to use for dynamic updates (default: [])"""
+    ls: link_selections | None
 
 
 def create_manifoldmap_plot(
+    adata: ad.AnnData,
+    dr_key: str,
     x_data: np.ndarray,
     color_data: np.ndarray,
     x_dim: int,
@@ -170,6 +176,7 @@ def create_manifoldmap_plot(
     title = config.get("title", "")
     responsive = config.get("responsive", True)
     streams = config.get("streams", [])
+    ls = config.get("ls", [])
 
     # Determine if color data is categorical
     if categorical is None:
@@ -194,10 +201,15 @@ def create_manifoldmap_plot(
         colorbar = True
 
     # Create basic plot
+    if color_by in adata.obs:
+        vdim = AnnAcc.obs[color_by]
+    else:
+        vdim = AnnAcc[:, color_by]
+
     dataset = hv.Dataset(
-        (x_data[:, x_dim], x_data[:, y_dim], color_data),
-        [xaxis_label, yaxis_label],
-        color_by,
+        adata,
+        [AnnAcc.obsm[dr_key][:, x_dim], AnnAcc.obsm[dr_key][:, y_dim]],
+        [vdim],
     )
     plot = dataset.to(hv.Points)
 
@@ -207,7 +219,7 @@ def create_manifoldmap_plot(
 
     # Options for standard (non-datashaded) plot
     plot_opts = dict(
-        color=color_by,
+        color=vdim,
         cmap=cmap,
         size=1,
         alpha=0.5,
@@ -230,14 +242,11 @@ def create_manifoldmap_plot(
     # Apply datashading with different approaches for categorical vs continuous
     elif categorical:
         plot = _apply_categorical_datashading(
-            plot,
-            color_data=color_data,
-            color_by=color_by,
-            cmap=cmap,
+            plot, color_data=color_data, color_by=vdim.name, cmap=cmap, ls=ls
         )
     else:
         # For continuous data, take the mean
-        aggregator = ds.mean(color_by)
+        aggregator = ds.mean(vdim.name)
         plot = hd.rasterize(plot, aggregator=aggregator)
         plot = hd.dynspread(plot, threshold=0.5)
         plot = plot.opts(
@@ -249,6 +258,8 @@ def create_manifoldmap_plot(
                 LassoSelectTool(persistent=True),
             ],
         )
+        if ls is not None:
+            plot = ls(plot)
 
     if categorical and show_labels:
         # Options for labels
@@ -281,6 +292,7 @@ def _apply_categorical_datashading(
     color_data: np.ndarray,
     color_by: str,
     cmap: Sequence[str],
+    ls: link_selections = None,
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -343,6 +355,8 @@ def _apply_categorical_datashading(
         legend_limit=100,
         legend_cols=len(unique_categories) // 10 + 1,
     )
+    if ls:
+        plot = ls(plot)
     return plot * legend
 
 
@@ -421,6 +435,7 @@ class ManifoldMap(pn.viewable.Viewer):
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
     )
+    ls = param.ClassSelector(class_=link_selections)
     streams = param.List(  # type: ignore[assignment]
         default=[],
         doc="List of streams to use for dynamic updates",
@@ -620,9 +635,12 @@ class ManifoldMap(pn.viewable.Viewer):
             cmap=cmap,
             responsive=self.responsive,
             streams=self.streams,
+            ls=self.ls,
         )
 
         self.plot = create_manifoldmap_plot(
+            self.adata,
+            dr_key,
             x_data,
             color_data,
             x_dim,
