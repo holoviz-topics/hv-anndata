@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, TypedDict, Unpack
+from typing import TYPE_CHECKING, TypedDict, Unpack
 
 import anndata as ad
 import bokeh
@@ -21,7 +21,7 @@ from holoviews.operation import Operation
 from holoviews.selection import link_selections
 from panel.reactive import hold
 
-from .interface import ACCESSOR as AnnAcc
+from .interface import ACCESSOR as AnnAcc  # noqa: N811
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -128,8 +128,6 @@ class ManifoldMapConfig(TypedDict, total=False):
 def create_manifoldmap_plot(
     adata: ad.AnnData,
     dr_key: str,
-    x_data: np.ndarray,
-    color_data: np.ndarray,
     x_dim: int,
     y_dim: int,
     color_by: str,
@@ -143,10 +141,10 @@ def create_manifoldmap_plot(
 
     Parameters
     ----------
-    x_data
-        Array with shape n_obs by n_dimensions containing coordinates
-    color_data
-        Array with shape n_obs containing color values (categorical or continuous)
+    adata
+        AnnData object
+    dr_key
+        Key into the observation annotations in the AnnData object
     x_dim
         Index to use for x-axis data
     y_dim
@@ -178,6 +176,11 @@ def create_manifoldmap_plot(
     streams = config.get("streams", [])
     ls = config.get("ls", [])
 
+    if color_by in adata.obs:
+        color_data = adata.obs[color_by].values
+    else:
+        color_data = adata.obs_vector(color_by)
+
     # Determine if color data is categorical
     if categorical is None:
         categorical = _is_categorical(color_data)
@@ -201,11 +204,7 @@ def create_manifoldmap_plot(
         colorbar = True
 
     # Create basic plot
-    if color_by in adata.obs:
-        vdim = AnnAcc.obs[color_by]
-    else:
-        vdim = AnnAcc[:, color_by]
-
+    vdim = AnnAcc.obs[color_by] if color_by in adata.obs else AnnAcc[:, color_by]
     dataset = hv.Dataset(
         adata,
         [AnnAcc.obsm[dr_key][:, x_dim], AnnAcc.obsm[dr_key][:, y_dim]],
@@ -241,9 +240,7 @@ def create_manifoldmap_plot(
 
     # Apply datashading with different approaches for categorical vs continuous
     elif categorical:
-        plot = _apply_categorical_datashading(
-            plot, color_data=color_data, color_by=vdim.name, cmap=cmap, ls=ls
-        )
+        plot = _apply_categorical_datashading(plot, color_by=vdim.name, cmap=cmap)
     else:
         # For continuous data, take the mean
         aggregator = ds.mean(vdim.name)
@@ -258,8 +255,8 @@ def create_manifoldmap_plot(
                 LassoSelectTool(persistent=True),
             ],
         )
-        if ls is not None:
-            plot = ls(plot)
+    if ls is not None:
+        plot = ls(plot)
 
     if categorical and show_labels:
         # Options for labels
@@ -279,20 +276,18 @@ def create_manifoldmap_plot(
             min_width=width,
         )
 
+    final_kwargs = {}
+    if xaxis_label:
+        final_kwargs["xlabel"] = xaxis_label
+    if yaxis_label:
+        final_kwargs["ylabel"] = yaxis_label
+
     # Apply final options to the plot
-    return plot.opts(
-        title=title,
-        show_legend=show_legend,
-    )
+    return plot.opts(title=title, show_legend=show_legend, **final_kwargs)
 
 
 def _apply_categorical_datashading(
-    plot: hv.Element,
-    *,
-    color_data: np.ndarray,
-    color_by: str,
-    cmap: Sequence[str],
-    ls: link_selections = None,
+    plot: hv.Element, *, color_by: str, cmap: Sequence[str]
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -319,8 +314,7 @@ def _apply_categorical_datashading(
     selector = ds.first(plot.kdims[0].name)
     plot = hd.datashade(plot, aggregator=aggregator, selector=selector, color_key=cmap)
     plot = hd.dynspread(plot, threshold=0.5)
-    unique_categories = np.unique(color_data)
-    plot = plot.opts(
+    return plot.opts(
         tools=[
             "hover",
             BoxSelectTool(persistent=True),
@@ -333,9 +327,6 @@ def _apply_categorical_datashading(
         show_legend=True,
         legend_position="right",
     )
-    if ls:
-        plot = ls(plot)
-    return plot
 
 
 class ManifoldMap(pn.viewable.Viewer):
@@ -545,7 +536,6 @@ class ManifoldMap(pn.viewable.Viewer):
         dr_key: str,
         x_value: str,
         y_value: str,
-        color_by_dim: Literal["obs", "cols"],
         color_by: str,
         datashade_value: bool,
         show_labels: bool,
@@ -577,7 +567,6 @@ class ManifoldMap(pn.viewable.Viewer):
         The plot or an error message
 
         """
-        x_data = self.adata.obsm[dr_key]
         dr_label = self.get_reduction_label(dr_key)
 
         if x_value == y_value:
@@ -595,14 +584,6 @@ class ManifoldMap(pn.viewable.Viewer):
                 f"Make sure to select valid {dr_label} dimensions."
             )
 
-        if color_by_dim == "obs":
-            color_data = self.adata.obs[color_by].values
-        elif color_by_dim == "cols":
-            color_data = self.adata.obs_vector(self._get_var())
-        else:
-            msg = "color_by_dim must be obs or cols"
-            raise ValueError(msg)
-
         # Configure the plot
         config = ManifoldMapConfig(
             width=self.width,
@@ -619,11 +600,9 @@ class ManifoldMap(pn.viewable.Viewer):
         self.plot = create_manifoldmap_plot(
             self.adata,
             dr_key,
-            x_data,
-            color_data,
             x_dim,
             y_dim,
-            color_by,
+            color_by if self.color_by_dim == "obs" else self._get_var(),
             x_value,
             y_value,
             categorical=self._categorical,
@@ -647,7 +626,6 @@ class ManifoldMap(pn.viewable.Viewer):
             dr_key=self.reduction,
             x_value=self.x_axis,
             y_value=self.y_axis,
-            color_by_dim=self.color_by_dim,
             color_by=self.color_by,
             datashade_value=self.datashade,
             show_labels=self.show_labels,
