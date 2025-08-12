@@ -317,47 +317,25 @@ def _apply_categorical_datashading(
     # Selector used as a workaround to display categorical counts per pixel
     # One day done directly in Bokeh, see https://github.com/bokeh/bokeh/issues/13354
     selector = ds.first(plot.kdims[0].name)
-    plot = hd.rasterize(plot, aggregator=aggregator, selector=selector)
+    plot = hd.datashade(plot, aggregator=aggregator, selector=selector, color_key=cmap)
     plot = hd.dynspread(plot, threshold=0.5)
     unique_categories = np.unique(color_data)
     plot = plot.opts(
-        cmap=cmap,
         tools=[
             "hover",
             BoxSelectTool(persistent=True),
             LassoSelectTool(persistent=True),
         ],
         # Override hover_tooltips to exclude the selector value
-        hover_tooltips=list(unique_categories),
+        hover_tooltips=[("Label", "A.obs['bulk_labels']")],
         # Don't include the selector heading
         selector_in_hovertool=False,
-    )
-
-    # Create a custom legend for datashaded categorical plot
-    if len(unique_categories) > len(cmap):
-        # cmap not long enough, cycle it
-        cmap = cmap * (len(unique_categories) // len(cmap) + 1)
-    color_key = dict(
-        zip(unique_categories, cmap[: len(unique_categories)], strict=False)
-    )
-    legend_items = [
-        hv.Points([0, 0], label=str(cat)).opts(color=color_key[cat], size=0)
-        for cat in unique_categories
-    ]
-    legend = hv.NdOverlay(
-        {
-            str(cat): item
-            for cat, item in zip(unique_categories, legend_items, strict=False)
-        }
-    ).opts(
         show_legend=True,
         legend_position="right",
-        legend_limit=100,
-        legend_cols=len(unique_categories) // 10 + 1,
     )
     if ls:
         plot = ls(plot)
-    return plot * legend
+    return plot
 
 
 class ManifoldMap(pn.viewable.Viewer):
