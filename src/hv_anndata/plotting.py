@@ -90,7 +90,7 @@ class Dotmap(param.ParameterizedFunction):
         doc="If True, gene expression is averaged only over expressing cells.",
     )
 
-    def _prepare_data(self) -> pd.DataFrame:  # noqa: C901, PLR0912, PLR0915
+    def _prepare_data(self) -> pd.DataFrame:
         # Flatten the marker_genes preserving order
         is_mapping_marker_genes = isinstance(self.p.marker_genes, Mapping)
         if is_mapping_marker_genes:
