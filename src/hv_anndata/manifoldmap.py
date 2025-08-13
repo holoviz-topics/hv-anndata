@@ -611,6 +611,7 @@ class ManifoldMap(pn.viewable.Viewer):
 
         return self.plot
 
+    @pn.cache(max_items=1)
     @param.depends(
         # Only include derived parameters to avoid calling create_plot
         # unnecessarily.
@@ -618,6 +619,7 @@ class ManifoldMap(pn.viewable.Viewer):
         "y_axis",
         "colormap",
         "datashade",
+        "color_by_dim",
         "show_labels",
         "_replot",
     )

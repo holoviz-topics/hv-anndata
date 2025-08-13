@@ -11,12 +11,19 @@ import holoviews as hv
 import pandas as pd
 import param
 from holoviews.core.operation import Operation
+from holoviews.core.overlay import Overlay
+from holoviews.selection import link_selections
+from holoviews.streams import Params
 from packaging.version import Version
 
 _HOLOVIEWS_VERSION = Version(hv.__version__).release
 
 if TYPE_CHECKING:
     from typing import NotRequired, Unpack
+
+    from holoviews import DynamicMap, Element
+
+    from .manifoldmap import ManifoldMap
 
 
 class _DotmapPlotParams(TypedDict):
@@ -30,6 +37,7 @@ class _DotmapPlotParams(TypedDict):
     standard_scale: NotRequired[Literal["var", "group", None]]
     use_raw: NotRequired[bool | None]
     mean_only_expressed: NotRequired[bool]
+    ls: link_selections
 
 
 class Dotmap(param.ParameterizedFunction):
@@ -288,14 +296,77 @@ class Dotmap(param.ParameterizedFunction):
         plot.opts(**self._get_opts())
         return plot
 
+    @classmethod
+    def from_manifold_map(cls, mm: ManifoldMap, **kwargs: Any) -> param.rx:  # noqa: ANN401
+        """Create a Dotmap plot from a ManifoldMap object.
+
+        This ensures the Dotmap is always linked to the
+        current manifold map plot.
+
+        Parameters
+        ----------
+        mm: ManifoldMap
+            The ManifoldMap object to link the DotMap with.
+        kwargs: dict
+            Keyword arguments to pass to the DotMap operation.
+
+        Returns
+        -------
+        rx: Reactive expression that updates when the ManifoldMap changes.
+
+        """
+        plot = param.rx(mm._plot_view)  # noqa: SLF001
+        if mm.ls:
+            plot.rx.watch(lambda _: mm.ls.param.update(selection_expr=None))
+        return plot.rx.pipe(DotmapOp, **kwargs)
+
 
 class DotmapOp(Operation):
-    marker_genes = param.Dict(default={}, doc="Dictionary of marker genes.")
+    """Operation to generate a DotMap plot.
+
+    Generates a DotMap plot from an existing HoloViews object
+    backed by an AnnData object.
+    """
+
     groupby = param.String(default="cell_type", doc="Column to group by.")
 
-    def _process(self, element, key=None, groupby=False):
+    ls = param.ClassSelector(class_=link_selections)
+
+    marker_genes = param.Dict(default={}, doc="Dictionary of marker genes.")
+
+    selection_expr = param.Parameter()
+
+    def _apply(
+        self,
+        element: Overlay | Element,
+        key: str | None = None,  # noqa: ARG002
+    ) -> hv.Points:
+        # We override ._apply instead of ._process to override the
+        # tracking of the dataset and pipeline
+        if isinstance(element, Overlay):
+            element = element.get(0)
+        if self.p.ls and self.p.ls.selection_expr:
+            element = self.p.ls.filter(element.dataset)
+        else:
+            element = element.dataset
         return Dotmap(
             adata=element.data,
             marker_genes=self.p.marker_genes,
             groupby=self.p.groupby,
+        )
+
+    def __call__(
+        self,
+        element: DynamicMap | Overlay | Element,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> DynamicMap | Overlay:
+        """Apply the operation."""
+        ls = kwargs.pop("ls", self.ls)
+        if ls is None:
+            return super().__call__(element, **kwargs)
+        out = super().__call__(element, **kwargs)
+        kwargs["streams"] = [Params(ls, ["selection_expr"])]
+        inst = self.instance()
+        return out.opts("Points", alpha=ls.unselected_alpha) * Operation.__call__(
+            inst, element, ls=ls, **kwargs
         )
