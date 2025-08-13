@@ -174,7 +174,7 @@ def create_manifoldmap_plot(
     title = config.get("title", "")
     responsive = config.get("responsive", True)
     streams = config.get("streams", [])
-    ls = config.get("ls", [])
+    ls = config.get("ls")
 
     if color_by in adata.obs:
         color_data = adata.obs[color_by].values
