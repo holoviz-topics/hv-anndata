@@ -223,7 +223,13 @@ class AnnDataInterface(hv.core.Interface):
         return adata[obs, var]
 
     @classmethod
-    def reindex(cls, dataset, kdims=None, vdims=None):
+    def reindex(
+        cls,
+        dataset: Dataset,
+        kdims: list[Dimension] | None = None,  # noqa: ARG003
+        vdims: list[Dimension] | None = None,  # noqa: ARG003
+    ) -> AnnData:
+        """Reindex the data (a no-op)."""
         return dataset.data
 
     @classmethod
