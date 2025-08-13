@@ -705,7 +705,8 @@ class ManifoldMap(pn.viewable.Viewer):
             sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
             sizing_mode="stretch_width",
             max_width=400,
+            min_height=590,
         )
 
         # Return the assembled layout
-        return pmui.Row(widgets, self._plot_view)
+        return pn.Row(widgets, self._plot_view, height_policy="auto")
