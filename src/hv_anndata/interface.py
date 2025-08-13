@@ -187,6 +187,7 @@ class AnnDataInterface(hv.core.Interface):
     def select(
         cls,
         dataset: Dataset,
+        selection_mask: np.ndarray | None = None,
         selection_expr: (
             hv.dim | Mapping[Dimension | str, SelectionValues] | None
         ) = None,
@@ -207,13 +208,29 @@ class AnnDataInterface(hv.core.Interface):
             msg = "selection_expr is not supported by AnnDataInterface yet."
             raise NotImplementedError(msg)
 
-        obs, var = cls.selection_masks(dataset, selection)
+        if selection_mask is None:
+            obs, var = cls.selection_masks(dataset, selection)
+        else:
+            axes = cls.axes(dataset)
+            obs, var = (
+                (selection_mask, None) if axes == ("obs",) else (None, selection_mask)
+            )
         adata = cast("AnnData", dataset.data)
         if obs is None:
             return adata if var is None else dataset.data[:, var]
         if var is None:
             return adata[obs]
         return adata[obs, var]
+
+    @classmethod
+    def reindex(
+        cls,
+        dataset: Dataset,
+        kdims: list[Dimension] | None = None,  # noqa: ARG003
+        vdims: list[Dimension] | None = None,  # noqa: ARG003
+    ) -> AnnData:
+        """Reindex the data (a no-op)."""
+        return dataset.data
 
     @classmethod
     def values(
