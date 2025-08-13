@@ -435,7 +435,11 @@ class ManifoldMap(pn.viewable.Viewer):
         """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
         self._categorical = False
-        dr_options = list(self.adata.obsm.keys())
+        dr_options = []
+        priority_keys = ("X_umap", "X_tsne", "X_pca")
+        for key in priority_keys + tuple(self.adata.obsm.keys()):
+            if key not in dr_options:
+                dr_options.append(key)
         self.param["reduction"].objects = dr_options
         if not self.reduction:
             self.reduction = dr_options[0]
