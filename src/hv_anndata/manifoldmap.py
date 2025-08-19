@@ -435,7 +435,7 @@ class ManifoldMap(pn.viewable.Viewer):
         """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
         self._categorical = False
-        dr_options = [] 
+        dr_options = []
         available_keys = list(self.adata.obsm.keys())
         priority_keys = ("X_umap", "X_tsne", "X_pca")
         for key in priority_keys:
