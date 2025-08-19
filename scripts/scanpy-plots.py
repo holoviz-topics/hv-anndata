@@ -12,6 +12,10 @@ if TYPE_CHECKING:
     from nbformat_types import Document
 
 
+DEPRECATED = {"spatial"}
+NOT_PLOTTING = {"ranking", "set_rcParams_defaults", "set_rcParams_scanpy"}
+
+
 def get_content(nb: Document) -> str:
     """Concatenate all Markdown content of a notebook."""
     return "\n".join(
@@ -29,7 +33,7 @@ funcs = {
     for k in vars(scanpy.pl)
     if callable(fn := getattr(scanpy.pl, k))
     if not isinstance(fn, type)
-    if not k.startswith("set_")
+    if k not in {*DEPRECATED, *NOT_PLOTTING}
 }
 
 nbs_contents = {
