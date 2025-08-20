@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from nbformat_types import Document
 
 
-DEPRECATED = {"spatial"}
+DEPRECATED = {"spatial", "pca_scatter"}
 NOT_PLOTTING = {"set_rcParams_defaults", "set_rcParams_scanpy"}
 
 
