@@ -201,6 +201,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         height=300,
         datashading=False,
         show_labels=True,
+        streams=[],
         title="PCA.cell_type",
         cmap=["#1f77b3", "#ff7e0e"],
         responsive=True,
@@ -240,3 +241,12 @@ def test_labeller() -> None:
         labels.data.sort_values("cell_type"),
         expected_data.sort_values("cell_type"),
     )
+
+
+@pytest.mark.usefixtures("bokeh_backend")
+def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
+    bounds_xy = hv.streams.BoundsXY()
+    mm = ManifoldMap(adata=sadata, streams=[bounds_xy])
+    assert bounds_xy.source is None
+    mm.__panel__()
+    assert bounds_xy.source is not None
