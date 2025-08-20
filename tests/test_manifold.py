@@ -138,31 +138,35 @@ def test_create_manifoldmap_plot_datashading(
 
 
 @pytest.mark.usefixtures("bokeh_backend")
-def test_manifoldmap_initialization_default(sadata: ad.AnnData) -> None:
-    mm = ManifoldMap(adata=sadata)
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        pytest.param({}, {}, id="default"),
+        pytest.param(
+            dict(color_by_dim="cols", color_by="gene_1"),
+            dict(color_by_dim="cols", color_by="gene_1"),
+            id="color_by",
+        ),
+    ],
+)
+def test_manifoldmap_initialization(
+    sadata: ad.AnnData, kwargs: dict[str, object], expected: dict[str, object]
+) -> None:
+    mm = ManifoldMap(adata=sadata, **kwargs)
 
-    assert mm.param.reduction.objects == ["X_pca", "X_umap"]
-    assert mm.color_by_dim == "obs"
-    assert mm.reduction == "X_pca"
-    assert mm.color_by == "cell_type"
-    assert mm._color_options == {
-        "obs": ["cell_type", "expression_level"],
-        "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
-    }
-
-
-@pytest.mark.usefixtures("bokeh_backend")
-def test_manifoldmap_initialization_color_by(sadata: ad.AnnData) -> None:
-    mm = ManifoldMap(adata=sadata, color_by_dim="cols", color_by="gene_1")
-
-    assert mm.param.reduction.objects == ["X_pca", "X_umap"]
-    assert mm.color_by_dim == "cols"
-    assert mm.reduction == "X_pca"
-    assert mm.color_by == "gene_1"
-    assert mm._color_options == {
-        "obs": ["cell_type", "expression_level"],
-        "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
-    }
+    assert mm.param.reduction.objects == expected.get(
+        "reduction_objects", ["X_umap", "X_pca"]
+    )
+    assert mm.color_by_dim == expected.get("color_by_dim", "obs")
+    assert mm.reduction == expected.get("reduction", "X_umap")
+    assert mm.color_by == expected.get("color_by", "cell_type")
+    assert mm._color_options == expected.get(
+        "_color_options",
+        {
+            "obs": ["cell_type", "expression_level"],
+            "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
+        },
+    )
 
 
 @pytest.mark.usefixtures("bokeh_backend")
