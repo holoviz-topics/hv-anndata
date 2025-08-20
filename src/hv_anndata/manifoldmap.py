@@ -438,12 +438,10 @@ class ManifoldMap(pn.viewable.Viewer):
         dr_options = []
         available_keys = list(self.adata.obsm.keys())
         priority_keys = ("X_umap", "X_tsne", "X_pca")
-        for key in priority_keys:
-            if key in available_keys:
-                dr_options.append(key)
-        for key in available_keys:
-            if key not in dr_options:
-                dr_options.append(key)
+        dr_options = [
+            *(key for key in priority_keys if key in available_keys),
+            *(key for key in available_keys if key not in priority_keys),
+        ]
         self.param["reduction"].objects = dr_options
         if not self.reduction:
             self.reduction = dr_options[0]
