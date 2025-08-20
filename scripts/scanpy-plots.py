@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 DEPRECATED = {"spatial"}
-NOT_PLOTTING = {"ranking", "set_rcParams_defaults", "set_rcParams_scanpy"}
+NOT_PLOTTING = {"set_rcParams_defaults", "set_rcParams_scanpy"}
 
 
 def get_content(nb: Document) -> str:
