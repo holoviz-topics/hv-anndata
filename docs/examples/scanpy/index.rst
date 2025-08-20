@@ -5,3 +5,4 @@ Scanpy plotting
 
    Basic
    Preprocessing
+   Tools

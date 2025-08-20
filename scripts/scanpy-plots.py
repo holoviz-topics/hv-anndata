@@ -13,7 +13,11 @@ if TYPE_CHECKING:
 
 
 DEPRECATED = {"spatial", "pca_scatter"}
+UNDOCUMENTED = {"timeseries", "timeseries_as_heatmap", "timeseries_subplot"}
+"""Not currently documented or planned to be documented."""
 NOT_PLOTTING = {"set_rcParams_defaults", "set_rcParams_scanpy"}
+"""Lives in scanpy.pl, but doesn’t draw anything."""
+IGNORED = DEPRECATED | UNDOCUMENTED | NOT_PLOTTING
 
 
 def get_content(nb: Document) -> str:
@@ -33,7 +37,7 @@ funcs = {
     for k in vars(scanpy.pl)
     if callable(fn := getattr(scanpy.pl, k))
     if not isinstance(fn, type)
-    if k not in {*DEPRECATED, *NOT_PLOTTING}
+    if k not in IGNORED
 }
 
 nbs_contents = {
