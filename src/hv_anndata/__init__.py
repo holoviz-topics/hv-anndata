@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .clustermap import ClusterMap
 from .components import AutoCompleteMultiChoice
 from .interface import ACCESSOR as _A
 from .interface import AnnDataInterface, register
@@ -20,6 +21,7 @@ __all__ = [
     "ACCESSOR",
     "AnnDataInterface",
     "AutoCompleteMultiChoice",
+    "ClusterMap",
     "Dotmap",
     "ManifoldMap",
     "ManifoldMapConfig",
