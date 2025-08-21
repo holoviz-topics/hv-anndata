@@ -311,8 +311,12 @@ def _apply_categorical_datashading(
     aggregator = ds.count_cat(color_by)
     # Selector used as a workaround to display categorical counts per pixel
     # One day done directly in Bokeh, see https://github.com/bokeh/bokeh/issues/13354
-    selector = ds.first(plot.kdims[0].name)
-    plot = hd.datashade(plot, aggregator=aggregator, selector=selector, color_key=cmap)
+    plot = hd.datashade(
+        plot,
+        aggregator=aggregator,
+        selector=ds.first(),
+        color_key=cmap,
+    )
     plot = hd.dynspread(plot, threshold=0.5)
     return plot.opts(
         tools=[
@@ -320,8 +324,6 @@ def _apply_categorical_datashading(
             BoxSelectTool(persistent=True),
             LassoSelectTool(persistent=True),
         ],
-        # Override hover_tooltips to exclude the selector value
-        hover_tooltips=[("Label", str(color_by))],
         # Don't include the selector heading
         selector_in_hovertool=False,
         show_legend=True,
