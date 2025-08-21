@@ -9,7 +9,7 @@ from panel.custom import PyComponent
 from panel.widgets.base import WidgetBase
 
 
-class AutoCompleteMultiChoice(WidgetBase, PyComponent):
+class GeneGroupSelector(WidgetBase, PyComponent):
     """A composite component combining a text input with a MultiChoice widget.
 
     The text input serves as a key for a dictionary where each key maps to a

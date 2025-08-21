@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
-from hv_anndata.components import AutoCompleteMultiChoice
+from hv_anndata.components import GeneGroupSelector
 
 
 def test_autocomplete_multichoice_init() -> None:
-    AutoCompleteMultiChoice()
+    GeneGroupSelector()
 
 
 def test_autocomplete_multichoice_init_value() -> None:
-    AutoCompleteMultiChoice(value={"a": ["1", "2"]})
+    GeneGroupSelector(value={"a": ["1", "2"]})
 
 
 def test_autocomplete_multichoice_init_options() -> None:
-    AutoCompleteMultiChoice(options=["1", "2"])
+    GeneGroupSelector(options=["1", "2"])
 
 
 def test_autocomplete_multichoice_new_groups() -> None:
-    w = AutoCompleteMultiChoice()
+    w = GeneGroupSelector()
 
     w._key_input.value = "a"
     assert w.value == {"a": []}
@@ -30,7 +30,7 @@ def test_autocomplete_multichoice_new_groups() -> None:
 
 
 def test_autocomplete_multichoice_new_values() -> None:
-    w = AutoCompleteMultiChoice()
+    w = GeneGroupSelector()
 
     w._key_input.value = "a"
 
@@ -50,7 +50,7 @@ def test_autocomplete_multichoice_new_values() -> None:
 
 
 def test_autocomplete_multichoice_update_selected() -> None:
-    w = AutoCompleteMultiChoice(value={"a": ["1", "2"]})
+    w = GeneGroupSelector(value={"a": ["1", "2"]})
 
     w._key_input.value = "a"
     assert w._multi_choice.value == ["1", "2"]
