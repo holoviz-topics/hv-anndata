@@ -24,7 +24,7 @@ def test_dotmap_bokeh(marker_func: Callable) -> None:
     dotmap_layout = Dotmap(
         adata=adata, marker_genes=marker_func(markers), groupby="bulk_labels"
     )
-    dotmap = dotmap_layout._plot_view()
+    dotmap = dotmap_layout.plot()
 
     assert isinstance(dotmap.data, pd.DataFrame)
     assert dotmap.data.shape == (60, 6)
@@ -51,7 +51,7 @@ def test_dotmap_mpl(marker_func: Callable) -> None:
     dotmap_layout = Dotmap(
         adata=adata, marker_genes=marker_func(markers), groupby="bulk_labels"
     )
-    dotmap = dotmap_layout._plot_view()
+    dotmap = dotmap_layout.plot()
 
     assert isinstance(dotmap.data, pd.DataFrame)
     assert dotmap.data.shape == (60, 6)
@@ -84,7 +84,7 @@ def test_dotmap_use_raw_explicit_bokeh() -> None:
     with pytest.raises(
         ValueError, match="use_raw=True but .raw attribute is not present"
     ):
-        dotmap_layout._plot_view()
+        dotmap_layout.plot()
 
 
 @pytest.mark.usefixtures("bokeh_backend")
@@ -99,7 +99,7 @@ def test_dotmap_all_missing_genes_bokeh() -> None:
     with pytest.raises(
         ValueError, match="None of the specified marker genes are present"
     ):
-        dotmap_layout._plot_view()
+        dotmap_layout.plot()
 
 
 @pytest.mark.usefixtures("bokeh_backend")
@@ -109,5 +109,5 @@ def test_dotmap_duplicate_genes_bokeh() -> None:
     dotmap_layout = Dotmap(
         adata=adata, marker_genes=sel_marker_genes, groupby="bulk_labels"
     )
-    dotmap = dotmap_layout._plot_view()
+    dotmap = dotmap_layout.plot()
     assert dotmap.data.shape == (20, 6)

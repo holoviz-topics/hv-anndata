@@ -279,7 +279,8 @@ class Dotmap(pn.viewable.Viewer):
         return opts | backend_opts
 
     @param.depends("marker_genes")
-    def _plot_view(self) -> hv.Points:
+    def plot(self) -> hv.Points:
+        """Plot the Dotmap."""
         df = self._prepare_data()
         plot = hv.Points(df, kdims=self.kdims, vdims=self.vdims)
         plot.opts(**self._get_opts())
@@ -305,4 +306,4 @@ class Dotmap(pn.viewable.Viewer):
             self.param.trigger("marker_genes")
 
     def __panel__(self) -> pn.viewable.Viewable:
-        return pn.Row(self._widget, self._plot_view)
+        return pn.Row(self._widget, self.plot)
