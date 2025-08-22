@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import chain
+
 import panel as pn
 import panel_material_ui as pmui
 import param
@@ -22,7 +24,9 @@ class GeneGroupSelector(WidgetBase, PyComponent):
     """
 
     value: dict[str, list[str]] = param.Dict(  # type: ignore[assignment]
-        default={}, doc="Dictionary mapping groups to lists of marker genes."
+        default={},
+        doc="Dictionary mapping groups to lists of marker genes.",
+        allow_refs=True,
     )
 
     options: list[str] = param.List(  # type: ignore[assignment]
@@ -54,6 +58,10 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         self._current_key = ""
         if self.value:
             self.param._input_key.objects = list(self.value)  # noqa: SLF001
+            if not self.options:
+                self.options = list(
+                    dict.fromkeys(chain.from_iterable(self.value.values()))
+                )
 
         self.w_key_input = pmui.AutocompleteInput.from_param(
             self.param._input_key,  # noqa: SLF001
