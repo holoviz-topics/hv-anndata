@@ -60,13 +60,9 @@ class GeneGroupSelector(WidgetBase, PyComponent):
             sizing_mode="stretch_width",
         )
 
-        self.w_value_input = pmui.AutocompleteInput.from_param(
+        self.w_value_input = pmui.TextInput.from_param(
             self.param._input_value,  # noqa: SLF001
-            options=self.param.options,
-            placeholder="Enter/select value",
-            name="Available values",
-            restrict=False,
-            min_characters=0,
+            name="Add new value to group",
             disabled=self.param._input_key.rx().rx.bool().rx.not_(),  # noqa: SLF001
             description="",
             sizing_mode="stretch_width",
