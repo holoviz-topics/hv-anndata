@@ -50,7 +50,7 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         if self.value:
             self.param._input_key.objects = list(self.value)  # noqa: SLF001
 
-        self._key_input = pmui.AutocompleteInput.from_param(
+        self.w_key_input = pmui.AutocompleteInput.from_param(
             self.param._input_key,  # noqa: SLF001
             name="Group Key",
             placeholder="Enter/select key name",
@@ -60,7 +60,7 @@ class GeneGroupSelector(WidgetBase, PyComponent):
             sizing_mode="stretch_width",
         )
 
-        self._value_input = pmui.AutocompleteInput.from_param(
+        self.w_value_input = pmui.AutocompleteInput.from_param(
             self.param._input_value,  # noqa: SLF001
             options=self.param.options,
             placeholder="Enter/select value",
@@ -72,17 +72,17 @@ class GeneGroupSelector(WidgetBase, PyComponent):
             sizing_mode="stretch_width",
         )
 
-        self._multi_choice = pmui.MultiChoice.from_param(
+        self.w_multi_choice = pmui.MultiChoice.from_param(
             self.param._current_selection,  # noqa: SLF001
             options=self.param.options,
             name="Values for the selected group",
             searchable=True,
-            disabled=self._value_input.param.disabled,
+            disabled=self.w_value_input.param.disabled,
             description="",
             sizing_mode="stretch_width",
         )
 
-        self._json_editor = pn.widgets.JSONEditor.from_param(
+        self.w_json_editor = pn.widgets.JSONEditor.from_param(
             self.param.value,
             name="JSON Editor",
             mode="tree",
@@ -108,8 +108,8 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         # Update current selection to match the key's current values
         self._current_selection = list(self.value.get(key, []))
 
-        if key not in self._key_input.options:
-            self._key_input.options = [*self._key_input.options, key]
+        if key not in self.w_key_input.options:
+            self.w_key_input.options = [*self.w_key_input.options, key]
 
     @param.depends("_input_value", watch=True)
     def _handle_value_input(self) -> None:
@@ -125,7 +125,7 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         if value not in self._current_selection:
             self._current_selection = [*self._current_selection, value]
 
-        self._value_input.value = ""
+        self.w_value_input.value = ""
 
     @param.depends("_current_selection", watch=True)
     def _handle_selection_change(self) -> None:
@@ -140,8 +140,8 @@ class GeneGroupSelector(WidgetBase, PyComponent):
 
     def __panel__(self) -> pn.layout.Column:
         return pn.Column(
-            self._key_input,
-            self._value_input,
-            self._multi_choice,
-            self._json_editor,
+            self.w_key_input,
+            self.w_value_input,
+            self.w_multi_choice,
+            self.w_json_editor,
         )
