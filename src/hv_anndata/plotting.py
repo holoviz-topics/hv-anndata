@@ -25,7 +25,7 @@ class _DotmapPlotParams(TypedDict):
     kdims: NotRequired[list[str | hv.Dimension]]
     vdims: NotRequired[list[str | hv.Dimension]]
     adata: ad.AnnData
-    marker_genes: dict[str, list[str]]
+    marker_genes: dict[str, list[str]] | list[str]
     groupby: str
     expression_cutoff: NotRequired[float]
     max_dot_size: NotRequired[int]
@@ -292,10 +292,17 @@ class Dotmap(pn.viewable.Viewer):
             raise TypeError(msg)
         super().__init__(**params)
         self._widget = GeneSelector(value=self.param.marker_genes)
-        self._widget.param.watch(self._update_marker_genes, "value")
+        self._widget.param.watch(self._update_marker_genes, "value", onlychanged=False)
 
     def _update_marker_genes(self, event: param.parameterized.Event) -> None:
+        # Callback to ensure an event is triggered when the marker_genes dict
+        # is only reordered
+        trigger = (
+            isinstance(self.marker_genes, Mapping) and self.marker_genes == event.new
+        )
         self.marker_genes = event.new
+        if trigger:
+            self.param.trigger("marker_genes")
 
     def __panel__(self) -> pn.viewable.Viewable:
         return pn.Row(self._widget, self._plot_view)

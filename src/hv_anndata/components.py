@@ -108,12 +108,18 @@ class GeneSelector(WidgetBase, PyComponent):
             sizing_mode="stretch_width",
         )
 
-        self.w_json_editor = pn.widgets.JSONEditor.from_param(
-            self.param.value,
+        self.w_json_editor = pn.widgets.JSONEditor(
             mode="tree",
             menu=False,
             sizing_mode="stretch_width",
         )
+        # Custom syncing with onlychanged=False to detect when a dict is
+        # reordered in the JSONEditor.
+        self.param.watch(self._on_value, "value")
+        self.w_json_editor.param.watch(
+            self._on_json_editor_value, "value", onlychanged=False
+        )
+        self.w_json_editor.value = self.value
 
         self._current_key = ""
         if self.value:
@@ -129,6 +135,12 @@ class GeneSelector(WidgetBase, PyComponent):
                 if not self.options:
                     self.options = self.value
                 self._current_selection = self.value
+
+    def _on_value(self, event: param.parameterized.Event) -> None:
+        self.w_json_editor.value = event.new
+
+    def _on_json_editor_value(self, event: param.parameterized.Event) -> None:
+        self.value = event.new
 
     @param.depends("_input_key", watch=True)
     def _handle_key_input(self) -> None:
