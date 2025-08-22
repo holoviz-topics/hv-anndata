@@ -28,8 +28,11 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         default=300, allow_None=True, doc="Width of this component."
     )
 
-    _input_key: str = param.String(  # type: ignore[assignment]
-        default="", doc="Current value of the text input (key)"
+    _input_key: str = param.Selector(  # type: ignore[assignment]
+        default="",
+        objects=[],
+        check_on_set=False,
+        doc="Current value of the text input (key)",
     )
 
     _input_value: str = param.String(  # type: ignore[assignment]
@@ -44,6 +47,8 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         """Initialize the component with the given parameters."""
         super().__init__(**params)
         self._current_key = ""
+        if self.value:
+            self.param._input_key.objects = list(self.value)  # noqa: SLF001
 
         self._key_input = pmui.AutocompleteInput.from_param(
             self.param._input_key,  # noqa: SLF001

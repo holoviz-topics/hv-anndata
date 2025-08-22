@@ -22,11 +22,11 @@ def test_autocomplete_multichoice_new_groups() -> None:
 
     w._key_input.value = "a"
     assert w.value == {"a": []}
-    assert w._key_input.options == ["a"]
+    assert w._key_input.options == ["", "a"]
 
     w._key_input.value = "b"
     assert w.value == {"a": [], "b": []}
-    assert w._key_input.options == ["a", "b"]
+    assert w._key_input.options == ["", "a", "b"]
 
 
 def test_autocomplete_multichoice_new_values() -> None:
@@ -59,3 +59,10 @@ def test_autocomplete_multichoice_update_selected() -> None:
     w._multi_choice.value = ["1"]
 
     assert w.value == {"a": ["1"]}
+
+
+def test_autocomplete_multichoice_value_init_key_options() -> None:
+    w = GeneGroupSelector(value={"a": ["1", "2"]})
+
+    assert w.param._input_key.objects == ["a"]
+    assert list(w._key_input.options) == ["a"]
