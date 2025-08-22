@@ -10,18 +10,23 @@ from panel.widgets.base import WidgetBase
 
 
 class GeneGroupSelector(WidgetBase, PyComponent):
-    """A composite component combining a text input with a MultiChoice widget.
+    """A custom Panel widget for managing groups of marker genes.
 
-    The text input serves as a key for a dictionary where each key maps to a
-    list of selected values.
+    This component allows users to create, update, and manage groups of
+    marker genes through a composite interactive widget.
+
+    - Add new groups (keys) and associate them with marker genes (values).
+    - Select and modify marker genes for a specific group using a MultiChoice
+      widget.
+    - View and edit the entire group-to-marker mapping in a JSON editor widget.
     """
 
     value: dict[str, list[str]] = param.Dict(  # type: ignore[assignment]
-        default={}, doc="Dictionary mapping keys to lists of selected values"
+        default={}, doc="Dictionary mapping groups to lists of marker genes."
     )
 
     options: list[str] = param.List(  # type: ignore[assignment]
-        default=[], doc="List of available options for the MultiChoice"
+        default=[], doc="List of available marker genes for the MultiChoice."
     )
 
     width = param.Integer(  # type: ignore[assignment]
@@ -32,15 +37,15 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         default="",
         objects=[],
         check_on_set=False,
-        doc="Current value of the text input (key)",
+        doc="Current value of the text input (group)",
     )
 
     _input_value: str = param.String(  # type: ignore[assignment]
-        default="", doc="Current value of the text input (value)"
+        default="", doc="Current value of the text input (marker gene)"
     )
 
     _current_selection: list[str] = param.List(  # type: ignore[assignment]
-        default=[], doc="Current selection for the active key"
+        default=[], doc="Current selection of marker genes for the active group"
     )
 
     def __init__(self, **params: object) -> None:
@@ -52,8 +57,8 @@ class GeneGroupSelector(WidgetBase, PyComponent):
 
         self.w_key_input = pmui.AutocompleteInput.from_param(
             self.param._input_key,  # noqa: SLF001
-            name="Group Key",
-            placeholder="Enter/select key name",
+            name="Active group",
+            placeholder="Enter/select group name",
             restrict=False,
             min_characters=0,
             description="",
@@ -62,7 +67,7 @@ class GeneGroupSelector(WidgetBase, PyComponent):
 
         self.w_value_input = pmui.TextInput.from_param(
             self.param._input_value,  # noqa: SLF001
-            name="Add new value to group",
+            name="Add new marker gene to group",
             disabled=self.param._input_key.rx().rx.bool().rx.not_(),  # noqa: SLF001
             description="",
             sizing_mode="stretch_width",
@@ -71,7 +76,7 @@ class GeneGroupSelector(WidgetBase, PyComponent):
         self.w_multi_choice = pmui.MultiChoice.from_param(
             self.param._current_selection,  # noqa: SLF001
             options=self.param.options,
-            name="Values for the selected group",
+            name="Marker genes for the selected group",
             searchable=True,
             disabled=self.w_value_input.param.disabled,
             description="",
@@ -80,7 +85,6 @@ class GeneGroupSelector(WidgetBase, PyComponent):
 
         self.w_json_editor = pn.widgets.JSONEditor.from_param(
             self.param.value,
-            name="JSON Editor",
             mode="tree",
             menu=False,
             sizing_mode="stretch_width",
@@ -139,5 +143,8 @@ class GeneGroupSelector(WidgetBase, PyComponent):
             self.w_key_input,
             self.w_value_input,
             self.w_multi_choice,
+            pmui.Typography(
+                "JSON Editor:", variant="caption", color="primary", margin=(0, 10)
+            ),
             self.w_json_editor,
         )
