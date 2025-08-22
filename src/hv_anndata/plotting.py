@@ -13,7 +13,7 @@ import panel as pn
 import param
 from packaging.version import Version
 
-from .components import GeneGroupSelector
+from .components import GeneSelector
 
 _HOLOVIEWS_VERSION = Version(hv.__version__).release
 
@@ -291,7 +291,7 @@ class Dotmap(pn.viewable.Viewer):
             msg = f"Needs to have the following argument(s): {required}"
             raise TypeError(msg)
         super().__init__(**params)
-        self._widget = GeneGroupSelector(value=self.param.marker_genes)
+        self._widget = GeneSelector(value=self.param.marker_genes)
         self._widget.param.watch(self._update_marker_genes, "value")
 
     def _update_marker_genes(self, event: param.parameterized.Event) -> None:

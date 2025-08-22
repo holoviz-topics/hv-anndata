@@ -4,24 +4,24 @@ from __future__ import annotations
 
 import pytest
 
-from hv_anndata.components import GeneGroupSelector
+from hv_anndata.components import GeneSelector
 
 
 def test_autocomplete_multichoice_init() -> None:
-    GeneGroupSelector()
+    GeneSelector()
 
 
 @pytest.mark.parametrize("value", [{"a": ["1", "2"]}, ["1", "2"]])
 def test_autocomplete_multichoice_init_value(value: list | dict) -> None:
-    GeneGroupSelector(value=value)
+    GeneSelector(value=value)
 
 
 def test_autocomplete_multichoice_init_options() -> None:
-    GeneGroupSelector(options=["1", "2"])
+    GeneSelector(options=["1", "2"])
 
 
 def test_autocomplete_multichoice_dict_new_groups() -> None:
-    w = GeneGroupSelector()
+    w = GeneSelector()
 
     w.w_key_input.value = "a"
     assert w.value == {"a": []}
@@ -33,7 +33,7 @@ def test_autocomplete_multichoice_dict_new_groups() -> None:
 
 
 def test_autocomplete_multichoice_dict_new_values() -> None:
-    w = GeneGroupSelector()
+    w = GeneSelector()
 
     w.w_key_input.value = "a"
 
@@ -53,7 +53,7 @@ def test_autocomplete_multichoice_dict_new_values() -> None:
 
 
 def test_autocomplete_multichoice_list_new_values() -> None:
-    w = GeneGroupSelector(value=[])
+    w = GeneSelector(value=[])
 
     w.w_value_input.value = "1"
 
@@ -71,7 +71,7 @@ def test_autocomplete_multichoice_list_new_values() -> None:
 
 
 def test_autocomplete_multichoice_dict_update_selected() -> None:
-    w = GeneGroupSelector(value={"a": ["1", "2"]})
+    w = GeneSelector(value={"a": ["1", "2"]})
 
     w.w_key_input.value = "a"
     assert w.w_multi_choice.value == ["1", "2"]
@@ -83,7 +83,7 @@ def test_autocomplete_multichoice_dict_update_selected() -> None:
 
 
 def test_autocomplete_multichoice_list_update_selected() -> None:
-    w = GeneGroupSelector(value=["1", "2"])
+    w = GeneSelector(value=["1", "2"])
 
     w.w_multi_choice.value = ["1"]
 
@@ -91,14 +91,14 @@ def test_autocomplete_multichoice_list_update_selected() -> None:
 
 
 def test_autocomplete_multichoice_dict_value_init_key_options() -> None:
-    w = GeneGroupSelector(value={"a": ["1", "2"]})
+    w = GeneSelector(value={"a": ["1", "2"]})
 
     assert w.param._input_key.objects == ["a"]
     assert w.w_key_input.options == {"a": "a"}
 
 
 def test_autocomplete_multichoice_list_value_init_mc() -> None:
-    w = GeneGroupSelector(value=["1", "2"])
+    w = GeneSelector(value=["1", "2"])
 
     assert w._current_selection == ["1", "2"]
     assert w.w_multi_choice.value == ["1", "2"]

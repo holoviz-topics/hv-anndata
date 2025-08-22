@@ -1,5 +1,5 @@
-``hv_anndata.GeneGroupSelector``
+``hv_anndata.GeneSelector``
 ======================================
 
 .. currentmodule:: hv_anndata
-.. autoclass:: GeneGroupSelector
+.. autoclass:: GeneSelector

@@ -11,16 +11,25 @@ from panel.custom import PyComponent
 from panel.widgets.base import WidgetBase
 
 
-class GeneGroupSelector(WidgetBase, PyComponent):
-    """A custom Panel widget for managing groups of marker genes.
+class GeneSelector(WidgetBase, PyComponent):
+    """A custom Panel widget for managing and selecting marker genes.
 
     This component allows users to create, update, and manage groups of
     marker genes through a composite interactive widget.
 
     - Add new groups (keys) and associate them with marker genes (values).
+    - Add marker genes to the list of available options.
     - Select and modify marker genes for a specific group using a MultiChoice
       widget.
     - View and edit the entire group-to-marker mapping in a JSON editor widget.
+
+    This component also allows users to create and update a list of marker
+    genes:
+
+    - Add marker genes to the list of available options.
+    - Select the  marker genes that constitue the list.
+    - View and edit the list in a JSON editor widget.
+
     """
 
     value: dict[str, list[str]] | list[str] = param.ClassSelector(  # type: ignore[assignment]

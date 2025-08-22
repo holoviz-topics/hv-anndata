@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .components import GeneGroupSelector
+from .components import GeneSelector
 from .interface import ACCESSOR as _A
 from .interface import AnnDataInterface, register
 from .manifoldmap import ManifoldMap, ManifoldMapConfig, create_manifoldmap_plot
@@ -20,7 +20,7 @@ __all__ = [
     "ACCESSOR",
     "AnnDataInterface",
     "Dotmap",
-    "GeneGroupSelector",
+    "GeneSelector",
     "ManifoldMap",
     "ManifoldMapConfig",
     "create_manifoldmap_plot",
