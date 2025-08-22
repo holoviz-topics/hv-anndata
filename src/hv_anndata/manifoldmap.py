@@ -324,6 +324,8 @@ def _apply_categorical_datashading(
             BoxSelectTool(persistent=True),
             LassoSelectTool(persistent=True),
         ],
+        # Override hover_tooltips to exclude the selector value
+        hover_tooltips=[("Label", str(color_by))],
         # Don't include the selector heading
         selector_in_hovertool=False,
         show_legend=True,
