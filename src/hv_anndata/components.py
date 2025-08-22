@@ -23,10 +23,13 @@ class GeneGroupSelector(WidgetBase, PyComponent):
     - View and edit the entire group-to-marker mapping in a JSON editor widget.
     """
 
-    value: dict[str, list[str]] = param.Dict(  # type: ignore[assignment]
+    value: dict[str, list[str]] | list[str] = param.ClassSelector(  # type: ignore[assignment]
         default={},
-        doc="Dictionary mapping groups to lists of marker genes.",
+        class_=(dict, list),
         allow_refs=True,
+        doc="""
+        Dictionary mapping groups to lists of marker genes or list of marker
+        genes""",
     )
 
     options: list[str] = param.List(  # type: ignore[assignment]
@@ -55,36 +58,41 @@ class GeneGroupSelector(WidgetBase, PyComponent):
     def __init__(self, **params: object) -> None:
         """Initialize the component with the given parameters."""
         super().__init__(**params)
-        self._current_key = ""
-        if self.value:
-            self.param._input_key.objects = list(self.value)  # noqa: SLF001
-            if not self.options:
-                self.options = list(
-                    dict.fromkeys(chain.from_iterable(self.value.values()))
-                )
 
         self.w_key_input = pmui.AutocompleteInput.from_param(
             self.param._input_key,  # noqa: SLF001
-            name="Active group",
+            name="Active Group",
             placeholder="Enter/select group name",
             restrict=False,
             min_characters=0,
             description="",
             sizing_mode="stretch_width",
+            visible=self.param.value.rx().rx.pipe(lambda v: isinstance(v, dict)),
         )
+
+        def w_value_input_disabled(value: dict | list, _input_key: str) -> bool:
+            return not (
+                isinstance(value, list) or (isinstance(value, dict) and _input_key)
+            )
 
         self.w_value_input = pmui.TextInput.from_param(
             self.param._input_value,  # noqa: SLF001
-            name="Add new marker gene to group",
-            disabled=self.param._input_key.rx().rx.bool().rx.not_(),  # noqa: SLF001
+            name="New Marker Gene",
+            disabled=param.bind(
+                w_value_input_disabled,
+                self.param.value,
+                self.param._input_key,  # noqa: SLF001
+            ),
             description="",
             sizing_mode="stretch_width",
         )
 
+        pre = "Selected Group " if isinstance(self.value, dict) else ""
+        mc_name = f"{pre}Marker Genes"
         self.w_multi_choice = pmui.MultiChoice.from_param(
             self.param._current_selection,  # noqa: SLF001
             options=self.param.options,
-            name="Marker genes for the selected group",
+            name=mc_name,
             searchable=True,
             disabled=self.w_value_input.param.disabled,
             description="",
@@ -98,9 +106,26 @@ class GeneGroupSelector(WidgetBase, PyComponent):
             sizing_mode="stretch_width",
         )
 
+        self._current_key = ""
+        if self.value:
+            if isinstance(self.value, dict):
+                keys = list(self.value)
+                self.param._input_key.objects = keys  # noqa: SLF001
+                self._input_key = keys[0]
+                if not self.options:
+                    self.options = list(
+                        dict.fromkeys(chain.from_iterable(self.value.values()))
+                    )
+            else:
+                if not self.options:
+                    self.options = self.value
+                self._current_selection = self.value
+
     @param.depends("_input_key", watch=True)
     def _handle_key_input(self) -> None:
         """Handle when a key is entered in the text input."""
+        if isinstance(self.value, list):
+            return
         key = self._input_key.strip()
         if not key:
             return
@@ -123,7 +148,9 @@ class GeneGroupSelector(WidgetBase, PyComponent):
     def _handle_value_input(self) -> None:
         """Handle when a value is entered in the text input."""
         value = self._input_value.strip()
-        if not value or not self._current_key:
+        if not value:
+            return
+        if isinstance(self.value, dict) and not self._current_key:
             return
 
         if value not in self.options:
@@ -138,12 +165,15 @@ class GeneGroupSelector(WidgetBase, PyComponent):
     @param.depends("_current_selection", watch=True)
     def _handle_selection_change(self) -> None:
         """Handle when the MultiChoice selection changes."""
-        if not self._current_key:
+        if isinstance(self.value, dict) and not self._current_key:
             return
 
-        # Update the value dict with the new selection
-        new_value = dict(self.value)
-        new_value[self._current_key] = list(self._current_selection)
+        if isinstance(self.value, dict):
+            # Update the value dict with the new selection
+            new_value = dict(self.value)
+            new_value[self._current_key] = list(self._current_selection)
+        else:
+            new_value = list(self._current_selection)
         self.value = new_value
 
     def __panel__(self) -> pn.layout.Column:
