@@ -56,18 +56,22 @@ extra-dependencies = [
 [tool.ruff]
 lint.select = [ "ALL" ]
 lint.ignore = [
-  "B019",   # functools.cache is fine to use
-  "C408",   # dict(...) calls are good
-  "COM812", # Incompatible with formatter
-  "D105",   # magic methods are usually self-explanatory
-  "D203",   # 0 instead of 1 blank lines before class docstring
-  "D213",   # Multi-line docstring summary should start at the first instead of second line
-  "FIX002", # TODOs are fine
-  "ISC001", # Incompatible with formatter
-  "PD011",  # We actually do want `.values` give us a numpy or extension array
-  "S603",   # We don’t want to use `subprocess.run(shell=True)`
-  "S607",   # We don’t run commands with untrusted input
-  "TD002",  # No need to assign TODOs to some person
+  "B019",    # functools.cache is fine to use
+  "C408",    # dict(...) calls are good
+  "C901",    # Ignore complexity measure
+  "COM812",  # Incompatible with formatter
+  "D105",    # magic methods are usually self-explanatory
+  "D203",    # 0 instead of 1 blank lines before class docstring
+  "D213",    # Multi-line docstring summary should start at the first instead of second line
+  "FIX002",  # TODOs are fine
+  "ISC001",  # Incompatible with formatter
+  "PD011",   # We actually do want `.values` give us a numpy or extension array
+  "PLR0912", # Ignore too many branches
+  "PLR0913", # Ignore too many arguments
+  "PLR0915", # Ignore too many statements
+  "S603",    # We don’t want to use `subprocess.run(shell=True)`
+  "S607",    # We don’t run commands with untrusted input
+  "TD002",   # No need to assign TODOs to some person
 ]
 lint.per-file-ignores."**/*.ipynb" = [
   "ANN",  # missing annotations in notebooks are OK
