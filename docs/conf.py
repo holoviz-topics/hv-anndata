@@ -34,6 +34,7 @@ intersphinx_mapping = dict(
     python=("https://docs.python.org/3/", None),
     holoviews=("https://holoviews.org/", None),
     panel=("https://panel.holoviz.org/", None),
+    scanpy=("https://scanpy.readthedocs.io/en/latest/", None),
 )
 
 always_use_bars_union = True
