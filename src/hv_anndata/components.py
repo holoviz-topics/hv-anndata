@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import chain
+
 import panel as pn
 import panel_material_ui as pmui
 import param
@@ -9,85 +11,142 @@ from panel.custom import PyComponent
 from panel.widgets.base import WidgetBase
 
 
-class AutoCompleteMultiChoice(WidgetBase, PyComponent):
-    """A composite component combining a text input with a MultiChoice widget.
+class GeneSelector(WidgetBase, PyComponent):
+    """A custom Panel widget for managing and selecting marker genes.
 
-    The text input serves as a key for a dictionary where each key maps to a
-    list of selected values.
+    This component allows users to create, update, and manage groups of
+    marker genes through a composite interactive widget.
+
+    - Add new groups (keys) and associate them with marker genes (values).
+    - Add marker genes to the list of available options.
+    - Select and modify marker genes for a specific group using a MultiChoice
+      widget.
+    - View and edit the entire group-to-marker mapping in a JSON editor widget.
+
+    This component also allows users to create and update a list of marker
+    genes:
+
+    - Add marker genes to the list of available options.
+    - Select the  marker genes that constitue the list.
+    - View and edit the list in a JSON editor widget.
+
     """
 
-    value: dict[str, list[str]] = param.Dict(  # type: ignore[assignment]
-        default={}, doc="Dictionary mapping keys to lists of selected values"
+    value: dict[str, list[str]] | list[str] = param.ClassSelector(  # type: ignore[assignment]
+        default={},
+        class_=(dict, list),
+        allow_refs=True,
+        doc="""
+        Dictionary mapping groups to lists of marker genes or list of marker
+        genes""",
     )
 
     options: list[str] = param.List(  # type: ignore[assignment]
-        default=[], doc="List of available options for the MultiChoice"
+        default=[], doc="List of available marker genes for the MultiChoice."
     )
 
     width = param.Integer(  # type: ignore[assignment]
         default=300, allow_None=True, doc="Width of this component."
     )
 
-    _input_key: str = param.String(  # type: ignore[assignment]
-        default="", doc="Current value of the text input (key)"
+    _input_key: str = param.Selector(  # type: ignore[assignment]
+        default="",
+        objects=[],
+        check_on_set=False,
+        doc="Current value of the text input (group)",
     )
 
     _input_value: str = param.String(  # type: ignore[assignment]
-        default="", doc="Current value of the text input (value)"
+        default="", doc="Current value of the text input (marker gene)"
     )
 
     _current_selection: list[str] = param.List(  # type: ignore[assignment]
-        default=[], doc="Current selection for the active key"
+        default=[], doc="Current selection of marker genes for the active group"
     )
 
     def __init__(self, **params: object) -> None:
         """Initialize the component with the given parameters."""
         super().__init__(**params)
-        self._current_key = ""
 
-        self._key_input = pmui.AutocompleteInput.from_param(
+        self.w_key_input = pmui.AutocompleteInput.from_param(
             self.param._input_key,  # noqa: SLF001
-            name="Group Key",
-            placeholder="Enter/select key name",
+            name="Active Group",
+            placeholder="Enter/select group name",
             restrict=False,
             min_characters=0,
             description="",
             sizing_mode="stretch_width",
+            visible=self.param.value.rx().rx.pipe(lambda v: isinstance(v, dict)),
         )
 
-        self._value_input = pmui.AutocompleteInput.from_param(
+        def w_value_input_disabled(value: dict | list, _input_key: str) -> bool:
+            return not (
+                isinstance(value, list) or (isinstance(value, dict) and _input_key)
+            )
+
+        self.w_value_input = pmui.TextInput.from_param(
             self.param._input_value,  # noqa: SLF001
-            options=self.param.options,
-            placeholder="Enter/select value",
-            name="Available values",
-            restrict=False,
-            min_characters=0,
-            disabled=self.param._input_key.rx().rx.bool().rx.not_(),  # noqa: SLF001
+            name="New Marker Gene",
+            disabled=param.bind(
+                w_value_input_disabled,
+                self.param.value,
+                self.param._input_key,  # noqa: SLF001
+            ),
             description="",
             sizing_mode="stretch_width",
         )
 
-        self._multi_choice = pmui.MultiChoice.from_param(
+        pre = "Selected Group " if isinstance(self.value, dict) else ""
+        mc_name = f"{pre}Marker Genes"
+        self.w_multi_choice = pmui.MultiChoice.from_param(
             self.param._current_selection,  # noqa: SLF001
             options=self.param.options,
-            name="Values for the selected group",
+            name=mc_name,
             searchable=True,
-            disabled=self._value_input.param.disabled,
+            disabled=self.w_value_input.param.disabled,
             description="",
             sizing_mode="stretch_width",
         )
 
-        self._json_editor = pn.widgets.JSONEditor.from_param(
-            self.param.value,
-            name="JSON Editor",
+        self.w_json_editor = pn.widgets.JSONEditor(
             mode="tree",
             menu=False,
             sizing_mode="stretch_width",
         )
+        # Custom syncing with onlychanged=False to detect when a dict is
+        # reordered in the JSONEditor.
+        self.param.watch(self._on_value, "value")
+        self.w_json_editor.param.watch(
+            self._on_json_editor_value, "value", onlychanged=False
+        )
+        self.w_json_editor.value = self.value
+
+        self._current_key = ""
+        if self.value:
+            if isinstance(self.value, dict):
+                keys = list(self.value)
+                self.param._input_key.objects = keys  # noqa: SLF001
+                self._input_key = keys[0]
+                if not self.options:
+                    self.options = list(
+                        dict.fromkeys(chain.from_iterable(self.value.values()))
+                    )
+            else:
+                if not self.options:
+                    self.options = self.value
+                self._current_selection = self.value
+
+    def _on_value(self, event: param.parameterized.Event) -> None:
+        self.w_json_editor.value = event.new
+
+    def _on_json_editor_value(self, event: param.parameterized.Event) -> None:
+        self.value = event.new
 
     @param.depends("_input_key", watch=True)
     def _handle_key_input(self) -> None:
         """Handle when a key is entered in the text input."""
+        if isinstance(self.value, list):
+            return
         key = self._input_key.strip()
         if not key:
             return
@@ -103,14 +162,16 @@ class AutoCompleteMultiChoice(WidgetBase, PyComponent):
         # Update current selection to match the key's current values
         self._current_selection = list(self.value.get(key, []))
 
-        if key not in self._key_input.options:
-            self._key_input.options = [*self._key_input.options, key]
+        if key not in self.w_key_input.options:
+            self.w_key_input.options = [*self.w_key_input.options, key]
 
     @param.depends("_input_value", watch=True)
     def _handle_value_input(self) -> None:
         """Handle when a value is entered in the text input."""
         value = self._input_value.strip()
-        if not value or not self._current_key:
+        if not value:
+            return
+        if isinstance(self.value, dict) and not self._current_key:
             return
 
         if value not in self.options:
@@ -120,23 +181,29 @@ class AutoCompleteMultiChoice(WidgetBase, PyComponent):
         if value not in self._current_selection:
             self._current_selection = [*self._current_selection, value]
 
-        self._value_input.value = ""
+        self.w_value_input.value = ""
 
     @param.depends("_current_selection", watch=True)
     def _handle_selection_change(self) -> None:
         """Handle when the MultiChoice selection changes."""
-        if not self._current_key:
+        if isinstance(self.value, dict) and not self._current_key:
             return
 
-        # Update the value dict with the new selection
-        new_value = dict(self.value)
-        new_value[self._current_key] = list(self._current_selection)
+        if isinstance(self.value, dict):
+            # Update the value dict with the new selection
+            new_value = dict(self.value)
+            new_value[self._current_key] = list(self._current_selection)
+        else:
+            new_value = list(self._current_selection)
         self.value = new_value
 
     def __panel__(self) -> pn.layout.Column:
         return pn.Column(
-            self._key_input,
-            self._value_input,
-            self._multi_choice,
-            self._json_editor,
+            self.w_key_input,
+            self.w_value_input,
+            self.w_multi_choice,
+            pmui.Typography(
+                "JSON Editor:", variant="caption", color="primary", margin=(0, 10)
+            ),
+            self.w_json_editor,
         )
