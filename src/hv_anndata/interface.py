@@ -17,7 +17,12 @@ from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
 from holoviews.core.element import Element
 from holoviews.core.ndmapping import NdMapping, item_check, sorted_context
-from holoviews.core.util import expand_grid_coords, get_param_values, unique_iterator
+from holoviews.core.util import (
+    cartesian_product,
+    expand_grid_coords,
+    get_param_values,
+    unique_iterator,
+)
 from holoviews.element.raster import SheetCoordinateSystem
 
 from .accessors import AdAc, AdPath
@@ -41,7 +46,6 @@ if TYPE_CHECKING:
     SelectionSpec = type | Callable | str
 
     T = TypeVar("T")
-    C = TypeVar("C", bound=Callable[..., T])
     ValueType = np.ndarray | pd.api.extensions.ExtensionArray
 
 
@@ -327,7 +331,7 @@ class AnnDataInterface(hv.core.Interface):
         cls,
         dataset: Dataset,
         dimensions: Sequence[str | AdPath],
-        container_type: C,
+        container_type: Callable[..., T],
         group_type: type[Dataset],
         **kwargs: Any,  # noqa: ANN401
     ) -> T:
@@ -414,7 +418,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
     def coords(
         cls,
         dataset: Dataset,
-        dim: Dimension,
+        dim: Dimension | str,
         ordered: bool = False,  # noqa: FBT001, FBT002
         *,
         expanded: bool = False,
@@ -467,23 +471,32 @@ class AnnDataGriddedInterface(AnnDataInterface):
     ) -> ValueType:
         """Retrieve values for a dimension."""
         dim = cast("AdPath", data.get_dimension(dim))
-        idx = data.get_dimension_index(dim)
         adata = cast("AnnData", data.data)
-        axes = cls.axes(data)
-        if idx <= 1 and isinstance(data, SheetCoordinateSystem):
+        if dim in data.kdims and isinstance(data, SheetCoordinateSystem):
             # On 2D datasets we generate synthetic coordinates
-            ax = axes[idx]
+            [ax] = dim.axes
             return np.arange(len(getattr(adata, ax)))
-        if expanded and dim in data.kdims:
-            values = expand_grid_coords(data, dim)
-        else:
+        if len(dim.axes) > 1 or not expanded:
             values = dim(adata)
+        else:
+            [ax] = dim.axes
+            values = cls._expand_grid_coords(data)[ax]
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
         elif flat and values.ndim > 1:
             assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
         return values
+
+    @classmethod
+    def _expand_grid_coords(
+        cls, data: Dataset
+    ) -> dict[Literal["obs", "var"], NDArray[np.intp]]:
+        arrays = cartesian_product(
+            [cls.coords(data, d, ordered=True) for d in data.kdims], flat=False
+        )
+        axes = cls.axes(data)
+        return {ax: arrays[axes.index(ax)].T for ax in axes}
 
     @classmethod
     def irregular(cls, dataset: Dataset, dim: Dimension | str) -> Literal[False]:

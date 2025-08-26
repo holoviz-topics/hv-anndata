@@ -168,6 +168,20 @@ def test_axes_errors(
         hv.Dataset(adata, kdims, vdims)
 
 
+def test_gridded_ax() -> None:
+    adata = AnnData(np.zeros((200, 300)), dict(x=range(200)))
+    ds = hv.Dataset(
+        adata[:100, :100],
+        kdims=[A.obs.index, A.var.index],
+        vdims=[A[:, :], A.obs["x"]],
+    )
+    assert not {
+        d: shape
+        for d in ds.kdims + ds.vdims
+        if (shape := ds.dimension_values(d, flat=False).shape) != (100, 100)
+    }
+
+
 """
 def test_plot(adata: AnnData) -> None:
     p = (
