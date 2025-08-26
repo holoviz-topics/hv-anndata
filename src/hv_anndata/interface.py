@@ -445,6 +445,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         shape = cls.shape(dataset, gridded=True)
         if dim in dataset.kdims:
             idx = dataset.get_dimension_index(dim)
+            # TODO: don’t do this, it’s broken if diff(shape) == 1  # noqa: TD003
             is_edges = (
                 dim in dataset.kdims
                 and len(shape) == dataset.ndims
@@ -496,7 +497,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
             [cls.coords(data, d, ordered=True) for d in data.kdims], flat=False
         )
         axes = cls.axes(data)
-        return {ax: arrays[axes.index(ax)].T for ax in axes}
+        return {ax: arrays[axes.index(ax)] for ax in axes}
 
     @classmethod
     def irregular(cls, dataset: Dataset, dim: Dimension | str) -> Literal[False]:

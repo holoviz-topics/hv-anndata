@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import holoviews as hv
 import numpy as np
+import numpy.testing as npt
 import pandas as pd
 import pytest
 import scipy.sparse as sp
@@ -19,6 +20,8 @@ from hv_anndata.interface import AnnDataGriddedInterface, AnnDataInterface, regi
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+
+    from numpy.typing import ArrayLike
 
     from hv_anndata.accessors import AdPath
 
@@ -168,18 +171,25 @@ def test_axes_errors(
         hv.Dataset(adata, kdims, vdims)
 
 
-def test_gridded_ax() -> None:
-    adata = AnnData(np.zeros((200, 300)), dict(x=range(200)))
+@pytest.mark.parametrize(
+    ("dim", "expected"),
+    [
+        pytest.param(A[:, :], np.arange(8).reshape((2, 4)), id="tabular"),
+        pytest.param(A.obs.index, [["0"] * 4, ["1"] * 4], id="obs_names"),
+        pytest.param(A.obs["x"], [["a"] * 4, ["b"] * 4], id="obs[x]"),
+        pytest.param(A.var.index, [np.arange(4).astype(str)] * 2, id="var_names"),
+    ],
+)
+def test_gridded_ax(dim: AdPath, expected: ArrayLike) -> None:
+    adata = AnnData(np.arange(8).reshape((2, 4)), dict(x=["a", "b"]))
     ds = hv.Dataset(
-        adata[:100, :100],
-        kdims=[A.obs.index, A.var.index],
-        vdims=[A[:, :], A.obs["x"]],
+        adata, kdims=[A.obs.index, A.var.index], vdims=[A[:, :], A.obs["x"]]
     )
-    assert not {
-        d: shape
-        for d in ds.kdims + ds.vdims
-        if (shape := ds.dimension_values(d, flat=False).shape) != (100, 100)
-    }
+
+    values = ds.dimension_values(dim, flat=False)
+
+    assert values.shape == adata.shape
+    npt.assert_equal(values, expected)
 
 
 """
