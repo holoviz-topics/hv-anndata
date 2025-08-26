@@ -172,24 +172,46 @@ def test_axes_errors(
 
 
 @pytest.mark.parametrize(
-    ("dim", "expected"),
+    "transposed", [True, False], ids=["transposed", "not_transposed"]
+)
+@pytest.mark.parametrize(
+    ("v", "dim", "expected"),
     [
-        pytest.param(A[:, :], np.arange(8).reshape((2, 4)), id="tabular"),
-        pytest.param(A.obs.index, [["0"] * 4, ["1"] * 4], id="obs_names"),
-        pytest.param(A.obs["x"], [["a"] * 4, ["b"] * 4], id="obs[x]"),
-        pytest.param(A.var.index, [np.arange(4).astype(str)] * 2, id="var_names"),
+        pytest.param("p", A[:, :], np.arange(8).reshape((2, 4)), id="p-tabular"),
+        pytest.param("p", A.obs.index, [["0"] * 4, ["1"] * 4], id="p-obs_names"),
+        pytest.param("p", A.obs["x"], [["a"] * 4, ["b"] * 4], id="p-obs[x]"),
+        pytest.param("p", A.var.index, [list("0123")] * 2, id="p-var_names"),
+        pytest.param("p", A.var["y"], [list("ABCD")] * 2, id="p-var[y]"),
+        pytest.param("l", A[:, :], np.arange(8).reshape((4, 2)), id="l-tabular"),
+        pytest.param("l", A.obs.index, [[c] * 2 for c in "0123"], id="l-obs_names"),
+        pytest.param("l", A.obs["x"], [[c] * 2 for c in "abcd"], id="l-obs[x]"),
+        pytest.param("l", A.var.index, [["0", "1"]] * 4, id="l-var_names"),
+        pytest.param("l", A.var["y"], [["A", "B"]] * 4, id="l-var[y]"),
     ],
 )
-def test_gridded_ax(dim: AdPath, expected: ArrayLike) -> None:
-    adata = AnnData(np.arange(8).reshape((2, 4)), dict(x=["a", "b"]))
-    ds = hv.Dataset(
-        adata, kdims=[A.obs.index, A.var.index], vdims=[A[:, :], A.obs["x"]]
+def test_gridded_ax(
+    *, v: Literal["p", "l"], dim: AdPath, transposed: bool, expected: ArrayLike
+) -> None:
+    adata = (
+        AnnData(
+            np.arange(8).reshape((2, 4)),
+            dict(x=["a", "b"]),
+            dict(y=["A", "B", "C", "D"]),
+        )
+        if v == "p"
+        else AnnData(
+            np.arange(8).reshape((4, 2)),
+            dict(x=["a", "b", "c", "d"]),
+            dict(y=["A", "B"]),
+        )
     )
+    kdims = [A.var.index, A.obs.index] if transposed else [A.obs.index, A.var.index]
+    ds = hv.Dataset(adata, kdims=kdims, vdims=[A[:, :], A.obs["x"], A.var["y"]])
 
     values = ds.dimension_values(dim, flat=False)
 
-    assert values.shape == adata.shape
-    npt.assert_equal(values, expected)
+    assert values.shape == (adata.shape[::-1] if transposed else adata.shape)
+    npt.assert_equal(values, np.transpose(expected) if transposed else expected)
 
 
 """
