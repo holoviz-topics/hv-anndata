@@ -59,7 +59,7 @@ class ClusterMapConfig(TypedDict, total=False):
 def create_clustermap_plot(
     adata: ad.AnnData,
     obs_keys: str | None = None,
-    use_raw: bool | None = None,  # noqa: FBT001
+    use_raw: bool | None = None,  # noqa: FBT001, RUF100
     max_genes: int | None = None,
     **config: Unpack[ClusterMapConfig],
 ) -> hv.core.layout.AdjointLayout:
@@ -123,27 +123,28 @@ def create_clustermap_plot(
 
     # Create DataFrame
     df = pd.DataFrame(x, index=adata.obs_names, columns=var_names)
+    index_name = df.index.name or "index"
+    var_name = adata.var_names.name
 
     # Convert to long format for HoloViews HeatMap
     df_melted = df.reset_index().melt(
-        id_vars="index", var_name="gene", value_name="expression"
+        id_vars=index_name, var_name=var_name, value_name="expression"
     )
-    df_melted = df_melted.rename(columns={"index": "cell"})
 
     # Add categorical annotation if provided
     vdims = ["expression"]
     if color_data is not None and obs_keys is not None:
         # Create mapping from cell names to color values
         color_mapping = dict(zip(adata.obs_names, color_data, strict=False))
-        df_melted[obs_keys] = df_melted["cell"].map(color_mapping)
+        df_melted[obs_keys] = df_melted[index_name].map(color_mapping)
         vdims.append(obs_keys)
 
     # Create base heatmap
-    heatmap = hv.HeatMap(df_melted, kdims=["gene", "cell"], vdims=vdims)
+    heatmap = hv.HeatMap(df_melted, kdims=[var_name, index_name], vdims=vdims)
 
     # Apply clustering with dendrograms
     clustered_plot = dendrogram(
-        heatmap, main_dim="expression", adjoint_dims=["gene", "cell"]
+        heatmap, main_dim="expression", adjoint_dims=[var_name, index_name]
     )
 
     # Configure plot options
