@@ -483,10 +483,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
                 values = values.T
         else:
             [ax] = dim.axes
-            values = cls._expand_grid(data)[ax]
-            if dim not in data.kdims:
-                raise NotImplementedError
-                # TODO: something like `values = dim(adata)[values]`  # noqa: TD003
+            idx = cls._expand_grid(data)[ax]
+            values = dim(adata)[idx]
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
         elif flat and values.ndim > 1:
@@ -499,7 +497,11 @@ class AnnDataGriddedInterface(AnnDataInterface):
         cls, data: Dataset
     ) -> dict[Literal["obs", "var"], NDArray[np.intp]]:
         arrays = cartesian_product(
-            [cls.coords(data, d, ordered=True) for d in data.kdims], flat=False
+            [
+                np.arange(len(getattr(data.data, next(iter(d.axes)))))
+                for d in data.kdims
+            ],
+            flat=False,
         )
         axes = cls.axes(data)
         return {ax: arrays[axes.index(ax)] for ax in axes}
