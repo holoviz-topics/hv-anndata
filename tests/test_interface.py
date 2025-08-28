@@ -4,20 +4,24 @@ from __future__ import annotations
 
 import contextlib
 from string import ascii_lowercase
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import holoviews as hv
 import numpy as np
+import numpy.testing as npt
 import pandas as pd
 import pytest
 import scipy.sparse as sp
 from anndata import AnnData
+from holoviews.core.data.interface import DataError
 
 from hv_anndata.interface import ACCESSOR as A
-from hv_anndata.interface import AnnDataInterface, register
+from hv_anndata.interface import AnnDataGriddedInterface, AnnDataInterface, register
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+
+    from numpy.typing import ArrayLike
 
     from hv_anndata.accessors import AdPath
 
@@ -118,6 +122,96 @@ def test_select(
     pd.testing.assert_index_equal(
         adata_subset.obs_names, adata[adata.obs["type"] == 0].obs_names
     )
+
+
+@pytest.mark.parametrize(
+    ("iface", "vdims", "err_msg_pat"),
+    [
+        pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab_x_2d"),
+        pytest.param("grid", [A[:, "3"]], None, id="grid_x_1d"),  # can be 2D as well
+        pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid_obs"),
+    ],
+)
+def test_init_errors(
+    iface: Literal["tab", "grid"], vdims: list[AdPath], err_msg_pat: str
+) -> None:
+    cls = AnnDataInterface if iface == "tab" else AnnDataGriddedInterface
+    adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
+    with (
+        contextlib.nullcontext()
+        if err_msg_pat is None
+        else pytest.raises(ValueError, match=err_msg_pat)
+    ):
+        cls.init(hv.Element, adata, [], vdims)
+
+
+@pytest.mark.parametrize(
+    ("kdims", "vdims", "err_msg_pat"),
+    [
+        pytest.param(
+            [A.obs.index, A.var.index],
+            [A.obs["x"]],
+            r"either.*obs.*or.*var",
+            id="grid_obs",
+        ),
+        pytest.param([A.obs.index, A.var.index], [A[:, "3"]], None, id="grid_x_1d"),
+        # TODO: other errors  # noqa: TD003
+    ],
+)
+def test_axes_errors(
+    kdims: list[AdPath], vdims: list[AdPath], err_msg_pat: str
+) -> None:
+    adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
+    with (
+        contextlib.nullcontext()
+        if err_msg_pat is None
+        else pytest.raises(DataError, match=err_msg_pat)
+    ):
+        # Dataset.__init__ calls self.interface.axes after initializing the interface
+        hv.Dataset(adata, kdims, vdims)
+
+
+@pytest.mark.parametrize(
+    "transposed", [True, False], ids=["transposed", "not_transposed"]
+)
+@pytest.mark.parametrize(
+    ("v", "dim", "expected"),
+    [
+        pytest.param("p", A[:, :], np.arange(8).reshape((2, 4)), id="p-tabular"),
+        pytest.param("p", A.obs.index, [["0"] * 4, ["1"] * 4], id="p-obs_names"),
+        pytest.param("p", A.obs["x"], [["a"] * 4, ["b"] * 4], id="p-obs[x]"),
+        pytest.param("p", A.var.index, [list("0123")] * 2, id="p-var_names"),
+        pytest.param("p", A.var["y"], [list("ABCD")] * 2, id="p-var[y]"),
+        pytest.param("l", A[:, :], np.arange(8).reshape((4, 2)), id="l-tabular"),
+        pytest.param("l", A.obs.index, [[c] * 2 for c in "0123"], id="l-obs_names"),
+        pytest.param("l", A.obs["x"], [[c] * 2 for c in "abcd"], id="l-obs[x]"),
+        pytest.param("l", A.var.index, [["0", "1"]] * 4, id="l-var_names"),
+        pytest.param("l", A.var["y"], [["A", "B"]] * 4, id="l-var[y]"),
+    ],
+)
+def test_gridded_ax(
+    *, v: Literal["p", "l"], dim: AdPath, transposed: bool, expected: ArrayLike
+) -> None:
+    adata = (
+        AnnData(
+            np.arange(8).reshape((2, 4)),
+            dict(x=["a", "b"]),
+            dict(y=["A", "B", "C", "D"]),
+        )
+        if v == "p"
+        else AnnData(
+            np.arange(8).reshape((4, 2)),
+            dict(x=["a", "b", "c", "d"]),
+            dict(y=["A", "B"]),
+        )
+    )
+    kdims = [A.var.index, A.obs.index] if transposed else [A.obs.index, A.var.index]
+    ds = hv.Dataset(adata, kdims=kdims, vdims=[A[:, :], A.obs["x"], A.var["y"]])
+
+    values = ds.dimension_values(dim, flat=False)
+
+    assert values.shape == (adata.shape[::-1] if transposed else adata.shape)
+    npt.assert_equal(values, np.transpose(expected) if transposed else expected)
 
 
 """
