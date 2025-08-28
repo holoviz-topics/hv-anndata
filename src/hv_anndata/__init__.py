@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .components import AutoCompleteMultiChoice
+from .components import GeneSelector
 from .interface import ACCESSOR as _A
 from .interface import AnnDataGriddedInterface, AnnDataInterface, register
 from .manifoldmap import ManifoldMap, ManifoldMapConfig, create_manifoldmap_plot
@@ -20,8 +20,8 @@ __all__ = [
     "ACCESSOR",
     "AnnDataGriddedInterface",
     "AnnDataInterface",
-    "AutoCompleteMultiChoice",
     "Dotmap",
+    "GeneSelector",
     "ManifoldMap",
     "ManifoldMapConfig",
     "create_manifoldmap_plot",
