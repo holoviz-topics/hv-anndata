@@ -8,6 +8,7 @@ on:
 
 env:
   FORCE_COLOR: "1"
+  UV_CONSTRAINT: "${{ github.workspace }}/.github/constraints.txt"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

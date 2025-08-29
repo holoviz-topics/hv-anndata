@@ -488,7 +488,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
         elif flat and values.ndim > 1:
-            assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
+            if isinstance(values, pd.api.extensions.ExtensionArray):
+                values = values.to_numpy()
             values = values.flatten()
         return values
 

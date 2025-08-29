@@ -87,9 +87,10 @@ def param_formatter(
         parameters += cls_params
         cname = cls.__name__
         module = cls.__module__
-        inherited.extend(
-            ["", f"    :class:`{module}.{cname}`: {', '.join(cls_params)}"]
-        )
+        inherited.extend([
+            "",
+            f"    :class:`{module}.{cname}`: {', '.join(cls_params)}",
+        ])
 
     params = [p for p in obj.param if p not in parameters]
     if params:
