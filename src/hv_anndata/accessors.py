@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast, overload
 
-import numpy as np
 import scipy.sparse as sp
 from holoviews.core.dimension import Dimension
 
@@ -171,7 +170,7 @@ class LayerVecAcc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             ver_or_mat = ad[i].layers[self.k]
             if isinstance(ver_or_mat, sp.spmatrix | sp.sparray):
-                ver_or_mat = ver_or_mat.toarray().flatten()
+                ver_or_mat = ver_or_mat.toarray()
             return ver_or_mat  # TODO: pandas  # noqa: TD003
 
         return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
@@ -258,9 +257,15 @@ class GraphVecAcc:
 class AdAc:
     r"""Accessor singleton to create :class:`AdPath`\ s."""
 
-    ATTRS: ClassVar = frozenset(
-        {"layers", "obs", "var", "obsm", "varm", "obsp", "varp"}
-    )
+    ATTRS: ClassVar = frozenset({
+        "layers",
+        "obs",
+        "var",
+        "obsm",
+        "varm",
+        "obsp",
+        "varp",
+    })
     _instance: ClassVar[Self]
 
     layers: ClassVar = LayerAcc()
@@ -278,7 +283,10 @@ class AdAc:
 
     def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].X)  # TODO: pandas, sparse, …  # noqa: TD003
+            ver_or_mat = ad[i].X
+            if isinstance(ver_or_mat, sp.spmatrix | sp.sparray):
+                ver_or_mat = ver_or_mat.toarray()
+            return ver_or_mat  # TODO: pandas  # noqa: TD003
 
         return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
 
