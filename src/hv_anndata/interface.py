@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from enum import Enum, auto
 from itertools import product
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar, cast
@@ -17,7 +17,12 @@ from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
 from holoviews.core.element import Element
 from holoviews.core.ndmapping import NdMapping, item_check, sorted_context
-from holoviews.core.util import expand_grid_coords, get_param_values, unique_iterator
+from holoviews.core.util import (
+    cartesian_product,
+    expand_grid_coords,
+    get_param_values,
+    unique_iterator,
+)
 from holoviews.element.raster import SheetCoordinateSystem
 
 from .accessors import AdAc, AdPath
@@ -41,7 +46,6 @@ if TYPE_CHECKING:
     SelectionSpec = type | Callable | str
 
     T = TypeVar("T")
-    C = TypeVar("C", bound=Callable[..., T])
     ValueType = np.ndarray | pd.api.extensions.ExtensionArray
 
 
@@ -70,28 +74,28 @@ class AnnDataInterface(hv.core.Interface):
         key_dimensions = [AdAc.from_dimension(d) for d in kdims or []]
         value_dimensions = [AdAc.from_dimension(d) for d in vdims or []]
         vdim = value_dimensions[0] if value_dimensions else None
-        ndim = 1 if not vdim else vdim(data).ndim
-        if not cls.gridded and ndim > 1:
-            msg = "AnnDataInterface cannot handle gridded data."
+        ndims = cls._ndims(vdim, data)
+        if not cls.gridded and 1 not in ndims:
+            msg = f"{cls.__name__} cannot handle gridded data."
             raise ValueError(msg)
-        if cls.gridded and ndim == 1:
-            msg = "AnnDataGriddedInterface cannot handle tabular data."
+        if cls.gridded and set(ndims) == {1}:
+            msg = f"{cls.__name__} cannot handle tabular data."
             raise ValueError(msg)
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
 
     @classmethod
     def axes(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
         """Detect if the data is gridded or columnar and along which axes it is indexed."""  # noqa: E501
-        vdim = cast("Dimension", dataset.vdims[0]) if dataset.vdims else None
-        ndim = 1 if not vdim else vdim(dataset.data).ndim
-        if ndim > 1 and len(dataset.kdims) != ndim:
+        vdim = cast("AdPath", dataset.vdims[0]) if dataset.vdims else None
+        ndims = cls._ndims(vdim, dataset.data)
+        if 1 not in ndims and len(dataset.kdims) not in ndims:
             msg = (
                 "AnnData Dataset with multi-dimensional data must declare "
-                "corresponding key dimensions."
+                f"corresponding key dimensions ({len(dataset.kdims)} ∉ {ndims})."
             )
             raise DataError(msg)
         dims = cast("list[AdPath]", dataset.dimensions())
-        if ndim > 1:
+        if set(ndims) != {1}:
             dims = dims[:2]
 
         axes: list[Literal["obs", "var"]] = []
@@ -101,13 +105,20 @@ class AnnDataInterface(hv.core.Interface):
                 raise DataError(msg)
             axes.append(next(iter(dim.axes)))
 
-        if ndim == 1 and len(set(axes)) != 1:
+        if set(ndims) == {1} and len(set(axes)) != 1:
             msg = (
                 "AnnData Dataset in tabular mode must reference data along either the "
                 "obs or the var axis, not both."
             )
             raise DataError(msg)
         return tuple(dict.fromkeys(axes).keys())
+
+    @staticmethod
+    def _ndims(vdim: AdPath | None, data: AnnData) -> Collection[int]:
+        if not vdim:
+            return {1}
+        d = vdim(data)
+        return range(sum(ax > 1 for ax in d.shape), d.ndim + 1)
 
     @classmethod
     def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002
@@ -320,7 +331,7 @@ class AnnDataInterface(hv.core.Interface):
         cls,
         dataset: Dataset,
         dimensions: Sequence[str | AdPath],
-        container_type: C,
+        container_type: Callable[..., T],
         group_type: type[Dataset],
         **kwargs: Any,  # noqa: ANN401
     ) -> T:
@@ -407,7 +418,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
     def coords(
         cls,
         dataset: Dataset,
-        dim: Dimension,
+        dim: Dimension | str,
         ordered: bool = False,  # noqa: FBT001, FBT002
         *,
         expanded: bool = False,
@@ -434,6 +445,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         shape = cls.shape(dataset, gridded=True)
         if dim in dataset.kdims:
             idx = dataset.get_dimension_index(dim)
+            # TODO: don’t do this, it’s broken if diff(shape) == 1  # noqa: TD003
             is_edges = (
                 dim in dataset.kdims
                 and len(shape) == dataset.ndims
@@ -460,23 +472,39 @@ class AnnDataGriddedInterface(AnnDataInterface):
     ) -> ValueType:
         """Retrieve values for a dimension."""
         dim = cast("AdPath", data.get_dimension(dim))
-        idx = data.get_dimension_index(dim)
         adata = cast("AnnData", data.data)
-        axes = cls.axes(data)
-        if idx <= 1 and isinstance(data, SheetCoordinateSystem):
+        if dim in data.kdims and isinstance(data, SheetCoordinateSystem):
             # On 2D datasets we generate synthetic coordinates
-            ax = axes[idx]
+            [ax] = dim.axes
             return np.arange(len(getattr(adata, ax)))
-        if expanded and dim in data.kdims:
-            values = expand_grid_coords(data, dim)
-        else:
+        if len(dim.axes) > 1 or not expanded:
             values = dim(adata)
+            if len(dim.axes) > 1 and data.kdims[0].axes == {"var"}:
+                values = values.T
+        else:
+            [ax] = dim.axes
+            idx = cls._expand_grid(data)[ax]
+            values = dim(adata)[idx]
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
         elif flat and values.ndim > 1:
             assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
             values = values.flatten()
         return values
+
+    @classmethod
+    def _expand_grid(
+        cls, data: Dataset
+    ) -> dict[Literal["obs", "var"], NDArray[np.intp]]:
+        arrays = cartesian_product(
+            [
+                np.arange(len(getattr(data.data, next(iter(d.axes)))))
+                for d in data.kdims
+            ],
+            flat=False,
+        )
+        axes = cls.axes(data)
+        return {ax: arrays[axes.index(ax)] for ax in axes}
 
     @classmethod
     def irregular(cls, dataset: Dataset, dim: Dimension | str) -> Literal[False]:

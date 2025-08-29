@@ -5,7 +5,7 @@ from __future__ import annotations
 from .clustermap import ClusterMap
 from .components import GeneSelector
 from .interface import ACCESSOR as _A
-from .interface import AnnDataInterface, register
+from .interface import AnnDataGriddedInterface, AnnDataInterface, register
 from .manifoldmap import ManifoldMap, ManifoldMapConfig, create_manifoldmap_plot
 from .plotting import Dotmap
 
@@ -19,6 +19,7 @@ ACCESSOR = _A
 
 __all__ = [
     "ACCESSOR",
+    "AnnDataGriddedInterface",
     "AnnDataInterface",
     "ClusterMap",
     "Dotmap",
