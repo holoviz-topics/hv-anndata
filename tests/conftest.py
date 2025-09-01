@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 import holoviews as hv
 import numpy as np
@@ -16,6 +16,7 @@ from hv_anndata.interface import ACCESSOR as A
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from typing import TypeAlias
 
     from hv_anndata.accessors import AdPath
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast, overload
+from typing import TYPE_CHECKING, ClassVar, cast, overload
 
 import scipy.sparse as sp
 from holoviews.core.dimension import Dimension
@@ -12,6 +12,7 @@ from holoviews.core.dimension import Dimension
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Set as AbstractSet
+    from typing import Any, Literal, Self, TypeVar
 
     import pandas as pd
     from anndata import AnnData
@@ -24,9 +25,18 @@ if TYPE_CHECKING:
     Axes = AbstractSet[Literal["obs", "var"]]
 
 
-def _idx2axes(i: Idx2D[str]) -> set[Literal["obs", "var"]]:
+def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
     """Get along which axes the referenced vector is."""
-    match i:
+    for ax_idx in idx:
+        if isinstance(ax_idx, str):
+            continue
+        if isinstance(ax_idx, slice) and ax_idx == slice(None):
+            continue
+        msg = (
+            f"Unsupported axis index {ax_idx!r} in index {idx!r} (not `:` or a string)"
+        )
+        raise ValueError(msg)
+    match idx:
         case slice(), str():
             return {"obs"}
         case str(), slice():
@@ -34,7 +44,7 @@ def _idx2axes(i: Idx2D[str]) -> set[Literal["obs", "var"]]:
         case slice(), slice():
             return {"obs", "var"}
         case _:  # pragma: no cover
-            msg = f"Invalid index: {i}"
+            msg = f"Invalid index: {idx}"
             raise AssertionError(msg)
 
 
@@ -157,6 +167,9 @@ class LayerAcc:
     """Accessor for layers."""
 
     def __getitem__(self, k: str) -> LayerVecAcc:
+        if not isinstance(k, str):
+            msg = f"Unsupported layer {k!r}"
+            raise TypeError(msg)
         return LayerVecAcc(k)
 
 
@@ -196,6 +209,10 @@ class MetaAcc:
         return AdPath(f"A.{self.ax}.index", get, {self.ax})
 
     def __getitem__(self, k: str) -> AdPath:
+        if not isinstance(k, str):
+            msg = f"Unsupported {self.ax} column {k!r}"
+            raise TypeError(msg)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return cast("pd.DataFrame", getattr(ad, self.ax))[k].values
 
@@ -209,6 +226,9 @@ class MultiAcc:
     ax: Literal["obsm", "varm"]
 
     def __getitem__(self, k: str) -> MultiVecAcc:
+        if not isinstance(k, str):
+            msg = f"Unsupported {self.ax} key {k!r}"
+            raise TypeError(msg)
         return MultiVecAcc(self.ax, k)
 
 
@@ -226,6 +246,10 @@ class MultiVecAcc:
                 raise ValueError(msg)
             i = i[1]
 
+        if not isinstance(i, int):
+            msg = f"Unsupported index {i!r}"
+            raise TypeError(msg)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return getattr(ad, self.ax)[self.k][:, i]
 
@@ -240,6 +264,9 @@ class GraphAcc:
     ax: Literal["obsp", "varp"]
 
     def __getitem__(self, k: str) -> GraphVecAcc:
+        if not isinstance(k, str):
+            msg = f"Unsupported {self.ax} key {k!r}"
+            raise TypeError(msg)
         return GraphVecAcc(self.ax, k)
 
 

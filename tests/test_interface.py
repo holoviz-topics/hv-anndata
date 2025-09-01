@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from string import ascii_lowercase
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING
 
 import holoviews as hv
 import numpy as np
@@ -20,6 +20,7 @@ from hv_anndata.interface import AnnDataGriddedInterface, AnnDataInterface, regi
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+    from typing import Any, Literal
 
     from numpy.typing import ArrayLike
 
