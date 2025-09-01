@@ -172,7 +172,7 @@ def test_select(
     ("iface", "vdims", "err_msg_pat"),
     [
         pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab_x_2d"),
-        pytest.param("grid", [A[:, "3"]], None, id="grid_x_1d"),  # can be 2D as well
+        pytest.param("grid", [A[:, "3"]], r"cannot handle tabular", id="grid_x_1d"),
         pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid_obs"),
     ],
 )
@@ -198,7 +198,12 @@ def test_init_errors(
             r"either.*obs.*or.*var",
             id="grid_obs",
         ),
-        pytest.param([A.obs.index, A.var.index], [A[:, "3"]], None, id="grid_x_1d"),
+        pytest.param(
+            [A.obs.index, A.var.index],
+            [A[:, "3"]],
+            r"either.*obs.*or.*var",
+            id="grid_x_1d",
+        ),
         # TODO: other errors  # noqa: TD003
     ],
 )

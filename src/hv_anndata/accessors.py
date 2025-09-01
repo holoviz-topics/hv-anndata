@@ -76,7 +76,7 @@ class AdPath(Dimension):
     def clone(
         self,
         spec: str | tuple[str, str] | None = None,
-        func: AdPathFunc = None,
+        func: AdPathFunc | None = None,
         axes: Axes | None = None,
         **overrides: Any,  # noqa: ANN401
     ) -> Self:
@@ -164,16 +164,20 @@ class LayerAcc:
 class LayerVecAcc:
     """Accessor for layer vectors."""
 
-    k: str
+    k: str | None
 
     def __getitem__(self, i: Idx2D[str]) -> AdPath:
+        axes = _idx2axes(i)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            ver_or_mat = ad[i].layers[self.k]
+            ver_or_mat = ad[i].X if self.k is None else ad[i].layers[self.k]
             if isinstance(ver_or_mat, sp.spmatrix | sp.sparray):
                 ver_or_mat = ver_or_mat.toarray()
-            return ver_or_mat  # TODO: pandas  # noqa: TD003
+            # TODO: pandas  # noqa: TD003
+            return ver_or_mat.flatten() if len(axes) == 1 else ver_or_mat
 
-        return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
+        sub = "" if self.k is None else f".layers[{self.k!r}]"
+        return AdPath(f"A{sub}[{i[0]!r}, {i[1]!r}]", get, axes)
 
 
 @dataclass(frozen=True)
@@ -254,8 +258,11 @@ class GraphVecAcc:
         return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, {ax})
 
 
-class AdAc:
+@dataclass(frozen=True)
+class AdAc(LayerVecAcc):
     r"""Accessor singleton to create :class:`AdPath`\ s."""
+
+    k: None = None
 
     ATTRS: ClassVar = frozenset({
         "layers",
@@ -280,15 +287,6 @@ class AdAc:
         if not hasattr(cls, "_instance"):
             cls._instance = object.__new__(cls)
         return cls._instance
-
-    def __getitem__(self, i: Idx2D[str]) -> AdPath:
-        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            ver_or_mat = ad[i].X
-            if isinstance(ver_or_mat, sp.spmatrix | sp.sparray):
-                ver_or_mat = ver_or_mat.toarray()
-            return ver_or_mat  # TODO: pandas  # noqa: TD003
-
-        return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
 
     @overload
     @classmethod
