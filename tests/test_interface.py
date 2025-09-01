@@ -54,85 +54,53 @@ def adata() -> AnnData:
     return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
 
 
-PATHS: list[
-    tuple[AdPath, Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series]]
-] = [
-    (A[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
-    (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
-    (A.obs["type"], lambda ad: ad.obs["type"]),
-    (A.obs.index, lambda ad: ad.obs.index.values),
-    (
-        A.layers["a"][:, "gene-18"],
-        lambda ad: ad[:, "gene-18"].layers["a"].copy().toarray().flatten(),
-    ),
-    (
-        A.layers["a"]["cell-77", :],
-        lambda ad: ad["cell-77"].layers["a"].copy().toarray().flatten(),
-    ),
-    (A.obsm["umap"][0], lambda ad: ad.obsm["umap"][:, 0]),
-    (A.obsm["umap"][1], lambda ad: ad.obsm["umap"][:, 1]),
-    (A.varp["cons"][46, :], lambda ad: ad.varp["cons"][46, :].toarray()),
-    (A.varp["cons"][:, 46], lambda ad: ad.varp["cons"][:, 46].toarray()),
-]
-
-PATH_PARAMS = [
-    pytest.param(n, f, id=str(n).replace("slice(None, None, None)", ":"))
-    for n, f in PATHS
-]
-
-
-@pytest.mark.parametrize(("path", "expected"), PATH_PARAMS)
 def test_get_values_table(
     adata: AnnData,
-    path: AdPath,
-    expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
+    ad_path: AdPath,
+    ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    data = hv.Dataset(adata, [path])
+    data = hv.Dataset(adata, [ad_path])
 
     assert data.interface is AnnDataInterface
-    vals = data.interface.values(data, path, keep_index=True)
+    vals = data.interface.values(data, ad_path, keep_index=True)
 
     if isinstance(vals, np.ndarray):
-        np.testing.assert_array_equal(vals, expected(adata), strict=True)
+        np.testing.assert_array_equal(vals, ad_expected(adata), strict=True)
     else:  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
 
 
 @pytest.mark.parametrize("expanded", [True, False], ids=["expanded", "normal"])
 @pytest.mark.parametrize("flat", [True, False], ids=["flat", "nested"])
-@pytest.mark.parametrize(
-    ("path", "expected_fn"),
-    [*PATH_PARAMS, pytest.param(A[:, :], lambda ad: ad.X, id="A[:, :]")],
-)
 def test_get_values_grid(
     *,
     adata: AnnData,
-    path: AdPath,
+    ad_path: AdPath,
     expanded: bool,
     flat: bool,
-    expected_fn: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
+    ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    data = hv.Dataset(adata, [A.obs.index, A.var.index], [A[:, :], path])
+    data = hv.Dataset(adata, [A.obs.index, A.var.index], [A[:, :], ad_path])
     assert data.interface is AnnDataGriddedInterface
     # prepare expected array
-    expected = expected_fn(adata)
+    expected = ad_expected(adata)
     if isinstance(expected, pd.Series):
         expected = expected.values
     if not isinstance(expected, np.ndarray):
         pytest.fail(f"Unexpected return type {type(expected)}")
     if expanded:
-        if path.axes == {"var"}:
+        if ad_path.axes == {"var"}:
             expected = np.broadcast_to(expected, (adata.n_obs, len(expected)))
-        elif path.axes == {"obs"}:
+        elif ad_path.axes == {"obs"}:
             expected = np.broadcast_to(expected, (adata.n_vars, len(expected))).T
         else:
-            assert path.axes == {"var", "obs"}
+            assert ad_path.axes == {"var", "obs"}
     if flat:
         expected = expected.flatten()
 
     # get values
     vals = data.interface.values(
-        data, path, expanded=expanded, flat=flat, keep_index=False
+        data, ad_path, expanded=expanded, flat=flat, keep_index=False
     )
 
     # compare

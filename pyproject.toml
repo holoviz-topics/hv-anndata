@@ -35,7 +35,11 @@ source = "vcs"
 extra-dependencies = [ "ipykernel" ]
 installer = "uv"
 [tool.hatch.envs.hatch-test]
-extra-dependencies = [ "ipykernel", "nbformat-types", "scanpy" ]
+extra-dependencies = [
+  "pytest-cov",     # for VS Code’s coverage function (not needed for `hatch test -c`)
+  "nbformat-types",
+  "scanpy",
+]
 [tool.hatch.envs.docs]
 scripts.build = "sphinx-build -W --keep-going -b html docs docs/_build/html {args}"
 scripts.clean = "git clean -fdX -- {args:docs}"
