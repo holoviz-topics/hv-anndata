@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, TypedDict, Unpack
+from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
 import bokeh
@@ -22,6 +22,7 @@ from panel.reactive import hold
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Literal, Unpack
 
     from holoviews.streams import Stream
 

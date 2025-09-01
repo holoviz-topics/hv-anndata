@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Collection, Mapping
+from collections.abc import Mapping
 from enum import Enum, auto
 from itertools import product
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar, cast
+from typing import TYPE_CHECKING, cast
 
 import holoviews as hv
 import numpy as np
@@ -28,8 +28,9 @@ from holoviews.element.raster import SheetCoordinateSystem
 from .accessors import AdAc, AdPath
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Collection, Sequence
     from numbers import Number
+    from typing import Any, Literal, TypedDict, TypeVar
 
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray

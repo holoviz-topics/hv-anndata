@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast, overload
+from typing import TYPE_CHECKING, ClassVar, cast, overload
 
 import scipy.sparse as sp
 from holoviews.core.dimension import Dimension
@@ -12,6 +12,7 @@ from holoviews.core.dimension import Dimension
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Set as AbstractSet
+    from typing import Any, Literal, Self, TypeVar
 
     import pandas as pd
     from anndata import AnnData

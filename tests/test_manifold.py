@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import anndata as ad
 import colorcet as cc
@@ -13,6 +14,9 @@ import panel_material_ui as pmui
 import pytest
 
 from hv_anndata.manifoldmap import ManifoldMap, create_manifoldmap_plot, labeller
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 
 @pytest.fixture
