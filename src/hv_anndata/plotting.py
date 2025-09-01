@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
 import holoviews as hv
@@ -18,7 +18,7 @@ from .components import GeneSelector
 _HOLOVIEWS_VERSION = Version(hv.__version__).release
 
 if TYPE_CHECKING:
-    from typing import NotRequired, Unpack
+    from typing import Any, Literal, NotRequired, Unpack
 
 
 class _DotmapPlotParams(TypedDict):

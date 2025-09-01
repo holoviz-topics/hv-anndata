@@ -10,12 +10,14 @@ from __future__ import annotations
 import inspect
 from contextlib import suppress
 from functools import partial
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import param
 from param.parameterized import label_formatter
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from sphinx.application import Sphinx
 
     class _Options:
