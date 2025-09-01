@@ -55,6 +55,7 @@ extra-dependencies = [
 ]
 
 [tool.ruff]
+format.preview = true
 lint.select = [ "ALL" ]
 lint.ignore = [
   "B019",   # functools.cache is fine to use

@@ -75,26 +75,70 @@ PATHS: list[
     (A.varp["cons"][:, 46], lambda ad: ad.varp["cons"][:, 46].toarray()),
 ]
 
+PATH_PARAMS = [
+    pytest.param(n, f, id=str(n).replace("slice(None, None, None)", ":"))
+    for n, f in PATHS
+]
 
-@pytest.mark.parametrize(
-    ("path", "expected"),
-    [
-        pytest.param(n, f, id=str(n).replace("slice(None, None, None)", ":"))
-        for n, f in PATHS
-    ],
-)
-def test_get(
+
+@pytest.mark.parametrize(("path", "expected"), PATH_PARAMS)
+def test_get_values_table(
     adata: AnnData,
     path: AdPath,
     expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
     data = hv.Dataset(adata, [path])
+
     assert data.interface is AnnDataInterface
     vals = data.interface.values(data, path, keep_index=True)
+
     if isinstance(vals, np.ndarray):
         np.testing.assert_array_equal(vals, expected(adata), strict=True)
     else:  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
+
+
+@pytest.mark.parametrize("expanded", [True, False], ids=["expanded", "normal"])
+@pytest.mark.parametrize("flat", [True, False], ids=["flat", "nested"])
+@pytest.mark.parametrize(
+    ("path", "expected_fn"),
+    [*PATH_PARAMS, pytest.param(A[:, :], lambda ad: ad.X, id="A[:, :]")],
+)
+def test_get_values_grid(
+    *,
+    adata: AnnData,
+    path: AdPath,
+    expanded: bool,
+    flat: bool,
+    expected_fn: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
+) -> None:
+    data = hv.Dataset(adata, [A.obs.index, A.var.index], [A[:, :], path])
+    assert data.interface is AnnDataGriddedInterface
+    # prepare expected array
+    expected = expected_fn(adata)
+    if isinstance(expected, pd.Series):
+        expected = expected.values
+    if not isinstance(expected, np.ndarray):
+        pytest.fail(f"Unexpected return type {type(expected)}")
+    if expanded:
+        if path.axes == {"var"}:
+            expected = np.broadcast_to(expected, (adata.n_obs, len(expected)))
+        elif path.axes == {"obs"}:
+            expected = np.broadcast_to(expected, (adata.n_vars, len(expected))).T
+        else:
+            assert path.axes == {"var", "obs"}
+    if flat:
+        expected = expected.flatten()
+
+    # get values
+    vals = data.interface.values(
+        data, path, expanded=expanded, flat=flat, keep_index=False
+    )
+
+    # compare
+    if not isinstance(vals, np.ndarray):
+        pytest.fail(f"Unexpected return type {type(vals)}")
+    np.testing.assert_array_equal(vals, expected, strict=True)
 
 
 @pytest.mark.parametrize(
@@ -128,7 +172,7 @@ def test_select(
     ("iface", "vdims", "err_msg_pat"),
     [
         pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab_x_2d"),
-        pytest.param("grid", [A[:, "3"]], None, id="grid_x_1d"),  # can be 2D as well
+        pytest.param("grid", [A[:, "3"]], r"cannot handle tabular", id="grid_x_1d"),
         pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid_obs"),
     ],
 )
@@ -154,7 +198,12 @@ def test_init_errors(
             r"either.*obs.*or.*var",
             id="grid_obs",
         ),
-        pytest.param([A.obs.index, A.var.index], [A[:, "3"]], None, id="grid_x_1d"),
+        pytest.param(
+            [A.obs.index, A.var.index],
+            [A[:, "3"]],
+            r"either.*obs.*or.*var",
+            id="grid_x_1d",
+        ),
         # TODO: other errors  # noqa: TD003
     ],
 )
