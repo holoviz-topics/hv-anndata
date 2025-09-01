@@ -49,6 +49,7 @@ PATHS: list[tuple[AdPath, AdPathExpected]] = [
     (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
     (A.obs["type"], lambda ad: ad.obs["type"]),
     (A.obs.index, lambda ad: ad.obs.index.values),
+    (A.layers["a"][:, :], lambda ad: ad.layers["a"].copy().toarray()),
     (
         A.layers["a"][:, "gene-18"],
         lambda ad: ad[:, "gene-18"].layers["a"].copy().toarray().flatten(),
