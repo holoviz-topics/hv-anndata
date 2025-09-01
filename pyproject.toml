@@ -124,4 +124,8 @@ session_info2 = [ "src/hv_anndata", "*/hv-anndata/src/hv_anndata" ]
 tests = [ "tests", "*/hv-anndata/tests" ]
 
 [tool.coverage.report]
-exclude_lines = [ "no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:" ]
+exclude_also = [
+  'if __name__ == .__main__.:',
+  'if TYPE_CHECKING:',
+  'pytest\.fail(.*)',
+]

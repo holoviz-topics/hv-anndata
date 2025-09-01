@@ -44,6 +44,7 @@ def mpl_backend() -> Iterator[None]:
 AdPathExpected: TypeAlias = Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series]
 
 PATHS: list[tuple[AdPath, AdPathExpected]] = [
+    (A[:, :], lambda ad: ad.X),
     (A[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
     (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
     (A.obs["type"], lambda ad: ad.obs["type"]),

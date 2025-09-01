@@ -55,10 +55,13 @@ def adata() -> AnnData:
 
 
 def test_get_values_table(
+    request: pytest.FixtureRequest,
     adata: AnnData,
     ad_path: AdPath,
     ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
+    if ad_path.axes == {"obs", "var"}:
+        request.applymarker("xfail")
     data = hv.Dataset(adata, [ad_path])
 
     assert data.interface is AnnDataInterface
