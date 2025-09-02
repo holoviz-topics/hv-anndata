@@ -39,6 +39,8 @@ def test_repr(ad_path: AdPath) -> None:
 def test_resolve(spec: str, expected: AdPath) -> None:
     try:
         assert AdAc.resolve(spec) == expected
+        assert spec == expected
+        assert expected != ""
     except NotImplementedError:
         pytest.xfail("not implemented")
 

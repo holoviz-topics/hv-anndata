@@ -387,22 +387,24 @@ def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
             return cls(i), slice(None)
         case ":", _:
             return slice(None), cls(j)
-        case _:
+        case _:  # pragma: no cover
             msg = f"Unknown indices {i!r}, {j!r}"
             raise ValueError(msg)
 
 
 def _parse_path_layer(layers: LayerAcc, spec: str) -> AdPath:
-    if m := re.fullmatch(r"([^\[]+)\[([^,]+),\s?([^\]]+)\]", spec):
-        layer, i, j = m.groups("")  # "" just for typing
-        return layers[layer][_parse_idx_2d(i, j, str)]
-    msg = f"Cannot parse layer accessor {spec!r}: should be `name[i,:]` or `name[:,j]`"
-    raise ValueError(msg)
+    if not (
+        m := re.fullmatch(r"([^\[]+)\[([^,]+),\s?([^\]]+)\]", spec)
+    ):  # pragma: no cover
+        msg = f"Cannot parse layer accessor {spec!r}: should be `name[i,:]`/`name[:,j]`"
+        raise ValueError(msg)
+    layer, i, j = m.groups("")  # "" just for typing
+    return layers[layer][_parse_idx_2d(i, j, str)]
 
 
 def _parse_path_multi(multi: MultiAcc, spec: str) -> AdPath:
-    if m := re.fullmatch(r"([^.]+)\.([\d_]+)", spec):
-        key, i = m.groups("")  # "" just for typing
-        return multi[key][int(i)]
-    msg = f"Cannot parse multi accessor {spec!r}: should be `name.i`"
-    raise ValueError(msg)
+    if not (m := re.fullmatch(r"([^.]+)\.([\d_]+)", spec)):  # pragma: no cover
+        msg = f"Cannot parse multi accessor {spec!r}: should be `name.i`"
+        raise ValueError(msg)
+    key, i = m.groups("")  # "" just for typing
+    return multi[key][int(i)]
