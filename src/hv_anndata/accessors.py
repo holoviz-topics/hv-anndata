@@ -25,29 +25,6 @@ if TYPE_CHECKING:
     Axes = AbstractSet[Literal["obs", "var"]]
 
 
-def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
-    """Get along which axes the referenced vector is."""
-    for ax_idx in idx:
-        if isinstance(ax_idx, str):
-            continue
-        if isinstance(ax_idx, slice) and ax_idx == slice(None):
-            continue
-        msg = (
-            f"Unsupported axis index {ax_idx!r} in index {idx!r} (not `:` or a string)"
-        )
-        raise ValueError(msg)
-    match idx:
-        case slice(), str():
-            return {"obs"}
-        case str(), slice():
-            return {"var"}
-        case slice(), slice():
-            return {"obs", "var"}
-        case _:  # pragma: no cover
-            msg = f"Invalid index: {idx}"
-            raise AssertionError(msg)
-
-
 class AdPath(Dimension):
     """A path referencing an array in an AnnData object."""
 
@@ -277,7 +254,7 @@ class GraphVecAcc:
     ax: Literal["obsp", "varp"]
     k: str
 
-    def __getitem__(self, i: Idx2D[int]) -> AdPath:
+    def __getitem__(self, i: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return getattr(ad, self.ax)[self.k][i].toarray().flatten()
 
@@ -361,6 +338,7 @@ class AdAc(LayerVecAcc):
             raise ValueError(msg)
         acc, rest = spec.split(".", 1)
         match getattr(cls(), acc, None):
+            # TODO: X  # noqa: TD003
             case LayerAcc() as layers:
                 return _parse_path_layer(layers, rest)
             case MetaAcc() as meta:
@@ -368,9 +346,6 @@ class AdAc(LayerVecAcc):
             case MultiAcc() as multi:
                 return _parse_path_multi(multi, rest)
             case GraphAcc():
-                msg = "TODO"
-                raise NotImplementedError(msg)
-            case AdPath():
                 msg = "TODO"
                 raise NotImplementedError(msg)
             case None:  # pragma: no cover
@@ -383,12 +358,35 @@ class AdAc(LayerVecAcc):
         raise AssertionError(msg)  # pragma: no cover
 
 
+def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
+    """Get along which axes the referenced vector is."""
+    for ax_idx in idx:
+        if isinstance(ax_idx, str):
+            continue
+        if isinstance(ax_idx, slice) and ax_idx == slice(None):
+            continue
+        msg = (
+            f"Unsupported axis index {ax_idx!r} in index {idx!r} (not `:` or a string)"
+        )
+        raise ValueError(msg)
+    match idx:
+        case slice(), str():
+            return {"obs"}
+        case str(), slice():
+            return {"var"}
+        case slice(), slice():
+            return {"obs", "var"}
+        case _:  # pragma: no cover
+            msg = f"Invalid index: {idx}"
+            raise AssertionError(msg)
+
+
 def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
     match i, j:
         case _, ":":
-            return cls(0), slice(None)
+            return cls(i), slice(None)
         case ":", _:
-            return slice(None), cls(0)
+            return slice(None), cls(j)
         case _:
             msg = f"Unknown indices {i!r}, {j!r}"
             raise ValueError(msg)
