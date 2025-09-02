@@ -143,9 +143,9 @@ def test_select(
 @pytest.mark.parametrize(
     ("iface", "vdims", "err_msg_pat"),
     [
-        pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab_x_2d"),
-        pytest.param("grid", [A[:, "3"]], r"cannot handle tabular", id="grid_x_1d"),
-        pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid_obs"),
+        pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab-x_2d"),
+        pytest.param("grid", [A[:, "3"]], r"cannot handle tabular", id="grid-x_1d"),
+        pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid-obs"),
     ],
 )
 def test_init_errors(
@@ -153,12 +153,22 @@ def test_init_errors(
 ) -> None:
     cls = AnnDataInterface if iface == "tab" else AnnDataGriddedInterface
     adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
-    with (
-        contextlib.nullcontext()
-        if err_msg_pat is None
-        else pytest.raises(ValueError, match=err_msg_pat)
-    ):
+    with pytest.raises(ValueError, match=err_msg_pat):
         cls.init(hv.Element, adata, [], vdims)
+
+
+@pytest.mark.parametrize(
+    ("kdims", "err_msg_pat"),
+    [
+        pytest.param(
+            [A.obs["zzzzz"]], r"dimensions.*not found.*A.obs\['zzzzz'\]", id="missing"
+        ),
+    ],
+)
+def test_validate_errors(kdims: list[AdPath], err_msg_pat: str) -> None:
+    adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
+    with pytest.raises(DataError, match=err_msg_pat):
+        hv.Dataset(adata, kdims)
 
 
 @pytest.mark.parametrize(
