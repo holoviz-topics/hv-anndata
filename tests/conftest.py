@@ -61,8 +61,8 @@ PATHS: list[tuple[AdPath, AdPathExpected]] = [
     ),
     (A.obsm["umap"][0], lambda ad: ad.obsm["umap"][:, 0]),
     (A.obsm["umap"][1], lambda ad: ad.obsm["umap"][:, 1]),
-    (A.varp["cons"][46, :], lambda ad: ad.varp["cons"][46, :].toarray()),
-    (A.varp["cons"][:, 46], lambda ad: ad.varp["cons"][:, 46].toarray()),
+    (A.varp["cons"]["gene-46", :], lambda ad: ad.varp["cons"][46, :].toarray()),
+    (A.varp["cons"][:, "gene-46"], lambda ad: ad.varp["cons"][:, 46].toarray()),
 ]
 
 

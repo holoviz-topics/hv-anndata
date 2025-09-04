@@ -255,6 +255,10 @@ class GraphVecAcc:
     k: str
 
     def __getitem__(self, idx: Idx2D[str]) -> AdPath:
+        if not all(isinstance(i, str | slice) for i in idx):
+            msg = f"Unsupported index {idx!r}"
+            raise TypeError(msg)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             df = cast("pd.DataFrame", getattr(ad, self.ax[:-1]))
             iloc = tuple(df.index.get_loc(i) if isinstance(i, str) else i for i in idx)

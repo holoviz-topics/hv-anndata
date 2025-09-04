@@ -58,7 +58,7 @@ def test_resolve(spec: str, expected: AdPath) -> None:
         pytest.param(lambda: A.obsm["a"][:3, 0], id="obsm-partslice"),
         pytest.param(lambda: A.obsm["a"]["b"], id="obsm-noint"),
         pytest.param(lambda: A.varp[0], id="varp-nostr"),
-        # TODO: pytest.param(lambda: A.varp["x"][...], id="varp-noint"),  # noqa: TD003
+        pytest.param(lambda: A.varp["x"][0, :], id="varp-nostr-inner"),
     ],
 )
 def test_invalid(mk_path: Callable[[], AdPath]) -> None:
