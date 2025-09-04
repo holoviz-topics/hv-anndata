@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
 
     from hv_anndata.accessors import AdPath
+    from hv_anndata.interface import SelectionValues
 
 
 @pytest.fixture(autouse=True)
@@ -55,85 +56,56 @@ def adata() -> AnnData:
     return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
 
 
-PATHS: list[
-    tuple[AdPath, Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series]]
-] = [
-    (A[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
-    (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
-    (A.obs["type"], lambda ad: ad.obs["type"]),
-    (A.obs.index, lambda ad: ad.obs.index.values),
-    (
-        A.layers["a"][:, "gene-18"],
-        lambda ad: ad[:, "gene-18"].layers["a"].copy().toarray().flatten(),
-    ),
-    (
-        A.layers["a"]["cell-77", :],
-        lambda ad: ad["cell-77"].layers["a"].copy().toarray().flatten(),
-    ),
-    (A.obsm["umap"][0], lambda ad: ad.obsm["umap"][:, 0]),
-    (A.obsm["umap"][1], lambda ad: ad.obsm["umap"][:, 1]),
-    (A.varp["cons"][46, :], lambda ad: ad.varp["cons"][46, :].toarray()),
-    (A.varp["cons"][:, 46], lambda ad: ad.varp["cons"][:, 46].toarray()),
-]
-
-PATH_PARAMS = [
-    pytest.param(n, f, id=str(n).replace("slice(None, None, None)", ":"))
-    for n, f in PATHS
-]
-
-
-@pytest.mark.parametrize(("path", "expected"), PATH_PARAMS)
 def test_get_values_table(
+    request: pytest.FixtureRequest,
     adata: AnnData,
-    path: AdPath,
-    expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
+    ad_path: AdPath,
+    ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    data = hv.Dataset(adata, [path])
+    if ad_path.axes == {"obs", "var"}:
+        request.applymarker("xfail")
+    data = hv.Dataset(adata, [ad_path])
 
     assert data.interface is AnnDataInterface
-    vals = data.interface.values(data, path, keep_index=True)
+    vals = data.interface.values(data, ad_path, keep_index=True)
 
     if isinstance(vals, np.ndarray):
-        np.testing.assert_array_equal(vals, expected(adata), strict=True)
+        np.testing.assert_array_equal(vals, ad_expected(adata), strict=True)
     else:  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
 
 
 @pytest.mark.parametrize("expanded", [True, False], ids=["expanded", "normal"])
 @pytest.mark.parametrize("flat", [True, False], ids=["flat", "nested"])
-@pytest.mark.parametrize(
-    ("path", "expected_fn"),
-    [*PATH_PARAMS, pytest.param(A[:, :], lambda ad: ad.X, id="A[:, :]")],
-)
 def test_get_values_grid(
     *,
     adata: AnnData,
-    path: AdPath,
+    ad_path: AdPath,
     expanded: bool,
     flat: bool,
-    expected_fn: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
+    ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    data = hv.Dataset(adata, [A.obs.index, A.var.index], [A[:, :], path])
+    data = hv.Dataset(adata, [A.obs.index, A.var.index], [A[:, :], ad_path])
     assert data.interface is AnnDataGriddedInterface
     # prepare expected array
-    expected = expected_fn(adata)
+    expected = ad_expected(adata)
     if isinstance(expected, pd.Series):
         expected = expected.values
     if not isinstance(expected, np.ndarray):
         pytest.fail(f"Unexpected return type {type(expected)}")
     if expanded:
-        if path.axes == {"var"}:
+        if ad_path.axes == {"var"}:
             expected = np.broadcast_to(expected, (adata.n_obs, len(expected)))
-        elif path.axes == {"obs"}:
+        elif ad_path.axes == {"obs"}:
             expected = np.broadcast_to(expected, (adata.n_vars, len(expected))).T
         else:
-            assert path.axes == {"var", "obs"}
+            assert ad_path.axes == {"var", "obs"}
     if flat:
         expected = expected.flatten()
 
     # get values
     vals = data.interface.values(
-        data, path, expanded=expanded, flat=flat, keep_index=False
+        data, ad_path, expanded=expanded, flat=flat, keep_index=False
     )
 
     # compare
@@ -143,21 +115,32 @@ def test_get_values_grid(
 
 
 @pytest.mark.parametrize(
-    ("sel_args", "sel_kw"),
+    "zero", [0, slice(0, 1), {0}, [0], lambda vs: vs == 0], ids=type
+)
+@pytest.mark.parametrize(
+    "mk_sel",
     [
-        pytest.param(({A.obs["type"]: 0},), {}, id="dict"),
-        pytest.param((), {"obs.type": 0}, id="kwargs"),
+        pytest.param(lambda i: (({A.obs["type"]: i},), {}), id="dict"),
+        pytest.param(lambda i: ((), {"obs.type": i}), id="kwargs"),
         pytest.param(
-            (hv.dim(A.obs["type"]) == 0,),
-            {},
+            lambda i: ((hv.dim(A.obs["type"]) == i,), {}),
             id="expression",
+            marks=pytest.mark.xfail(reason="Not implemented"),
+        ),
+        pytest.param(
+            # TODO: actually figure out how selection_specs work  # noqa: TD003
+            lambda _: ((), dict(selection_specs=[hv.Dataset])),
+            id="specs",
             marks=pytest.mark.xfail(reason="Not implemented"),
         ),
     ],
 )
 def test_select(
-    adata: AnnData, sel_args: tuple[Any, ...], sel_kw: dict[str, Any]
+    adata: AnnData,
+    mk_sel: Callable[[SelectionValues], tuple[tuple[Any, ...], dict[str, Any]]],
+    zero: SelectionValues,
 ) -> None:
+    sel_args, sel_kw = mk_sel(zero)
     data = hv.Dataset(adata, A.obsm["umap"][0], [A.obsm["umap"][1], A.obs["type"]])
     assert data.interface is AnnDataInterface
     ds_sel = data.select(*sel_args, **sel_kw)
@@ -169,12 +152,23 @@ def test_select(
     )
 
 
+def test_select_var(adata: AnnData) -> None:
+    data = hv.Dataset(adata, A.var.index, [A.var["grp"]])
+    assert data.interface is AnnDataInterface
+    ds_sel = data.select({A.var["grp"]: "a"})
+    adata_subset = ds_sel.data
+    assert isinstance(adata_subset, AnnData)
+    pd.testing.assert_index_equal(
+        adata_subset.var_names, adata[:, adata.var["grp"] == "a"].var_names
+    )
+
+
 @pytest.mark.parametrize(
     ("iface", "vdims", "err_msg_pat"),
     [
-        pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab_x_2d"),
-        pytest.param("grid", [A[:, "3"]], r"cannot handle tabular", id="grid_x_1d"),
-        pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid_obs"),
+        pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab-x_2d"),
+        pytest.param("grid", [A[:, "3"]], r"cannot handle tabular", id="grid-x_1d"),
+        pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid-obs"),
     ],
 )
 def test_init_errors(
@@ -182,12 +176,22 @@ def test_init_errors(
 ) -> None:
     cls = AnnDataInterface if iface == "tab" else AnnDataGriddedInterface
     adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
-    with (
-        contextlib.nullcontext()
-        if err_msg_pat is None
-        else pytest.raises(ValueError, match=err_msg_pat)
-    ):
+    with pytest.raises(ValueError, match=err_msg_pat):
         cls.init(hv.Element, adata, [], vdims)
+
+
+@pytest.mark.parametrize(
+    ("kdims", "err_msg_pat"),
+    [
+        pytest.param(
+            [A.obs["zzzzz"]], r"dimensions.*not found.*A.obs\['zzzzz'\]", id="missing"
+        ),
+    ],
+)
+def test_validate_errors(kdims: list[AdPath], err_msg_pat: str) -> None:
+    adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
+    with pytest.raises(DataError, match=err_msg_pat):
+        hv.Dataset(adata, kdims)
 
 
 @pytest.mark.parametrize(
@@ -262,13 +266,3 @@ def test_gridded_ax(
 
     assert values.shape == (adata.shape[::-1] if transposed else adata.shape)
     npt.assert_equal(values, np.transpose(expected) if transposed else expected)
-
-
-"""
-def test_plot(adata: AnnData) -> None:
-    p = (
-        hv.Scatter(adata, "obsm.umap.0", ["obsm.umap.1", "obs.type"])
-        .opts(color="obs.type", cmap="Category20")
-        .hist()
-    )
-"""

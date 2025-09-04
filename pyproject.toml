@@ -35,7 +35,11 @@ source = "vcs"
 extra-dependencies = [ "ipykernel" ]
 installer = "uv"
 [tool.hatch.envs.hatch-test]
-extra-dependencies = [ "ipykernel", "nbformat-types", "scanpy" ]
+extra-dependencies = [
+  "pytest-cov",     # for VS Code’s coverage function (not needed for `hatch test -c`)
+  "nbformat-types",
+  "scanpy",
+]
 [tool.hatch.envs.docs]
 scripts.build = "sphinx-build -W --keep-going -b html docs docs/_build/html {args}"
 scripts.clean = "git clean -fdX -- {args:docs}"
@@ -122,4 +126,8 @@ session_info2 = [ "src/hv_anndata", "*/hv-anndata/src/hv_anndata" ]
 tests = [ "tests", "*/hv-anndata/tests" ]
 
 [tool.coverage.report]
-exclude_lines = [ "no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:" ]
+exclude_also = [
+  'if __name__ == .__main__.:',
+  'if TYPE_CHECKING:',
+  'pytest\.fail(.*)',
+]

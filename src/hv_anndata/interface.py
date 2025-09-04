@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Mapping
-from enum import Enum, auto
 from itertools import product
 from typing import TYPE_CHECKING, cast
 
@@ -28,7 +26,7 @@ from holoviews.element.raster import SheetCoordinateSystem
 from .accessors import AdAc, AdPath
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
     from numbers import Number
     from typing import Any, Literal, TypedDict, TypeVar
 
@@ -42,7 +40,11 @@ if TYPE_CHECKING:
         vdims: Sequence[Dimension] | None
 
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L594-L607
-    SelectionValues = tuple[Number, Number] | Sequence[Number]
+    SelectionValues = (
+        tuple[Number, Number]
+        | Sequence[Number]
+        | Callable[[NDArray], NDArray[np.bool_]]
+    )
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L624-L627
     SelectionSpec = type | Callable | str
 
@@ -51,10 +53,6 @@ if TYPE_CHECKING:
 
 
 ACCESSOR = AdAc()
-
-
-class _Raise(Enum):
-    Sentry = auto()
 
 
 class AnnDataInterface(hv.core.Interface):
@@ -180,7 +178,7 @@ class AnnDataInterface(hv.core.Interface):
                     if sel.stop is not None:
                         stop_mask = values < sel.stop
                         mask = stop_mask if mask is None else (mask & stop_mask)
-            elif isinstance(sel, (set, list)):
+            elif isinstance(sel, set | list):
                 iter_slcs = []
                 for ik in sel:
                     with warnings.catch_warnings():
@@ -201,24 +199,16 @@ class AnnDataInterface(hv.core.Interface):
     def select(
         cls,
         dataset: Dataset,
-        selection_expr: (
-            hv.dim | Mapping[Dimension | str, SelectionValues] | None
-        ) = None,
-        selection_specs: Sequence[SelectionSpec] | None = None,
-        **selection: SelectionValues,  # type: ignore[arg-type]
+        *,
+        selection_mask: Sequence[SelectionSpec] | None = None,
+        **selection: SelectionValues,
     ) -> AnnData:
         """Select along obs and var axes."""
-        if selection_specs is not None:
-            msg = "selection_specs is not supported by AnnDataInterface yet."
-            raise NotImplementedError(msg)
-        if isinstance(selection_expr, Mapping):
-            if selection:
-                msg = "Cannot provide both selection and selection_expr."
-                raise TypeError(msg)
-            selection: Mapping[Dimension | str, SelectionValues] = selection_expr
-            selection_expr = None
-        elif selection_expr is not None:
-            msg = "selection_expr is not supported by AnnDataInterface yet."
+        # TODO: no way to have `Dataset.select` keep the info about  # noqa: TD003
+        #       which axis the expression is aligned to, so we can’t support this yet.
+        if selection_mask is not None:
+            # selection_mask is made by either of these parameters
+            msg = "selection_{expr,specs} is not implemented for AnnDataInterface"
             raise NotImplementedError(msg)
 
         obs, var = cls.selection_masks(dataset, selection)
@@ -528,7 +518,7 @@ def register() -> None:
     hv.core.Interface.register(AnnDataGriddedInterface)
 
 
-def unregister() -> None:
+def unregister() -> None:  # pragma: no cover
     """Unregister the data type and interface with holoviews."""
     if TYPE_CHECKING:
         assert isinstance(hv.element.Image.datatype, list)
