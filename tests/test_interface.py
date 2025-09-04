@@ -113,29 +113,33 @@ def test_get_values_grid(
     np.testing.assert_array_equal(vals, expected, strict=True)
 
 
+@pytest.mark.parametrize("zero", [0, slice(0, 1), {0}, [0]], ids=type)
 @pytest.mark.parametrize(
-    ("sel_args", "sel_kw"),
+    "mk_sel",
     [
-        pytest.param(({A.obs["type"]: 0},), {}, id="dict"),
-        pytest.param((), {"obs.type": 0}, id="kwargs"),
+        pytest.param(lambda i: (({A.obs["type"]: i},), {}), id="dict"),
+        pytest.param(lambda i: ((), {"obs.type": i}), id="kwargs"),
         pytest.param(
-            (hv.dim(A.obs["type"]) == 0,),
-            {},
+            lambda i: ((hv.dim(A.obs["type"]) == i,), {}),
             id="expression",
             marks=pytest.mark.xfail(reason="Not implemented"),
         ),
         pytest.param(
-            (),
             # TODO: actually figure out how selection_specs work  # noqa: TD003
-            dict(selection_specs=[hv.Dataset]),
+            lambda _: ((), dict(selection_specs=[hv.Dataset])),
             id="specs",
             marks=pytest.mark.xfail(reason="Not implemented"),
         ),
     ],
 )
 def test_select(
-    adata: AnnData, sel_args: tuple[Any, ...], sel_kw: dict[str, Any]
+    adata: AnnData,
+    mk_sel: Callable[
+        [int | slice | set[int] | list[int]], tuple[tuple[Any, ...], dict[str, Any]]
+    ],
+    zero: int | slice | set[int] | list[int],
 ) -> None:
+    sel_args, sel_kw = mk_sel(zero)
     data = hv.Dataset(adata, A.obsm["umap"][0], [A.obsm["umap"][1], A.obs["type"]])
     assert data.interface is AnnDataInterface
     ds_sel = data.select(*sel_args, **sel_kw)
