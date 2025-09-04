@@ -124,6 +124,13 @@ def test_get_values_grid(
             id="expression",
             marks=pytest.mark.xfail(reason="Not implemented"),
         ),
+        pytest.param(
+            (),
+            # TODO: actually figure out how selection_specs work  # noqa: TD003
+            dict(selection_specs=[hv.Dataset]),
+            id="specs",
+            marks=pytest.mark.xfail(reason="Not implemented"),
+        ),
     ],
 )
 def test_select(
@@ -137,6 +144,17 @@ def test_select(
     assert isinstance(adata_subset, AnnData)
     pd.testing.assert_index_equal(
         adata_subset.obs_names, adata[adata.obs["type"] == 0].obs_names
+    )
+
+
+def test_select_var(adata: AnnData) -> None:
+    data = hv.Dataset(adata, A.var.index, [A.var["grp"]])
+    assert data.interface is AnnDataInterface
+    ds_sel = data.select({A.var["grp"]: "a"})
+    adata_subset = ds_sel.data
+    assert isinstance(adata_subset, AnnData)
+    pd.testing.assert_index_equal(
+        adata_subset.var_names, adata[:, adata.var["grp"] == "a"].var_names
     )
 
 
@@ -243,13 +261,3 @@ def test_gridded_ax(
 
     assert values.shape == (adata.shape[::-1] if transposed else adata.shape)
     npt.assert_equal(values, np.transpose(expected) if transposed else expected)
-
-
-"""
-def test_plot(adata: AnnData) -> None:
-    p = (
-        hv.Scatter(adata, "obsm.umap.0", ["obsm.umap.1", "obs.type"])
-        .opts(color="obs.type", cmap="Category20")
-        .hist()
-    )
-"""

@@ -156,18 +156,18 @@ class LayerVecAcc:
 
     k: str | None
 
-    def __getitem__(self, i: Idx2D[str]) -> AdPath:
-        axes = _idx2axes(i)
+    def __getitem__(self, idx: Idx2D[str]) -> AdPath:
+        axes = _idx2axes(idx)
 
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            ver_or_mat = ad[i].X if self.k is None else ad[i].layers[self.k]
+            ver_or_mat = ad[idx].X if self.k is None else ad[idx].layers[self.k]
             if isinstance(ver_or_mat, sp.spmatrix | sp.sparray):
                 ver_or_mat = ver_or_mat.toarray()
             # TODO: pandas  # noqa: TD003
             return ver_or_mat.flatten() if len(axes) == 1 else ver_or_mat
 
         sub = "" if self.k is None else f".layers[{self.k!r}]"
-        return AdPath(f"A{sub}[{i[0]!r}, {i[1]!r}]", get, axes)
+        return AdPath(f"A{sub}[{idx[0]!r}, {idx[1]!r}]", get, axes)
 
 
 @dataclass(frozen=True)
@@ -254,12 +254,14 @@ class GraphVecAcc:
     ax: Literal["obsp", "varp"]
     k: str
 
-    def __getitem__(self, i: Idx2D[str]) -> AdPath:
+    def __getitem__(self, idx: Idx2D[str]) -> AdPath:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return getattr(ad, self.ax)[self.k][i].toarray().flatten()
+            df = cast("pd.DataFrame", getattr(ad, self.ax[:-1]))
+            iloc = tuple(df.index.get_loc(i) if isinstance(i, str) else i for i in idx)
+            return getattr(ad, self.ax)[self.k][iloc].toarray().flatten()
 
         ax = cast("Literal['obs', 'var']", self.ax[:-1])
-        return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, {ax})
+        return AdPath(f"A.{self.ax}[{self.k!r}][{idx[0]!r}, {idx[1]!r}]", get, {ax})
 
 
 @dataclass(frozen=True)
