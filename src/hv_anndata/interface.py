@@ -40,7 +40,11 @@ if TYPE_CHECKING:
         vdims: Sequence[Dimension] | None
 
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L594-L607
-    SelectionValues = tuple[Number, Number] | Sequence[Number]
+    SelectionValues = (
+        tuple[Number, Number]
+        | Sequence[Number]
+        | Callable[[NDArray], NDArray[np.bool_]]
+    )
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L624-L627
     SelectionSpec = type | Callable | str
 

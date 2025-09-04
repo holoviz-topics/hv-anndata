@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
 
     from hv_anndata.accessors import AdPath
+    from hv_anndata.interface import SelectionValues
 
 
 @pytest.fixture(autouse=True)
@@ -113,7 +114,9 @@ def test_get_values_grid(
     np.testing.assert_array_equal(vals, expected, strict=True)
 
 
-@pytest.mark.parametrize("zero", [0, slice(0, 1), {0}, [0]], ids=type)
+@pytest.mark.parametrize(
+    "zero", [0, slice(0, 1), {0}, [0], lambda vs: vs == 0], ids=type
+)
 @pytest.mark.parametrize(
     "mk_sel",
     [
@@ -134,10 +137,8 @@ def test_get_values_grid(
 )
 def test_select(
     adata: AnnData,
-    mk_sel: Callable[
-        [int | slice | set[int] | list[int]], tuple[tuple[Any, ...], dict[str, Any]]
-    ],
-    zero: int | slice | set[int] | list[int],
+    mk_sel: Callable[[SelectionValues], tuple[tuple[Any, ...], dict[str, Any]]],
+    zero: SelectionValues,
 ) -> None:
     sel_args, sel_kw = mk_sel(zero)
     data = hv.Dataset(adata, A.obsm["umap"][0], [A.obsm["umap"][1], A.obs["type"]])
