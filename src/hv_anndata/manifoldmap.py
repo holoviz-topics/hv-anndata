@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, TypedDict, Unpack
+from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
 import bokeh
@@ -22,6 +22,7 @@ from panel.reactive import hold
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Literal, Unpack
 
     from holoviews.streams import Stream
 
@@ -332,12 +333,10 @@ def _apply_categorical_datashading(
         hv.Points([0, 0], label=str(cat)).opts(color=color_key[cat], size=0)
         for cat in unique_categories
     ]
-    legend = hv.NdOverlay(
-        {
-            str(cat): item
-            for cat, item in zip(unique_categories, legend_items, strict=False)
-        }
-    ).opts(
+    legend = hv.NdOverlay({
+        str(cat): item
+        for cat, item in zip(unique_categories, legend_items, strict=False)
+    }).opts(
         show_legend=True,
         legend_position="right",
         legend_limit=100,

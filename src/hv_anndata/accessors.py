@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast, overload
+from typing import TYPE_CHECKING, ClassVar, cast, overload
 
-import numpy as np
 import scipy.sparse as sp
 from holoviews.core.dimension import Dimension
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Set as AbstractSet
+    from typing import Any, Literal, Self, TypeVar
 
     import pandas as pd
     from anndata import AnnData
@@ -23,20 +23,6 @@ if TYPE_CHECKING:
     Idx2D = tuple[Idx | slice, Idx | slice]
     AdPathFunc = Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
     Axes = AbstractSet[Literal["obs", "var"]]
-
-
-def _idx2axes(i: Idx2D[str]) -> set[Literal["obs", "var"]]:
-    """Get along which axes the referenced vector is."""
-    match i:
-        case slice(), str():
-            return {"obs"}
-        case str(), slice():
-            return {"var"}
-        case slice(), slice():
-            return {"obs", "var"}
-        case _:  # pragma: no cover
-            msg = f"Invalid index: {i}"
-            raise AssertionError(msg)
 
 
 class AdPath(Dimension):
@@ -77,7 +63,7 @@ class AdPath(Dimension):
     def clone(
         self,
         spec: str | tuple[str, str] | None = None,
-        func: AdPathFunc = None,
+        func: AdPathFunc | None = None,
         axes: Axes | None = None,
         **overrides: Any,  # noqa: ANN401
     ) -> Self:
@@ -158,6 +144,9 @@ class LayerAcc:
     """Accessor for layers."""
 
     def __getitem__(self, k: str) -> LayerVecAcc:
+        if not isinstance(k, str):
+            msg = f"Unsupported layer {k!r}"
+            raise TypeError(msg)
         return LayerVecAcc(k)
 
 
@@ -165,16 +154,20 @@ class LayerAcc:
 class LayerVecAcc:
     """Accessor for layer vectors."""
 
-    k: str
+    k: str | None
 
-    def __getitem__(self, i: Idx2D[str]) -> AdPath:
+    def __getitem__(self, idx: Idx2D[str]) -> AdPath:
+        axes = _idx2axes(idx)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            ver_or_mat = ad[i].layers[self.k]
+            ver_or_mat = ad[idx].X if self.k is None else ad[idx].layers[self.k]
             if isinstance(ver_or_mat, sp.spmatrix | sp.sparray):
-                ver_or_mat = ver_or_mat.toarray().flatten()
-            return ver_or_mat  # TODO: pandas  # noqa: TD003
+                ver_or_mat = ver_or_mat.toarray()
+            # TODO: pandas  # noqa: TD003
+            return ver_or_mat.flatten() if len(axes) == 1 else ver_or_mat
 
-        return AdPath(f"A.layers[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
+        sub = "" if self.k is None else f".layers[{self.k!r}]"
+        return AdPath(f"A{sub}[{idx[0]!r}, {idx[1]!r}]", get, axes)
 
 
 @dataclass(frozen=True)
@@ -193,6 +186,10 @@ class MetaAcc:
         return AdPath(f"A.{self.ax}.index", get, {self.ax})
 
     def __getitem__(self, k: str) -> AdPath:
+        if not isinstance(k, str):
+            msg = f"Unsupported {self.ax} column {k!r}"
+            raise TypeError(msg)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return cast("pd.DataFrame", getattr(ad, self.ax))[k].values
 
@@ -206,6 +203,9 @@ class MultiAcc:
     ax: Literal["obsm", "varm"]
 
     def __getitem__(self, k: str) -> MultiVecAcc:
+        if not isinstance(k, str):
+            msg = f"Unsupported {self.ax} key {k!r}"
+            raise TypeError(msg)
         return MultiVecAcc(self.ax, k)
 
 
@@ -223,6 +223,10 @@ class MultiVecAcc:
                 raise ValueError(msg)
             i = i[1]
 
+        if not isinstance(i, int):
+            msg = f"Unsupported index {i!r}"
+            raise TypeError(msg)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return getattr(ad, self.ax)[self.k][:, i]
 
@@ -237,6 +241,9 @@ class GraphAcc:
     ax: Literal["obsp", "varp"]
 
     def __getitem__(self, k: str) -> GraphVecAcc:
+        if not isinstance(k, str):
+            msg = f"Unsupported {self.ax} key {k!r}"
+            raise TypeError(msg)
         return GraphVecAcc(self.ax, k)
 
 
@@ -247,20 +254,35 @@ class GraphVecAcc:
     ax: Literal["obsp", "varp"]
     k: str
 
-    def __getitem__(self, i: Idx2D[int]) -> AdPath:
+    def __getitem__(self, idx: Idx2D[str]) -> AdPath:
+        if not all(isinstance(i, str | slice) for i in idx):
+            msg = f"Unsupported index {idx!r}"
+            raise TypeError(msg)
+
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return getattr(ad, self.ax)[self.k][i].toarray().flatten()
+            df = cast("pd.DataFrame", getattr(ad, self.ax[:-1]))
+            iloc = tuple(df.index.get_loc(i) if isinstance(i, str) else i for i in idx)
+            return getattr(ad, self.ax)[self.k][iloc].toarray().flatten()
 
         ax = cast("Literal['obs', 'var']", self.ax[:-1])
-        return AdPath(f"A.{self.ax}[{self.k!r}][{i[0]!r}, {i[1]!r}]", get, {ax})
+        return AdPath(f"A.{self.ax}[{self.k!r}][{idx[0]!r}, {idx[1]!r}]", get, {ax})
 
 
-class AdAc:
+@dataclass(frozen=True)
+class AdAc(LayerVecAcc):
     r"""Accessor singleton to create :class:`AdPath`\ s."""
 
-    ATTRS: ClassVar = frozenset(
-        {"layers", "obs", "var", "obsm", "varm", "obsp", "varp"}
-    )
+    k: None = None
+
+    ATTRS: ClassVar = frozenset({
+        "layers",
+        "obs",
+        "var",
+        "obsm",
+        "varm",
+        "obsp",
+        "varp",
+    })
     _instance: ClassVar[Self]
 
     layers: ClassVar = LayerAcc()
@@ -275,12 +297,6 @@ class AdAc:
         if not hasattr(cls, "_instance"):
             cls._instance = object.__new__(cls)
         return cls._instance
-
-    def __getitem__(self, i: Idx2D[str]) -> AdPath:
-        def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
-            return np.asarray(ad[i].X)  # TODO: pandas, sparse, …  # noqa: TD003
-
-        return AdPath(f"A[{i[0]!r}, {i[1]!r}]", get, _idx2axes(i))
 
     @overload
     @classmethod
@@ -328,6 +344,7 @@ class AdAc:
             raise ValueError(msg)
         acc, rest = spec.split(".", 1)
         match getattr(cls(), acc, None):
+            # TODO: X  # noqa: TD003
             case LayerAcc() as layers:
                 return _parse_path_layer(layers, rest)
             case MetaAcc() as meta:
@@ -335,9 +352,6 @@ class AdAc:
             case MultiAcc() as multi:
                 return _parse_path_multi(multi, rest)
             case GraphAcc():
-                msg = "TODO"
-                raise NotImplementedError(msg)
-            case AdPath():
                 msg = "TODO"
                 raise NotImplementedError(msg)
             case None:  # pragma: no cover
@@ -350,28 +364,53 @@ class AdAc:
         raise AssertionError(msg)  # pragma: no cover
 
 
+def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
+    """Get along which axes the referenced vector is."""
+    for ax_idx in idx:
+        if isinstance(ax_idx, str):
+            continue
+        if isinstance(ax_idx, slice) and ax_idx == slice(None):
+            continue
+        msg = (
+            f"Unsupported axis index {ax_idx!r} in index {idx!r} (not `:` or a string)"
+        )
+        raise ValueError(msg)
+    match idx:
+        case slice(), str():
+            return {"obs"}
+        case str(), slice():
+            return {"var"}
+        case slice(), slice():
+            return {"obs", "var"}
+        case _:  # pragma: no cover
+            msg = f"Invalid index: {idx}"
+            raise AssertionError(msg)
+
+
 def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
     match i, j:
         case _, ":":
-            return cls(0), slice(None)
+            return cls(i), slice(None)
         case ":", _:
-            return slice(None), cls(0)
-        case _:
+            return slice(None), cls(j)
+        case _:  # pragma: no cover
             msg = f"Unknown indices {i!r}, {j!r}"
             raise ValueError(msg)
 
 
 def _parse_path_layer(layers: LayerAcc, spec: str) -> AdPath:
-    if m := re.fullmatch(r"([^\[]+)\[([^,]+),\s?([^\]]+)\]", spec):
-        layer, i, j = m.groups("")  # "" just for typing
-        return layers[layer][_parse_idx_2d(i, j, str)]
-    msg = f"Cannot parse layer accessor {spec!r}: should be `name[i,:]` or `name[:,j]`"
-    raise ValueError(msg)
+    if not (
+        m := re.fullmatch(r"([^\[]+)\[([^,]+),\s?([^\]]+)\]", spec)
+    ):  # pragma: no cover
+        msg = f"Cannot parse layer accessor {spec!r}: should be `name[i,:]`/`name[:,j]`"
+        raise ValueError(msg)
+    layer, i, j = m.groups("")  # "" just for typing
+    return layers[layer][_parse_idx_2d(i, j, str)]
 
 
 def _parse_path_multi(multi: MultiAcc, spec: str) -> AdPath:
-    if m := re.fullmatch(r"([^.]+)\.([\d_]+)", spec):
-        key, i = m.groups("")  # "" just for typing
-        return multi[key][int(i)]
-    msg = f"Cannot parse multi accessor {spec!r}: should be `name.i`"
-    raise ValueError(msg)
+    if not (m := re.fullmatch(r"([^.]+)\.([\d_]+)", spec)):  # pragma: no cover
+        msg = f"Cannot parse multi accessor {spec!r}: should be `name.i`"
+        raise ValueError(msg)
+    key, i = m.groups("")  # "" just for typing
+    return multi[key][int(i)]
