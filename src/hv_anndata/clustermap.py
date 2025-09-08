@@ -109,6 +109,8 @@ def create_clustermap_plot(
         top_gene_indices = np.argsort(gene_vars)[-max_genes:]
         x = x[:, top_gene_indices]
         var_names = var_names[top_gene_indices]
+        if var_names.name == "index":
+            var_names.name = "variable"
 
     # Prepare color data if obs_keys is provided
     color_data = None
@@ -128,7 +130,7 @@ def create_clustermap_plot(
     # Create DataFrame
     df = pd.DataFrame(x, index=adata.obs_names, columns=var_names)
     index_name = df.index.name or "index"
-    var_name = adata.var_names.name or "variable"
+    var_name = var_names.name or "variable"
 
     # Convert to long format for HoloViews HeatMap
     df_melted = df.reset_index().melt(

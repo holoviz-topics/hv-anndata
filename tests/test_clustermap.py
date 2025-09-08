@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import panel_material_ui as pmui
 import pytest
+import scanpy as sc
 
 from hv_anndata.clustermap import ClusterMap, create_clustermap_plot
 
@@ -152,3 +153,10 @@ def test_clustermap_no_raw_data() -> None:
 
     cm = ClusterMap(adata=adata)
     assert cm.use_raw is False  # Should default to False when no raw data
+
+
+@pytest.mark.usefixtures("bokeh_backend")
+def test_integration() -> None:
+    adata = sc.datasets.pbmc68k_reduced()  # errors
+
+    assert ClusterMap(adata=adata).__panel__()
