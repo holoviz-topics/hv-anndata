@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TypedDict, Unpack
+from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
 import bokeh.palettes
@@ -15,6 +15,10 @@ import panel_material_ui as pmui
 import param
 from holoviews.operation import dendrogram
 from panel.reactive import hold
+
+if TYPE_CHECKING:
+    from typing import Unpack
+
 
 DEFAULT_COLOR_BY = "cell_type"
 CAT_CMAPS = {
