@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import anndata as ad
 import numpy as np
@@ -11,6 +12,9 @@ import panel_material_ui as pmui
 import pytest
 
 from hv_anndata.clustermap import ClusterMap, create_clustermap_plot
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 
 @pytest.fixture
