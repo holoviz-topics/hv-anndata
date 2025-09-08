@@ -124,7 +124,7 @@ def create_clustermap_plot(
     # Create DataFrame
     df = pd.DataFrame(x, index=adata.obs_names, columns=var_names)
     index_name = df.index.name or "index"
-    var_name = adata.var_names.name
+    var_name = adata.var_names.name or "variable"
 
     # Convert to long format for HoloViews HeatMap
     df_melted = df.reset_index().melt(
