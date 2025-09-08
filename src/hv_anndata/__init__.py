@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .clustermap import ClusterMap
 from .components import GeneSelector
 from .interface import ACCESSOR as _A
 from .interface import AnnDataGriddedInterface, AnnDataInterface, register
@@ -20,6 +21,7 @@ __all__ = [
     "ACCESSOR",
     "AnnDataGriddedInterface",
     "AnnDataInterface",
+    "ClusterMap",
     "Dotmap",
     "GeneSelector",
     "ManifoldMap",
