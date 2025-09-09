@@ -11,6 +11,7 @@ from .interface import ACCESSOR as A
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from typing import Literal
 
     from anndata import AnnData
 
@@ -48,7 +49,14 @@ def scatter(
     sc = hv.Scatter(adata, base[:, i], [base[:, j], *vdims])
     if color is not None:
         sc = sc.opts(color=color)
-    return sc.opts(aspect="square", legend_position="right")
+
+    label = f"{base.k} " if base.k is not None else ""
+    return sc.opts(
+        aspect="square",
+        legend_position="right",
+        xlabel=f"{label}{i}",
+        ylabel=f"{label}{j}",
+    )
 
 
 def _scatter(
@@ -68,9 +76,37 @@ umap = partial(_scatter, A.obsm["X_umap"])
 
 
 def heatmap(
-    adata: AnnData, /, vdims: Collection[AdPath], *, transpose: bool = False
+    adata: AnnData,
+    base: LayerVecAcc,
+    /,
+    vdims: Collection[AdPath],
+    *,
+    transpose: bool = False,
+    add_dendrogram: bool | Literal["obs", "var"] = False,
 ) -> hv.HeatMap:
+    """Shortcut for a heatmap.
+
+    Basically just
+    >>> hv.HeatMap(adata, [A.obs.index, A.var.index], [base[:, :], *vdims]).opts(...)
+
+    Set `base` to `A` or `A.layers[key]`,
+    and `transpose=True` to switch the order of the axes.
+
+    If `add_dendrogram` is True, the dendrogram is added.
+    Call it directly to customize the dendrogram:
+    >>> hv.operation.dendrogram(heatmap, adjoint_dims=..., main_dim=base[:, :])
+
+    """
     kdims = [A.obs.index, A.var.index]
     if transpose:
         kdims.reverse()
-    return hv.HeatMap(adata, kdims, [A[:, :], *vdims]).opts(xticks=0)
+    xlabel, ylabel = [next(iter(d.axes)) for d in kdims]
+    hm = hv.HeatMap(adata, kdims, [base[:, :], *vdims]).opts(
+        xlabel=xlabel, ylabel=ylabel
+    )
+    if add_dendrogram:
+        dims = [A.obs.index, A.var.index]
+        if isinstance(add_dendrogram, str):
+            dims = [dims[0] if add_dendrogram == "obs" else dims[1]]
+        hm = hv.operation.dendrogram(hm, adjoint_dims=dims, main_dim=base[:, :])
+    return hm
