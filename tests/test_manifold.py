@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import anndata as ad
 import holoviews as hv
@@ -15,6 +16,9 @@ from holoviews.operation.datashader import dynspread, rasterize
 from hv_anndata.interface import ACCESSOR as AnnAcc  # noqa: N811
 from hv_anndata.interface import register, unregister
 from hv_anndata.manifoldmap import ManifoldMap, create_manifoldmap_plot, labeller
+
+if TYPE_CHECKING:
+    from unittest.mock import Mock
 
 
 @pytest.fixture
@@ -126,31 +130,35 @@ def test_create_manifoldmap_plot_datashading(
 
 
 @pytest.mark.usefixtures("bokeh_backend")
-def test_manifoldmap_initialization_default(sadata: ad.AnnData) -> None:
-    mm = ManifoldMap(adata=sadata)
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        pytest.param({}, {}, id="default"),
+        pytest.param(
+            dict(color_by_dim="cols", color_by="gene_1"),
+            dict(color_by_dim="cols", color_by="gene_1"),
+            id="color_by",
+        ),
+    ],
+)
+def test_manifoldmap_initialization(
+    sadata: ad.AnnData, kwargs: dict[str, object], expected: dict[str, object]
+) -> None:
+    mm = ManifoldMap(adata=sadata, **kwargs)
 
-    assert mm.param.reduction.objects == ["X_pca", "X_umap"]
-    assert mm.color_by_dim == "obs"
-    assert mm.reduction == "X_pca"
-    assert mm.color_by == "cell_type"
-    assert mm._color_options == {
-        "obs": ["cell_type", "expression_level"],
-        "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
-    }
-
-
-@pytest.mark.usefixtures("bokeh_backend")
-def test_manifoldmap_initialization_color_by(sadata: ad.AnnData) -> None:
-    mm = ManifoldMap(adata=sadata, color_by_dim="cols", color_by="gene_1")
-
-    assert mm.param.reduction.objects == ["X_pca", "X_umap"]
-    assert mm.color_by_dim == "cols"
-    assert mm.reduction == "X_pca"
-    assert mm.color_by == "gene_1"
-    assert mm._color_options == {
-        "obs": ["cell_type", "expression_level"],
-        "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
-    }
+    assert mm.param.reduction.objects == expected.get(
+        "reduction_objects", ["X_umap", "X_pca"]
+    )
+    assert mm.color_by_dim == expected.get("color_by_dim", "obs")
+    assert mm.reduction == expected.get("reduction", "X_umap")
+    assert mm.color_by == expected.get("color_by", "cell_type")
+    assert mm._color_options == expected.get(
+        "_color_options",
+        {
+            "obs": ["cell_type", "expression_level"],
+            "cols": ["gene_0", "gene_1", "gene_2", "gene_3", "gene_4"],
+        },
+    )
 
 
 @pytest.mark.usefixtures("bokeh_backend")
@@ -207,24 +215,20 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 
 
 def test_labeller() -> None:
-    df = pd.DataFrame(
-        {
-            "UMAP1": [0, 1, 2, 3, 10],
-            "UMAP2": [0, 1, 2, 3, 10],
-            "cell_type": ["a", "a", "b", "b", "b"],
-        }
-    )
+    df = pd.DataFrame({
+        "UMAP1": [0, 1, 2, 3, 10],
+        "UMAP2": [0, 1, 2, 3, 10],
+        "cell_type": ["a", "a", "b", "b", "b"],
+    })
     dataset = hv.Dataset(df, kdims=["UMAP1", "UMAP2"], vdims=("cell_type"))
     ldm = labeller(dataset, min_count=0)
     labels = ldm[()]
-    expected_data = pd.DataFrame(
-        {
-            "cell_type": ["b", "a"],
-            "count": [3, 2],
-            "x": [5, 0.5],
-            "y": [5, 0.5],
-        }
-    )
+    expected_data = pd.DataFrame({
+        "cell_type": ["b", "a"],
+        "count": [3, 2],
+        "x": [5, 0.5],
+        "y": [5, 0.5],
+    })
     pd.testing.assert_frame_equal(
         labels.data.sort_values("cell_type"),
         expected_data.sort_values("cell_type"),

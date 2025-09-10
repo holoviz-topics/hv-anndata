@@ -10,12 +10,14 @@ from __future__ import annotations
 import inspect
 from contextlib import suppress
 from functools import partial
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import param
 from param.parameterized import label_formatter
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from sphinx.application import Sphinx
 
     class _Options:
@@ -87,9 +89,10 @@ def param_formatter(
         parameters += cls_params
         cname = cls.__name__
         module = cls.__module__
-        inherited.extend(
-            ["", f"    :class:`{module}.{cname}`: {', '.join(cls_params)}"]
-        )
+        inherited.extend([
+            "",
+            f"    :class:`{module}.{cname}`: {', '.join(cls_params)}",
+        ])
 
     params = [p for p in obj.param if p not in parameters]
     if params:

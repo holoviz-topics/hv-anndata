@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypedDict, Unpack
+from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
 import bokeh
@@ -25,6 +25,7 @@ from .interface import ACCESSOR as AnnAcc  # noqa: N811
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Unpack
 
     from holoviews.streams import Stream
 
@@ -423,7 +424,13 @@ class ManifoldMap(pn.viewable.Viewer):
         """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
         self._categorical = False
-        dr_options = list(self.adata.obsm.keys())
+        dr_options = []
+        available_keys = list(self.adata.obsm.keys())
+        priority_keys = ("X_umap", "X_tsne", "X_pca")
+        dr_options = [
+            *(key for key in priority_keys if key in available_keys),
+            *(key for key in available_keys if key not in priority_keys),
+        ]
         self.param["reduction"].objects = dr_options
         if not self.reduction:
             self.reduction = dr_options[0]

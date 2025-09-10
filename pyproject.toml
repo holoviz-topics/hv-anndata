@@ -35,25 +35,31 @@ source = "vcs"
 extra-dependencies = [ "ipykernel" ]
 installer = "uv"
 [tool.hatch.envs.hatch-test]
-extra-dependencies = [ "ipykernel", "scanpy" ]
+extra-dependencies = [
+  "pytest-cov",     # for VS Code’s coverage function (not needed for `hatch test -c`)
+  "nbformat-types",
+  "scanpy",
+]
 [tool.hatch.envs.docs]
 scripts.build = "sphinx-build -W --keep-going -b html docs docs/_build/html {args}"
 scripts.clean = "git clean -fdX -- {args:docs}"
 scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
 extra-dependencies = [
+  "fast-array-utils",
+  "furo",
   "ipykernel",
   "ipywidgets",
   "jupyter-bokeh",
-  "scanpy",
+  "myst-nb",
   "pooch",
   "plotly",
+  "scanpy[scrublet]",
   "sphinx",
-  "furo",
   "sphinx-autodoc-typehints",
-  "myst-nb",
 ]
 
 [tool.ruff]
+format.preview = true
 lint.select = [ "ALL" ]
 lint.ignore = [
   "B019",    # functools.cache is fine to use
@@ -83,6 +89,10 @@ lint.per-file-ignores."**/*.ipynb" = [
 lint.per-file-ignores."docs/conf.py" = [
   "INP001", # __init__.py
 ]
+lint.per-file-ignores."scripts/*" = [
+  "INP001", # __init__.py
+  "T201",   # print is fine
+]
 lint.per-file-ignores."src/hv_anndata/__main__.py" = [
   "T201", # print is fine
 ]
@@ -96,6 +106,8 @@ lint.per-file-ignores."tests/*" = [
 ]
 lint.allowed-confusables = [ "×", "’" ]
 lint.flake8-copyright.notice-rgx = "SPDX-License-Identifier: MPL-2\\.0"
+lint.flake8-type-checking.exempt-modules = [  ]
+lint.flake8-type-checking.strict = true
 lint.isort.known-first-party = [ "hv_anndata" ]
 lint.isort.required-imports = [ "from __future__ import annotations" ]
 lint.pylint.max-args = 8
@@ -118,4 +130,8 @@ session_info2 = [ "src/hv_anndata", "*/hv-anndata/src/hv_anndata" ]
 tests = [ "tests", "*/hv-anndata/tests" ]
 
 [tool.coverage.report]
-exclude_lines = [ "no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:" ]
+exclude_also = [
+  'if __name__ == .__main__.:',
+  'if TYPE_CHECKING:',
+  'pytest\.fail(.*)',
+]

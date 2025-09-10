@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
 import holoviews as hv
 import pandas as pd
+import panel as pn
 import param
 from holoviews.core.operation import Operation
 from holoviews.core.overlay import Overlay
@@ -16,10 +17,12 @@ from holoviews.selection import link_selections
 from holoviews.streams import Params
 from packaging.version import Version
 
+from .components import GeneSelector
+
 _HOLOVIEWS_VERSION = Version(hv.__version__).release
 
 if TYPE_CHECKING:
-    from typing import NotRequired, Unpack
+    from typing import Any, Literal, NotRequired, Unpack
 
     from holoviews import DynamicMap, Element
 
@@ -30,7 +33,7 @@ class _DotmapPlotParams(TypedDict):
     kdims: NotRequired[list[str | hv.Dimension]]
     vdims: NotRequired[list[str | hv.Dimension]]
     adata: ad.AnnData
-    marker_genes: dict[str, list[str]]
+    marker_genes: dict[str, list[str]] | list[str]
     groupby: str
     expression_cutoff: NotRequired[float]
     max_dot_size: NotRequired[int]
@@ -40,7 +43,7 @@ class _DotmapPlotParams(TypedDict):
     ls: link_selections
 
 
-class Dotmap(param.ParameterizedFunction):
+class Dotmap(pn.viewable.Viewer):
     """Create a DotmapPlot from anndata."""
 
     kdims = param.List(
@@ -100,27 +103,27 @@ class Dotmap(param.ParameterizedFunction):
 
     def _prepare_data(self) -> pd.DataFrame:
         # Flatten the marker_genes preserving order
-        is_mapping_marker_genes = isinstance(self.p.marker_genes, Mapping)
+        is_mapping_marker_genes = isinstance(self.marker_genes, Mapping)
         if is_mapping_marker_genes:
             all_marker_genes = list(
-                dict.fromkeys(chain.from_iterable(self.p.marker_genes.values()))
+                dict.fromkeys(chain.from_iterable(self.marker_genes.values()))
             )
         else:
-            all_marker_genes = list(self.p.marker_genes)
+            all_marker_genes = list(self.marker_genes)
 
         # Determine to use raw or processed
-        use_raw = self.p.use_raw
+        use_raw = self.use_raw
         if use_raw is None:
-            use_raw = self.p.adata.raw is not None
-        elif use_raw and self.p.adata.raw is None:
+            use_raw = self.adata.raw is not None
+        elif use_raw and self.adata.raw is None:
             err = "use_raw=True but .raw attribute is not present in adata"
             raise ValueError(err)
 
         # Check which genes are actually present in the correct location
-        if use_raw and self.p.adata.raw is not None:
-            available_var_names = self.p.adata.raw.var_names
+        if use_raw and self.adata.raw is not None:
+            available_var_names = self.adata.raw.var_names
         else:
-            available_var_names = self.p.adata.var_names
+            available_var_names = self.adata.var_names
 
         missing_genes = set(all_marker_genes) - set(available_var_names)
         if missing_genes:
@@ -137,34 +140,34 @@ class Dotmap(param.ParameterizedFunction):
             available_marker_genes = all_marker_genes
 
         # Subset the data with only available genes
-        if use_raw and self.p.adata.raw is not None:
-            adata_subset = self.p.adata.raw[:, available_marker_genes]
+        if use_raw and self.adata.raw is not None:
+            adata_subset = self.adata.raw[:, available_marker_genes]
             expression_df = pd.DataFrame(
                 adata_subset.X.toarray()
                 if hasattr(adata_subset.X, "toarray")
                 else adata_subset.X,
-                index=self.p.adata.obs_names,
+                index=self.adata.obs_names,
                 columns=available_marker_genes,
             )
         else:
-            expression_df = self.p.adata[:, available_marker_genes].to_df()
+            expression_df = self.adata[:, available_marker_genes].to_df()
 
         # Join with groupby column
-        joined_df = expression_df.join(self.p.adata.obs[self.p.groupby])
+        joined_df = expression_df.join(self.adata.obs[self.groupby])
 
         def compute_expression(df: pd.DataFrame) -> pd.DataFrame:
             # Separate the groupby column from gene columns
-            gene_cols = [col for col in df.columns if col != self.p.groupby]
+            gene_cols = [col for col in df.columns if col != self.groupby]
 
             results = {}
             for gene in gene_cols:
                 gene_data = df[gene]
 
                 # percentage of expressing cells
-                percentage = (gene_data > self.p.expression_cutoff).mean() * 100
+                percentage = (gene_data > self.expression_cutoff).mean() * 100
 
-                if self.p.mean_only_expressed:
-                    expressing_mask = gene_data > self.p.expression_cutoff
+                if self.mean_only_expressed:
+                    expressing_mask = gene_data > self.expression_cutoff
                     if expressing_mask.any():
                         mean_expr = gene_data[expressing_mask].mean()
                     else:
@@ -176,7 +179,7 @@ class Dotmap(param.ParameterizedFunction):
 
             return pd.DataFrame(results).T
 
-        grouped = joined_df.groupby(self.p.groupby, observed=True)
+        grouped = joined_df.groupby(self.groupby, observed=True)
         expression_stats = grouped.apply(compute_expression, include_groups=False)
 
         if is_mapping_marker_genes:
@@ -187,7 +190,7 @@ class Dotmap(param.ParameterizedFunction):
                     marker_cluster_name=marker_cluster_name,
                     gene_id=gene,
                 )
-                for marker_cluster_name, gene_list in self.p.marker_genes.items()
+                for marker_cluster_name, gene_list in self.marker_genes.items()
                 for gene in gene_list
                 # Only include genes that weren't filtered out
                 if gene in available_marker_genes
@@ -197,7 +200,7 @@ class Dotmap(param.ParameterizedFunction):
                 expression_stats.xs(gene, level=1)
                 .reset_index(names="cluster")
                 .assign(gene_id=gene)
-                for gene in self.p.marker_genes
+                for gene in self.marker_genes
                 # Only include genes that weren't filtered out
                 if gene in available_marker_genes
             ]
@@ -205,10 +208,10 @@ class Dotmap(param.ParameterizedFunction):
         if data:
             df = pd.concat(data, ignore_index=True)
         else:
-            df = pd.DataFrame({k: [] for k in self.p.kdims + self.p.vdims})
+            df = pd.DataFrame({k: [] for k in self.kdims + self.vdims})
 
         # Apply standard_scale if specified
-        if self.p.standard_scale == "var":
+        if self.standard_scale == "var":
             # Normalize each gene across all cell types
             for gene in df["gene_id"].unique():
                 mask = df["gene_id"] == gene
@@ -222,7 +225,7 @@ class Dotmap(param.ParameterizedFunction):
                 else:
                     df.loc[mask, "mean_expression"] = 0.0
 
-        elif self.p.standard_scale == "group":
+        elif self.standard_scale == "group":
             # Normalize each cell type across all genes
             for cluster in df["cluster"].unique():
                 mask = df["cluster"] == cluster
@@ -259,11 +262,11 @@ class Dotmap(param.ParameterizedFunction):
         radius_dim = hv.dim("percentage").norm()
         match hv.Store.current_backend:
             case "matplotlib":
-                backend_opts = {"s": radius_dim * self.p.max_dot_size}
+                backend_opts = {"s": radius_dim * self.max_dot_size}
             case "bokeh":
-                hover_tooltips = [*self.p.kdims, *self.p.vdims]
+                hover_tooltips = [*self.kdims, *self.vdims]
                 if "marker_cluster_name" in hover_tooltips and (
-                    not isinstance(self.p.marker_genes, Mapping)
+                    not isinstance(self.marker_genes, Mapping)
                 ):
                     hover_tooltips.remove("marker_cluster_name")
                 backend_opts = {
@@ -278,23 +281,41 @@ class Dotmap(param.ParameterizedFunction):
                 if _HOLOVIEWS_VERSION >= (1, 21, 0):
                     backend_opts |= {"radius": radius_dim / 2}
                 else:
-                    backend_opts |= {"size": radius_dim * self.p.max_dot_size}
+                    backend_opts |= {"size": radius_dim * self.max_dot_size}
             case _:
                 backend_opts = {}
 
         return opts | backend_opts
 
-    def __call__(self, **params: Unpack[_DotmapPlotParams]) -> hv.Points:
-        """Create a DotmapPlot from anndata."""
+    @param.depends("marker_genes")
+    def plot(self) -> hv.Points:
+        """Plot the Dotmap."""
+        df = self._prepare_data()
+        plot = hv.Points(df, kdims=self.kdims, vdims=self.vdims)
+        plot.opts(**self._get_opts())
+        return plot
+
+    def __init__(self, **params: Unpack[_DotmapPlotParams]) -> None:
+        """Init the Dotmap."""
         if required := {"adata", "marker_genes", "groupby"} - params.keys():
             msg = f"Needs to have the following argument(s): {required}"
             raise TypeError(msg)
-        self.p = param.ParamOverrides(self, params)
+        super().__init__(**params)
+        self._widget = GeneSelector(value=self.param.marker_genes)
+        self._widget.param.watch(self._update_marker_genes, "value", onlychanged=False)
 
-        df = self._prepare_data()
-        plot = hv.Points(df, kdims=self.p.kdims, vdims=self.p.vdims)
-        plot.opts(**self._get_opts())
-        return plot
+    def _update_marker_genes(self, event: param.parameterized.Event) -> None:
+        # Callback to ensure an event is triggered when the marker_genes dict
+        # is only reordered
+        trigger = (
+            isinstance(self.marker_genes, Mapping) and self.marker_genes == event.new
+        )
+        self.marker_genes = event.new
+        if trigger:
+            self.param.trigger("marker_genes")
+
+    def __panel__(self) -> pn.viewable.Viewable:
+        return pn.Row(self._widget, self.plot)
 
     @classmethod
     def from_manifold_map(cls, mm: ManifoldMap, **kwargs: Any) -> param.rx:  # noqa: ANN401
@@ -353,7 +374,7 @@ class DotmapOp(Operation):
             adata=element.data,
             marker_genes=self.p.marker_genes,
             groupby=self.p.groupby,
-        )
+        ).plot()
 
     def __call__(
         self,

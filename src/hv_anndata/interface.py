@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Mapping
-from enum import Enum, auto
 from itertools import product
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, TypeVar, cast
+from typing import TYPE_CHECKING, cast
 
 import holoviews as hv
 import numpy as np
@@ -17,14 +15,20 @@ from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
 from holoviews.core.element import Element
 from holoviews.core.ndmapping import NdMapping, item_check, sorted_context
-from holoviews.core.util import expand_grid_coords, get_param_values, unique_iterator
+from holoviews.core.util import (
+    cartesian_product,
+    expand_grid_coords,
+    get_param_values,
+    unique_iterator,
+)
 from holoviews.element.raster import SheetCoordinateSystem
 
 from .accessors import AdAc, AdPath
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
     from numbers import Number
+    from typing import Any, Literal, TypedDict, TypeVar
 
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray
@@ -36,20 +40,19 @@ if TYPE_CHECKING:
         vdims: Sequence[Dimension] | None
 
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L594-L607
-    SelectionValues = tuple[Number, Number] | Sequence[Number]
+    SelectionValues = (
+        tuple[Number, Number]
+        | Sequence[Number]
+        | Callable[[NDArray], NDArray[np.bool_]]
+    )
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L624-L627
     SelectionSpec = type | Callable | str
 
     T = TypeVar("T")
-    C = TypeVar("C", bound=Callable[..., T])
     ValueType = np.ndarray | pd.api.extensions.ExtensionArray
 
 
 ACCESSOR = AdAc()
-
-
-class _Raise(Enum):
-    Sentry = auto()
 
 
 class AnnDataInterface(hv.core.Interface):
@@ -70,28 +73,28 @@ class AnnDataInterface(hv.core.Interface):
         key_dimensions = [AdAc.from_dimension(d) for d in kdims or []]
         value_dimensions = [AdAc.from_dimension(d) for d in vdims or []]
         vdim = value_dimensions[0] if value_dimensions else None
-        ndim = 1 if not vdim else vdim(data).ndim
-        if not cls.gridded and ndim > 1:
-            msg = "AnnDataInterface cannot handle gridded data."
+        ndims = cls._ndims(vdim, data)
+        if not cls.gridded and 1 not in ndims:
+            msg = f"{cls.__name__} cannot handle gridded data."
             raise ValueError(msg)
-        if cls.gridded and ndim == 1:
-            msg = "AnnDataGriddedInterface cannot handle tabular data."
+        if cls.gridded and set(ndims) == {1}:
+            msg = f"{cls.__name__} cannot handle tabular data."
             raise ValueError(msg)
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
 
     @classmethod
     def axes(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
         """Detect if the data is gridded or columnar and along which axes it is indexed."""  # noqa: E501
-        vdim = cast("Dimension", dataset.vdims[0]) if dataset.vdims else None
-        ndim = 1 if not vdim else vdim(dataset.data).ndim
-        if ndim > 1 and len(dataset.kdims) != ndim:
+        vdim = cls._dim(dataset, dataset.vdims[0]) if dataset.vdims else None
+        ndims = cls._ndims(vdim, dataset.data)
+        if 1 not in ndims and len(dataset.kdims) not in ndims:
             msg = (
                 "AnnData Dataset with multi-dimensional data must declare "
-                "corresponding key dimensions."
+                f"corresponding key dimensions ({len(dataset.kdims)} ∉ {ndims})."
             )
             raise DataError(msg)
-        dims = cast("list[AdPath]", dataset.dimensions())
-        if ndim > 1:
+        dims = [cls._dim(dataset, k) for k in dataset.dimensions()]
+        if set(ndims) != {1}:
             dims = dims[:2]
 
         axes: list[Literal["obs", "var"]] = []
@@ -101,13 +104,26 @@ class AnnDataInterface(hv.core.Interface):
                 raise DataError(msg)
             axes.append(next(iter(dim.axes)))
 
-        if ndim == 1 and len(set(axes)) != 1:
+        if set(ndims) == {1} and len(set(axes)) != 1:
             msg = (
                 "AnnData Dataset in tabular mode must reference data along either the "
                 "obs or the var axis, not both."
             )
             raise DataError(msg)
         return tuple(dict.fromkeys(axes).keys())
+
+    @staticmethod
+    def _dim(dataset: Dataset, k: Dimension | str) -> AdPath:
+        return AdAc.from_dimension(
+            (dataset.get_dimension(k) or AdAc.resolve(k)) if isinstance(k, str) else k
+        )
+
+    @staticmethod
+    def _ndims(vdim: AdPath | None, data: AnnData) -> Collection[int]:
+        if not vdim:
+            return {1}
+        d = vdim(data)
+        return range(sum(ax > 1 for ax in d.shape), d.ndim + 1)
 
     @classmethod
     def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002
@@ -149,11 +165,7 @@ class AnnDataInterface(hv.core.Interface):
         adata = cast("AnnData", dataset.data)
         obs = var = None
         for k, v in selection.items():
-            dim = AdAc.from_dimension(
-                (dataset.get_dimension(k) or AdAc.resolve(k))
-                if isinstance(k, str)
-                else k
-            )
+            dim = cls._dim(dataset, k)
             ax = cls.validate_selection_dim(dim, "select")
             values = dim(adata)
             mask = None
@@ -166,7 +178,7 @@ class AnnDataInterface(hv.core.Interface):
                     if sel.stop is not None:
                         stop_mask = values < sel.stop
                         mask = stop_mask if mask is None else (mask & stop_mask)
-            elif isinstance(sel, (set, list)):
+            elif isinstance(sel, set | list):
                 iter_slcs = []
                 for ik in sel:
                     with warnings.catch_warnings():
@@ -187,27 +199,11 @@ class AnnDataInterface(hv.core.Interface):
     def select(
         cls,
         dataset: Dataset,
-        selection_mask: np.ndarray | None = None,
-        selection_expr: (
-            hv.dim | Mapping[Dimension | str, SelectionValues] | None
-        ) = None,
-        selection_specs: Sequence[SelectionSpec] | None = None,
-        **selection: SelectionValues,  # type: ignore[arg-type]
+        *,
+        selection_mask: Sequence[SelectionSpec] | None = None,
+        **selection: SelectionValues,
     ) -> AnnData:
         """Select along obs and var axes."""
-        if selection_specs is not None:
-            msg = "selection_specs is not supported by AnnDataInterface yet."
-            raise NotImplementedError(msg)
-        if isinstance(selection_expr, Mapping):
-            if selection:
-                msg = "Cannot provide both selection and selection_expr."
-                raise TypeError(msg)
-            selection: Mapping[Dimension | str, SelectionValues] = selection_expr
-            selection_expr = None
-        elif selection_expr is not None:
-            msg = "selection_expr is not supported by AnnDataInterface yet."
-            raise NotImplementedError(msg)
-
         if selection_mask is None:
             obs, var = cls.selection_masks(dataset, selection)
         else:
@@ -244,7 +240,7 @@ class AnnDataInterface(hv.core.Interface):
         keep_index: bool = False,
     ) -> ValueType:
         """Retrieve values for a dimension."""
-        dim = cast("AdPath", data.get_dimension(dim))
+        dim = cls._dim(data, dim)
         adata = cast("AnnData", data.data)
         values = dim(adata)
         if not keep_index and isinstance(values, pd.Series):
@@ -259,7 +255,7 @@ class AnnDataInterface(hv.core.Interface):
         cls, data: Dataset, dim: Dimension | str
     ) -> np.dtype | pd.api.extensions.ExtensionDtype:
         """Get the data type for a dimension."""
-        dim = cast("AdPath", data.get_dimension(dim))
+        dim = cls._dim(data, dim)
         adata = cast("AnnData", data.data)
         return dim(adata).dtype
 
@@ -337,19 +333,15 @@ class AnnDataInterface(hv.core.Interface):
         cls,
         dataset: Dataset,
         dimensions: Sequence[str | AdPath],
-        container_type: C,
-        group_type: type[Dataset],
+        container_type: type[T],
+        group_type: type[Dataset | dict] | Literal["raw"],
         **kwargs: Any,  # noqa: ANN401
     ) -> T:
         """Group the dataset along the provided dimensions."""
         values = {}
         adata = cast("AnnData", dataset.data)
         for k in dimensions:
-            dim = AdAc.from_dimension(
-                (dataset.get_dimension(k) or AdAc.resolve(k))
-                if isinstance(k, str)
-                else k
-            )
+            dim = cls._dim(dataset, k)
             cls.validate_selection_dim(dim, "group")
             values[k] = unique_iterator(dim(adata))
 
@@ -424,7 +416,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
     def coords(
         cls,
         dataset: Dataset,
-        dim: Dimension,
+        dim: Dimension | str,
         ordered: bool = False,  # noqa: FBT001, FBT002
         *,
         expanded: bool = False,
@@ -435,7 +427,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         Ordered ensures coordinates are in ascending order and expanded creates
         ND-array matching the dimensionality of the dataset.
         """
-        dim = cast("Dimension", dataset.get_dimension(dim, strict=True))
+        dim = cls._dim(dataset, dim)
         irregular = cls.irregular(dataset, dim)
         vdim = dataset.vdims[0]
         if irregular or expanded:
@@ -451,6 +443,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         shape = cls.shape(dataset, gridded=True)
         if dim in dataset.kdims:
             idx = dataset.get_dimension_index(dim)
+            # TODO: don’t do this, it’s broken if diff(shape) == 1  # noqa: TD003
             is_edges = (
                 dim in dataset.kdims
                 and len(shape) == dataset.ndims
@@ -476,24 +469,41 @@ class AnnDataGriddedInterface(AnnDataInterface):
         keep_index: bool = False,
     ) -> ValueType:
         """Retrieve values for a dimension."""
-        dim = cast("AdPath", data.get_dimension(dim))
-        idx = data.get_dimension_index(dim)
+        dim = cls._dim(data, dim)
         adata = cast("AnnData", data.data)
-        axes = cls.axes(data)
-        if idx <= 1 and isinstance(data, SheetCoordinateSystem):
+        if dim in data.kdims and isinstance(data, SheetCoordinateSystem):
             # On 2D datasets we generate synthetic coordinates
-            ax = axes[idx]
+            [ax] = dim.axes
             return np.arange(len(getattr(adata, ax)))
-        if expanded and dim in data.kdims:
-            values = expand_grid_coords(data, dim)
-        else:
+        if len(dim.axes) > 1 or not expanded:
             values = dim(adata)
+            if len(dim.axes) > 1 and data.kdims[0].axes == {"var"}:
+                values = values.T
+        else:
+            [ax] = dim.axes
+            idx = cls._expand_grid(data)[ax]
+            values = dim(adata)[idx]
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
         elif flat and values.ndim > 1:
-            assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
+            if isinstance(values, pd.api.extensions.ExtensionArray):
+                values = values.to_numpy()
             values = values.flatten()
         return values
+
+    @classmethod
+    def _expand_grid(
+        cls, data: Dataset
+    ) -> dict[Literal["obs", "var"], NDArray[np.intp]]:
+        arrays = cartesian_product(
+            [
+                np.arange(len(getattr(data.data, next(iter(d.axes)))))
+                for d in data.kdims
+            ],
+            flat=False,
+        )
+        axes = cls.axes(data)
+        return {ax: arrays[axes.index(ax)] for ax in axes}
 
     @classmethod
     def irregular(cls, dataset: Dataset, dim: Dimension | str) -> Literal[False]:
@@ -517,7 +527,7 @@ def register() -> None:
     hv.core.Interface.register(AnnDataGriddedInterface)
 
 
-def unregister() -> None:
+def unregister() -> None:  # pragma: no cover
     """Unregister the data type and interface with holoviews."""
     if TYPE_CHECKING:
         assert isinstance(hv.element.Image.datatype, list)
