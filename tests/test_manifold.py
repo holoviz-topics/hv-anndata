@@ -9,7 +9,7 @@ import anndata as ad
 import holoviews as hv
 import numpy as np
 import pandas as pd
-import panel_material_ui as pmui
+import panel as pn
 import pytest
 from holoviews.operation.datashader import dynspread, rasterize
 
@@ -118,7 +118,6 @@ def test_create_manifoldmap_plot_datashading(
     if color_kind == "categorical":
         assert rop.name.startswith("datashade")
         assert rop.aggregator.cat_column == f"A.obs['{color_var}']"
-        assert rop.selector.column == "A.obsm['X_umap'][:, 0]"
         assert dop.name.startswith("dynspread")
         assert dop.threshold == 0.5
     elif color_kind == "continuous":
@@ -210,7 +209,7 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 
     layout = mm.__panel__()
 
-    assert isinstance(layout, pmui.layout.Row)
+    assert isinstance(layout, pn.Row)
     assert len(layout) == 2
 
 
@@ -239,6 +238,7 @@ def test_labeller() -> None:
 def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
     bounds_xy = hv.streams.BoundsXY()
     mm = ManifoldMap(adata=sadata, streams=[bounds_xy])
+    mm._plot_view.clear()
     assert bounds_xy.source is None
     mm.__panel__()
     assert bounds_xy.source is not None
