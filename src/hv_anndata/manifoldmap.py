@@ -126,7 +126,7 @@ class ManifoldMapConfig(TypedDict, total=False):
     ls: link_selections | None
 
 
-def create_manifoldmap_plot(
+def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
     adata: ad.AnnData,
     dr_key: str,
     x_dim: int,
