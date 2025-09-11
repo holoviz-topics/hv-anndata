@@ -21,7 +21,7 @@ from holoviews.operation import Operation
 from holoviews.selection import link_selections
 from panel.reactive import hold
 
-from .interface import ACCESSOR as AnnAcc  # noqa: N811
+from .interface import ACCESSOR as A
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -205,10 +205,10 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
         colorbar = True
 
     # Create basic plot
-    vdim = AnnAcc.obs[color_by] if color_by in adata.obs else AnnAcc[:, color_by]
+    vdim = A.obs[color_by] if color_by in adata.obs else A[:, color_by]
     dataset = hv.Dataset(
         adata,
-        [AnnAcc.obsm[dr_key][:, x_dim], AnnAcc.obsm[dr_key][:, y_dim]],
+        [A.obsm[dr_key][:, x_dim], A.obsm[dr_key][:, y_dim]],
         [vdim],
     )
     plot = dataset.to(hv.Points)
