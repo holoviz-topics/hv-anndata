@@ -497,9 +497,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         return values
 
     @classmethod
-    def _expand_grid(
-        cls, data: Dataset
-    ) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
+    def _expand_grid(cls, data: Dataset) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
         obs, var = cartesian_product(
             [np.arange(len(data.data.obs)), np.arange(len(data.data.var))],
             flat=False,
