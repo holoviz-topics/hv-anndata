@@ -419,9 +419,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
         ND-array matching the dimensionality of the dataset.
         """
         dim = cls._dim(dataset, dim)
-        irregular = cls.irregular(dataset, dim)
         vdim = dataset.vdims[0]
-        if irregular or expanded:
+        if expanded:
             data = expand_grid_coords(dataset, dim)
             if edges and data.shape == vdim(dataset.data).shape:
                 data = GridInterface._infer_interval_breaks(data, axis=1)  # noqa: SLF001
@@ -466,17 +465,30 @@ class AnnDataGriddedInterface(AnnDataInterface):
             # On 2D datasets we generate synthetic coordinates
             [ax] = dim.axes
             return np.arange(len(getattr(adata, ax)))
-        if len(dim.axes) > 1 or not expanded:
+
+        transpose = (
+            len(data.kdims) == 2  # noqa: PLR2004
+            and data.kdims[0].axes == {"obs"}
+            and data.kdims[1].axes == {"var"}
+        )
+        flip = np.flipud if transpose else np.fliplr
+        if dim in data.vdims:
             values = dim(adata)
-            if len(dim.axes) > 1 and data.kdims[0].axes == {"var"}:
+            if transpose and not flat:
                 values = values.T
+        elif expanded:
+            obs, var = cls._expand_grid(data)
+            idx = var if dim.axes == {"var"} else obs
+            coords = dim(adata)
+            values = coords[idx]
+            if dim.axes == {"var"}:
+                values = flip(values)
         else:
-            [ax] = dim.axes
-            idx = cls._expand_grid(data)[ax]
-            values = dim(adata)[idx]
+            values = dim(adata)
+
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
-        elif flat and values.ndim > 1:
+        if flat and values.ndim > 1:
             if isinstance(values, pd.api.extensions.ExtensionArray):
                 values = values.to_numpy()
             values = values.flatten()
@@ -486,15 +498,11 @@ class AnnDataGriddedInterface(AnnDataInterface):
     def _expand_grid(
         cls, data: Dataset
     ) -> dict[Literal["obs", "var"], NDArray[np.intp]]:
-        arrays = cartesian_product(
-            [
-                np.arange(len(getattr(data.data, next(iter(d.axes)))))
-                for d in data.kdims
-            ],
+        obs, var = cartesian_product(
+            [np.arange(len(data.data.obs)), np.arange(len(data.data.var))],
             flat=False,
         )
-        axes = cls.axes(data)
-        return {ax: arrays[axes.index(ax)] for ax in axes}
+        return obs, var
 
     @classmethod
     def irregular(cls, dataset: Dataset, dim: Dimension | str) -> Literal[False]:
