@@ -466,11 +466,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
             [ax] = dim.axes
             return np.arange(len(getattr(adata, ax)))
 
-        transpose = (
-            len(data.kdims) == 2  # noqa: PLR2004
-            and data.kdims[0].axes == {"obs"}
-            and data.kdims[1].axes == {"var"}
-        )
+        transpose = [d.axes for d in data.kdims] == [{"obs"}, {"var"}]
         flip = np.flipud if transpose else np.fliplr
         if dim in data.vdims:
             values = dim(adata)
