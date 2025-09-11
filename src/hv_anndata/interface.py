@@ -474,13 +474,15 @@ class AnnDataGriddedInterface(AnnDataInterface):
         flip = np.flipud if transpose else np.fliplr
         if dim in data.vdims:
             values = dim(adata)
-            if transpose and not flat:
+            if (transpose and not flat) or (not transpose and flat):
                 values = values.T
         elif expanded:
             obs, var = cls._expand_grid(data)
             idx = var if dim.axes == {"var"} else obs
             coords = dim(adata)
             values = coords[idx]
+            if not transpose:
+                values = values.T
             if dim.axes == {"var"}:
                 values = flip(values)
         else:
