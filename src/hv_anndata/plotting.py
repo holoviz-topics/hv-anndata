@@ -292,10 +292,15 @@ def _get_opts(
     return opts | backend_opts | plot_opts
 
 
+def _get_cat_obs(adata: ad.AnnData) -> list[str]:
+    categorical_obs = adata.obs.select_dtypes(include=["category"]).columns.tolist()
+    return sorted(categorical_obs)
+
+
 def create_dotmap_plot(  # noqa: PLR0913
     adata: ad.AnnData,
     *,
-    groupby: str = _DEFAULT_GROUPBY,
+    groupby: str | None = _DEFAULT_GROUPBY,
     kdims: list[str | hv.Dimension] = _DEFAULT_KDIMS,
     vdims: list[str | hv.Dimension] = _DEFAULT_VDIMS,
     marker_genes: Mapping[str, list[str]] | list[str] | None = None,
@@ -312,8 +317,9 @@ def create_dotmap_plot(  # noqa: PLR0913
     ----------
     adata : AnnData
         Annotated data matrix
-    groupby : str, optional
-        Observation column to group by, by default "cell_type"
+    groupby : str | None, optional
+        Observation column to group by, by default "cell_type". If None,
+        first categorical obs of adata.
     kdims : list[str  |  hv.Dimension], optional
         Key dimensions representing cluster and marker line
         (combined marker cluster name and gene), by default
@@ -343,6 +349,8 @@ def create_dotmap_plot(  # noqa: PLR0913
         Dotmap plot instance.
 
     """
+    if groupby is None:
+        groupby = _get_cat_obs(adata)[0]
     data = _prepare_data(
         adata,
         groupby=groupby,
@@ -431,12 +439,7 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
 
     adata = param.ClassSelector(class_=ad.AnnData)
 
-    groupby = param.Selector(
-        default=_DEFAULT_GROUPBY,
-        objects=[_DEFAULT_GROUPBY],
-        check_on_set=False,
-        doc="Observation column to group by.",
-    )
+    groupby = param.String(default=_DEFAULT_GROUPBY, allow_None=True)
 
     dendrogram = param.ClassSelector(
         default=None,
@@ -460,20 +463,38 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
         if missing := (required - params.keys()):
             msg = f"Needs to have the following argument(s): {missing}"
             raise TypeError(msg)
+        self._w_gb = pmui.widgets.Select(
+            options=["bar", "foo"],
+            label="Group by",
+            sizing_mode="stretch_width",
+        )
+        self._w_gb.param.watch(lambda e: self.param.update(groupby=e.new), ["value"])
         super().__init__(**params)
         self._w_gs = GeneSelector(label="Marker Genes:", value=self.param.marker_genes)
         self._w_gs.param.watch(self._update_marker_genes, "value", onlychanged=False)
 
-    @param.depends("adata", watch=True, on_init=True)
-    def _on_adata(self) -> None:
+    @param.depends("adata", "_input_dm", watch=True, on_init=True)
+    def _on_input_data(self) -> None:
         if self.adata is None:
+            obj = self._input_dm
+            if isinstance(obj, hv.DynamicMap):
+                obj = obj[()]
+            if isinstance(obj, Overlay):
+                obj = obj.get(0)
+            self.adata = obj.dataset.data
+        groupby_opts = _get_cat_obs(self.adata)
+        self._w_gb.options = groupby_opts
+        self.groupby = groupby_opts[0]
+
+    @param.depends("groupby", watch=True, on_init=True)
+    def _on_groupby(self) -> None:
+        if not self._w_gb.options:
             return
-        categorical_obs = self.adata.obs.select_dtypes(
-            include=["category"]
-        ).columns.tolist()
-        self.param.groupby.objects = categorical_obs
-        if categorical_obs and self.groupby not in categorical_obs:
-            self.groupby = categorical_obs[0]
+        if self.groupby not in self._w_gb.options:
+            groupby = self._w_gb.options[0]
+            with param.parameterized.discard_events(self):
+                self.groupby = groupby
+        self._w_gb.value = self.groupby
 
     def _get_dendrogram(self) -> hv.operation.dendrogram | None:
         if isinstance(self.dendrogram, hv.operation.dendrogram):
@@ -517,11 +538,7 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
 
     def __panel__(self) -> pn.viewable.Viewable:
         widgets = pmui.Column(
-            pmui.widgets.Select.from_param(
-                self.param.groupby,
-                label="Group by",
-                sizing_mode="stretch_width",
-            ),
+            self._w_gb,
             self._w_gs,
             sizing_mode="stretch_width",
             max_width=self._w_gs.width,
