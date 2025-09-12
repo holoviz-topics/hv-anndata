@@ -271,6 +271,11 @@ class Dotmap(pn.viewable.Viewer):
                     hover_tooltips.remove("marker_cluster_name")
                 backend_opts = {
                     "colorbar_position": "left",
+                    "clabel": "Mean Expression",
+                    "colorbar_opts": {
+                        # Does not seem to work
+                        "title_text_font_style": "italic",
+                    },
                     "min_height": 300,
                     "tools": ["hover"],
                     "line_alpha": 0.2,
