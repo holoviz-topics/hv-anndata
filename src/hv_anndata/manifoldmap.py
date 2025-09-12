@@ -418,6 +418,9 @@ class ManifoldMap(pn.viewable.Viewer):
         default=True,
         doc="Whether to make the plot size-responsive",
     )
+    plot_opts: dict = param.Dict(  # type: ignore[assignment]
+        default={}, doc="HoloViews plot options for the manifoldmap plot."
+    )
     _replot: bool = param.Event()  # type: ignore[assignment]
 
     def __init__(self, **params: object) -> None:
@@ -635,7 +638,7 @@ class ManifoldMap(pn.viewable.Viewer):
         "_replot",
     )
     def _plot_view(self) -> hv.Element:
-        return self.create_plot(
+        plot = self.create_plot(
             dr_key=self.reduction,
             x_value=self.x_axis,
             y_value=self.y_axis,
@@ -644,6 +647,7 @@ class ManifoldMap(pn.viewable.Viewer):
             show_labels=self.show_labels,
             cmap=self.colormap,
         )
+        return plot.opts(**self.plot_opts)
 
     def __panel__(self) -> pn.viewable.Viewable:
         """Create the Panel application layout.
