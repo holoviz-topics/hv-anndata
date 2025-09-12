@@ -403,7 +403,7 @@ class ManifoldMap(pn.viewable.Viewer):
     colormap: str = param.Selector()
     datashade: bool = param.Boolean(  # type: ignore[assignment]
         default=True,
-        label="Datashader Rasterize For Large Datasets",
+        label="Large Data Rendering",
         doc="Whether to enable datashading",
     )
     var_reference: str | None = param.String(  # type: ignore[assignment]
@@ -418,7 +418,7 @@ class ManifoldMap(pn.viewable.Viewer):
     height: int = param.Integer(default=300, doc="Minimum height of the plot")  # type: ignore[assignment]
     show_labels: bool = param.Boolean(  # type: ignore[assignment]
         default=False,
-        label="Overlay Labels For Categorical Coloring",
+        label="Show Labels",
         doc="Whether to show labels",
     )
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
@@ -731,18 +731,18 @@ class ManifoldMap(pn.viewable.Viewer):
             colormap,
             pmui.widgets.Checkbox.from_param(
                 self.param.datashade,
-                description="",
+                description="Whether to enable rasterizing with Datashader",
                 sizing_mode="stretch_width",
             ),
             pmui.widgets.Checkbox.from_param(
                 self.param.show_labels,
-                description="",
+                description="Overlay labels for categorical coloring",
                 sizing_mode="stretch_width",
             ),
             visible=self.param.show_widgets,
             sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
             sizing_mode="stretch_width",
-            max_width=400,
+            max_width=280,
             min_height=590,
         )
 
