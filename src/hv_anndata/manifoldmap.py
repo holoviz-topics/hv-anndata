@@ -551,7 +551,7 @@ class ManifoldMap(pn.viewable.Viewer):
         datashade_value: bool,
         show_labels: bool,
         cmap: list[str] | str,
-    ) -> pn.viewable.Viewable:
+    ) -> hv.Element:
         """Create a manifold map plot with the specified parameters.
 
         Parameters
@@ -634,7 +634,7 @@ class ManifoldMap(pn.viewable.Viewer):
         "show_labels",
         "_replot",
     )
-    def _plot_view(self) -> pn.viewable.Viewable:
+    def _plot_view(self) -> hv.Element:
         return self.create_plot(
             dr_key=self.reduction,
             x_value=self.x_axis,
