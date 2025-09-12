@@ -461,7 +461,7 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
             msg = f"Needs to have the following argument(s): {missing}"
             raise TypeError(msg)
         super().__init__(**params)
-        self._w_gs = GeneSelector(value=self.param.marker_genes)
+        self._w_gs = GeneSelector(label="Marker Genes:", value=self.param.marker_genes)
         self._w_gs.param.watch(self._update_marker_genes, "value", onlychanged=False)
 
     @param.depends("adata", watch=True, on_init=True)
