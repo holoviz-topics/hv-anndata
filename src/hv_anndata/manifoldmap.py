@@ -482,7 +482,11 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            self.colormap = next(iter(cmaps.values()))
+            if self.colormap in cmaps.values():
+                cmap = self.colormap
+            else:
+                cmap = next(iter(cmaps.values()))
+            self.colormap = cmap
         self._replot = True
 
     @hold()
