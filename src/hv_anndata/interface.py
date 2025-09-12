@@ -204,20 +204,29 @@ class AnnDataInterface(hv.core.Interface):
         **selection: SelectionValues,
     ) -> AnnData:
         """Select along obs and var axes."""
-        # TODO: no way to have `Dataset.select` keep the info about  # noqa: TD003
-        #       which axis the expression is aligned to, so we can’t support this yet.
-        if selection_mask is not None:
-            # selection_mask is made by either of these parameters
-            msg = "selection_{expr,specs} is not implemented for AnnDataInterface"
-            raise NotImplementedError(msg)
-
-        obs, var = cls.selection_masks(dataset, selection)
+        if selection_mask is None:
+            obs, var = cls.selection_masks(dataset, selection)
+        else:
+            axes = cls.axes(dataset)
+            obs, var = (
+                (selection_mask, None) if axes == ("obs",) else (None, selection_mask)
+            )
         adata = cast("AnnData", dataset.data)
         if obs is None:
             return adata if var is None else dataset.data[:, var]
         if var is None:
             return adata[obs]
         return adata[obs, var]
+
+    @classmethod
+    def reindex(
+        cls,
+        dataset: Dataset,
+        kdims: list[Dimension] | None = None,  # noqa: ARG003
+        vdims: list[Dimension] | None = None,  # noqa: ARG003
+    ) -> AnnData:
+        """Reindex the data (a no-op)."""
+        return dataset.data
 
     @classmethod
     def values(
