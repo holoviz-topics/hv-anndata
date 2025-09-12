@@ -375,6 +375,8 @@ def create_dotmap_plot(  # noqa: PLR0913
 
 
 class _DotmapParams(param.Parameterized):
+    """Shared parameters."""
+
     kdims = param.List(
         default=_DEFAULT_KDIMS,
         bounds=(2, 2),
