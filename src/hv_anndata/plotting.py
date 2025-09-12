@@ -11,6 +11,7 @@ import holoviews as hv
 import pandas as pd
 import panel as pn
 import param
+from bokeh.models import CustomJSTickFormatter
 from holoviews.core.operation import Operation
 from holoviews.core.overlay import Overlay
 from holoviews.selection import link_selections
@@ -259,7 +260,7 @@ class Dotmap(pn.viewable.Viewer):
             xrotation=45,
         )
 
-        radius_dim = hv.dim("percentage").norm()
+        radius_dim = hv.dim("percentage")
         match hv.Store.current_backend:
             case "matplotlib":
                 backend_opts = {"s": radius_dim * self.max_dot_size}
@@ -276,17 +277,33 @@ class Dotmap(pn.viewable.Viewer):
                         # Does not seem to work
                         "title_text_font_style": "italic",
                     },
-                    "min_height": 300,
-                    "tools": ["hover"],
                     "line_alpha": 0.2,
                     "line_color": "k",
+                    "tools": ["hover"],
                     "hover_tooltips": hover_tooltips,
+                    "min_height": 300,
                     "responsive": True,
                 }
                 if _HOLOVIEWS_VERSION >= (1, 21, 0):
-                    backend_opts |= {"radius": radius_dim / 2}
+                    backend_opts |= {"radius": radius_dim / 100 / 2}
+                    if _HOLOVIEWS_VERSION >= (1, 22, 0):
+                        sb_formatter = CustomJSTickFormatter(
+                            code="""
+                            return Math.round(tick * 2 * 100, 2) + "%";
+                            """
+                        )
+                        backend_opts |= {
+                            "sizebar": True,
+                            "sizebar_location": "left",
+                            "sizebar_orientation": "vertical",
+                            "sizebar_opts": {
+                                "title": "Fraction of\ncells (%)",
+                                "title_standoff": 15,
+                                "formatter": sb_formatter,
+                            },
+                        }
                 else:
-                    backend_opts |= {"size": radius_dim * self.max_dot_size}
+                    backend_opts |= {"size": radius_dim.norm() * self.max_dot_size}
             case _:
                 backend_opts = {}
 
@@ -393,6 +410,6 @@ class DotmapOp(Operation):
         out = super().__call__(element, **kwargs)
         kwargs["streams"] = [Params(ls, ["selection_expr"])]
         inst = self.instance()
-        return out.opts("Points", alpha=ls.unselected_alpha) * Operation.__call__(
-            inst, element, ls=ls, **kwargs
-        )
+        return out.opts(
+            "Points", alpha=ls.unselected_alpha, sizebar=False
+        ) * Operation.__call__(inst, element, ls=ls, **kwargs)
