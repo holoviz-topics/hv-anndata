@@ -441,10 +441,11 @@ class ManifoldMap(pn.viewable.Viewer):
     )
     _replot: bool = param.Event()  # type: ignore[assignment]
 
+    _categorical = param.Boolean(default=False)
+
     def __init__(self, **params: object) -> None:
         """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
-        self._categorical = False
         dr_options = []
         available_keys = list(self.adata.obsm.keys())
         priority_keys = ("X_umap", "X_tsne", "X_pca")
@@ -738,6 +739,7 @@ class ManifoldMap(pn.viewable.Viewer):
                 self.param.show_labels,
                 description="Overlay labels for categorical coloring",
                 sizing_mode="stretch_width",
+                visible=self.param._categorical,  # noqa: SLF001
             ),
             visible=self.param.show_widgets,
             sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
