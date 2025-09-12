@@ -25,7 +25,7 @@ from .interface import ACCESSOR as A
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from typing import Unpack
+    from typing import Any, Unpack
 
     from holoviews.streams import Stream
 
@@ -124,6 +124,8 @@ class ManifoldMapConfig(TypedDict, total=False):
     streams: list[Stream]
     """list of streams to use for dynamic updates (default: [])"""
     ls: link_selections | None
+    """Operation and plot options for the labeller"""
+    labeller_opts: dict[str, Any]
 
 
 def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
@@ -176,6 +178,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
     responsive = config.get("responsive", True)
     streams = config.get("streams", [])
     ls = config.get("ls")
+    labeller_opts = config.get("labeller_opts")
 
     if color_by in adata.obs:
         color_data = adata.obs[color_by].values
@@ -262,7 +265,15 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
     if categorical and show_labels:
         # Options for labels
         label_opts = dict(text_font_size="8pt", text_color="black")
-        plot = plot * labeller(dataset).opts(**label_opts)
+        lop_opts = {}
+        lplot_opts = {}
+        for k, v in labeller_opts.items():
+            if k in labeller.param:
+                lop_opts[k] = v
+            else:
+                lplot_opts[k] = v
+        lplot_opts = label_opts | lplot_opts
+        plot = plot * labeller(dataset, **lop_opts).opts(**lplot_opts)
 
     if not responsive:
         plot = plot.opts(
@@ -366,6 +377,10 @@ class ManifoldMap(pn.viewable.Viewer):
         Whether to show control widgets
     responsive
         Whether to make the plot size-responsive
+    plot_opts
+        HoloViews plot options for the manifoldmap plot
+    labeller_opts
+        Operation and plot options for the labeller
 
     """
 
@@ -419,7 +434,10 @@ class ManifoldMap(pn.viewable.Viewer):
         doc="Whether to make the plot size-responsive",
     )
     plot_opts: dict = param.Dict(  # type: ignore[assignment]
-        default={}, doc="HoloViews plot options for the manifoldmap plot."
+        default={}, doc="HoloViews plot options for the manifoldmap plot"
+    )
+    labeller_opts: dict = param.Dict(  # type: ignore[assignment]
+        default={}, doc="Operation and plot options for the labeller"
     )
     _replot: bool = param.Event()  # type: ignore[assignment]
 
@@ -613,6 +631,7 @@ class ManifoldMap(pn.viewable.Viewer):
             responsive=self.responsive,
             streams=self.streams,
             ls=self.ls,
+            labeller_opts=self.labeller_opts,
         )
 
         self.plot = create_manifoldmap_plot(
