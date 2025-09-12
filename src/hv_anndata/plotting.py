@@ -228,6 +228,7 @@ def _get_opts(
     vdims: list[str | hv.Dimension] = _DEFAULT_VDIMS,
     marker_genes: dict[str, list[str]] | list[str] | None = None,
     max_dot_size: int = _DEFAULT_MAX_DOT_SIZE,
+    plot_opts: Mapping[str, Any],
 ) -> dict[str, Any]:
     opts = dict(
         cmap="Reds",
@@ -284,7 +285,7 @@ def _get_opts(
         case _:
             backend_opts = {}
 
-    return opts | backend_opts
+    return opts | backend_opts | plot_opts
 
 
 def create_dotmap_plot(  # noqa: PLR0913
@@ -299,6 +300,7 @@ def create_dotmap_plot(  # noqa: PLR0913
     mean_only_expressed: bool = _DEFAULT_MEAN_ONLY_EXPRESSED,
     standard_scale: Literal["var", "group", None] = _DEFAULT_STANDARD_SCALE,
     max_dot_size: int = 20,
+    plot_opts: Mapping[str, Any] | None = None,
 ) -> hv.Element:
     """Create a Dotmap plot from an AnnData object.
 
@@ -328,6 +330,8 @@ def create_dotmap_plot(  # noqa: PLR0913
         gene, 'group' scales each cell type, by default None
     max_dot_size : int, optional
         Maximum size of the dots, by default 20
+    plot_opts: dict, optional
+        HoloViews plot options for the Points element.
 
     Returns
     -------
@@ -347,11 +351,13 @@ def create_dotmap_plot(  # noqa: PLR0913
         standard_scale=standard_scale,
     )
     plot = hv.Points(data, kdims=kdims, vdims=vdims)
+    plot_opts = plot_opts if plot_opts else {}
     opts = _get_opts(
         kdims=kdims,
         vdims=vdims,
         marker_genes=marker_genes,
         max_dot_size=max_dot_size,
+        plot_opts=plot_opts,
     )
     return plot.opts(**opts)
 
@@ -413,6 +419,8 @@ class _DotmapParams(param.Parameterized):
         default=_DEFAULT_MEAN_ONLY_EXPRESSED,
         doc="If True, gene expression is averaged only over expressing cells.",
     )
+
+    plot_opts = param.Dict(doc="HoloViews plot options for the Points element.")
 
 
 class Dotmap(pn.viewable.Viewer, _DotmapParams):
