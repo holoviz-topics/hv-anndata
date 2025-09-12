@@ -10,6 +10,7 @@ import anndata as ad
 import holoviews as hv
 import pandas as pd
 import panel as pn
+import panel_material_ui as pmui
 import param
 from bokeh.models import CustomJSTickFormatter
 from holoviews.core.operation import Operation
@@ -309,7 +310,7 @@ def create_dotmap_plot(  # noqa: PLR0913
     adata : AnnData
         Annotated data matrix
     groupby : str, optional
-        Column to group by, by default "cell_type"
+        Observation column to group by, by default "cell_type"
     kdims : list[str  |  hv.Dimension], optional
         Key dimensions representing cluster and marker line
         (combined marker cluster name and gene), by default
@@ -382,7 +383,6 @@ class _DotmapParams(param.Parameterized):
     marker_genes = param.ClassSelector(
         default={}, class_=(dict, list), doc="Dictionary or list of marker genes."
     )
-    groupby = param.String(default=_DEFAULT_GROUPBY, doc="Column to group by.")
     expression_cutoff = param.Number(
         default=_DEFAULT_EXPRESSION_CUTOFF, doc="Cutoff for expression."
     )
@@ -428,23 +428,40 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
 
     adata = param.ClassSelector(class_=ad.AnnData)
 
+    groupby = param.Selector(
+        default=_DEFAULT_GROUPBY,
+        objects=[_DEFAULT_GROUPBY],
+        doc="Observation column to group by.",
+    )
+
     ls = param.ClassSelector(class_=link_selections)
 
     _input_dm = param.ClassSelector(default=None, allow_None=True, class_=hv.DynamicMap)
 
     def __init__(self, **params: Unpack[_DotmapPlotParams]) -> None:
         """Init the Dotmap."""
-        required = {"adata", "marker_genes", "groupby"}
+        required = {"adata", "marker_genes"}
         if "_input_dm" in params:
             required.remove("adata")
         if missing := (required - params.keys()):
             msg = f"Needs to have the following argument(s): {missing}"
             raise TypeError(msg)
         super().__init__(**params)
-        self._widget = GeneSelector(value=self.param.marker_genes)
-        self._widget.param.watch(self._update_marker_genes, "value", onlychanged=False)
+        self._w_gs = GeneSelector(value=self.param.marker_genes)
+        self._w_gs.param.watch(self._update_marker_genes, "value", onlychanged=False)
 
-    @param.depends("marker_genes")
+    @param.depends("adata", watch=True, on_init=True)
+    def _on_adata(self) -> None:
+        if self.adata is None:
+            return
+        categorical_obs = self.adata.obs.select_dtypes(
+            include=["category"]
+        ).columns.tolist()
+        self.param.groupby.objects = categorical_obs
+        if categorical_obs and self.groupby not in categorical_obs:
+            self.groupby = categorical_obs[0]
+
+    @param.depends("marker_genes", "groupby")
     def plot(self) -> hv.Points:
         """Plot the Dotmap."""
         ignored = ["_input_dm", "adata", "name"]
@@ -468,7 +485,18 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
             self.param.trigger("marker_genes")
 
     def __panel__(self) -> pn.viewable.Viewable:
-        return pn.Row(self._widget, self.plot)
+        widgets = pmui.Column(
+            pmui.widgets.Select.from_param(
+                self.param.groupby,
+                label="Group by",
+                sizing_mode="stretch_width",
+            ),
+            self._w_gs,
+            sizing_mode="stretch_width",
+            max_width=self._w_gs.width,
+            sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
+        )
+        return pn.Row(widgets, self.plot)
 
 
 def dotmap_from_manifoldmap(
@@ -509,6 +537,10 @@ class DotmapOp(Operation, _DotmapParams):
     backed by an AnnData object.
     """
 
+    groupby = param.String(
+        default=_DEFAULT_GROUPBY, doc="Observation column to group by"
+    )
+
     ls = param.ClassSelector(class_=link_selections)
 
     def _apply(
@@ -528,6 +560,7 @@ class DotmapOp(Operation, _DotmapParams):
             element = element.dataset
         return create_dotmap_plot(
             adata=element.data,
+            groupby=self.p.groupby,
             **{k: v for k, v in self.p.items() if k in _DotmapParams.param},
         )
 
