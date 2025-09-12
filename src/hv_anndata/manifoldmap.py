@@ -221,7 +221,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
     plot_opts = dict(
         color=vdim,
         cmap=cmap,
-        size=1,
+        size=3,
         alpha=0.5,
         colorbar=colorbar,
         padding=0,
@@ -246,7 +246,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
         # For continuous data, take the mean
         aggregator = ds.mean(vdim.name)
         plot = hd.rasterize(plot, aggregator=aggregator)
-        plot = hd.dynspread(plot, threshold=0.5)
+        plot = hd.dynspread(plot, threshold=0.5, max_px=5)
         plot = plot.opts(
             cmap=cmap,
             colorbar=colorbar,
