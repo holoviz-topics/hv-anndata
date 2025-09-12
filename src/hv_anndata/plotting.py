@@ -431,6 +431,7 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
     groupby = param.Selector(
         default=_DEFAULT_GROUPBY,
         objects=[_DEFAULT_GROUPBY],
+        check_on_set=False,
         doc="Observation column to group by.",
     )
 
