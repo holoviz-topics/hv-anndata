@@ -260,8 +260,11 @@ def _get_opts(
                 "line_color": "k",
                 "tools": ["hover"],
                 "hover_tooltips": hover_tooltips,
-                "min_height": 300,
-                "responsive": True,
+                "height": 500,
+                "responsive": "width",
+                # Saw layout issues with the dendrogram
+                # "min_height": 300,  # noqa: ERA001
+                # "responsive": True,  # noqa: ERA001
             }
             if _HOLOVIEWS_VERSION >= (1, 21, 0):
                 backend_opts |= {"radius": radius_dim / 100 / 2}
@@ -435,6 +438,16 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
         doc="Observation column to group by.",
     )
 
+    dendrogram = param.ClassSelector(
+        default=None,
+        class_=(type(None), bool, hv.operation.dendrogram),
+        doc="Add a dendrogram.",
+    )
+
+    dendrogram_opts = param.Dict(
+        doc="HoloViews plot options for the Dendrogram element."
+    )
+
     ls = param.ClassSelector(class_=link_selections)
 
     _input_dm = param.ClassSelector(default=None, allow_None=True, class_=hv.DynamicMap)
@@ -462,10 +475,21 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
         if categorical_obs and self.groupby not in categorical_obs:
             self.groupby = categorical_obs[0]
 
+    def _get_dendrogram(self) -> hv.operation.dendrogram | None:
+        if isinstance(self.dendrogram, hv.operation.dendrogram):
+            return self.dendrogram
+        if self.dendrogram:
+            return hv.operation.dendrogram.instance(
+                adjoint_dims=["cluster"],
+                main_dim="mean_expression",
+                invert=True,
+            )
+        return None
+
     @param.depends("marker_genes", "groupby")
     def plot(self) -> hv.Points:
         """Plot the Dotmap."""
-        ignored = ["_input_dm", "adata", "name"]
+        ignored = ["_input_dm", "adata", "dendrogram", "dendrogram_opts", "name"]
         kwargs = {k: v for k, v in self.param.values().items() if k not in ignored}
         if self._input_dm is not None:
             obj = self._input_dm
@@ -473,7 +497,13 @@ class Dotmap(pn.viewable.Viewer, _DotmapParams):
             # Dummy dataset to pass it to the operation which needs the adata object
             obj = hv.Dataset([])
             obj.data = self.adata
-        return DotmapOp(obj, **kwargs)
+
+        out = DotmapOp(obj, **kwargs)
+        if self.dendrogram is not None:
+            dd = self._get_dendrogram()
+            dd_opts = self.dendrogram_opts or {}
+            out = dd(out).opts(**dd_opts)
+        return out
 
     def _update_marker_genes(self, event: param.parameterized.Event) -> None:
         # Callback to ensure an event is triggered when the marker_genes dict
