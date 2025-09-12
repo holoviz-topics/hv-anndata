@@ -73,7 +73,7 @@ def test_create_manifoldmap_plot_no_datashading(
     plot_opts = plot.opts.get("plot").kwargs
     style_opts = plot.opts.get("style").kwargs
     assert style_opts["color"] == AnnAcc.obs[color_var]
-    assert style_opts["size"] == 1
+    assert style_opts["size"] == 3
     assert style_opts["alpha"] == 0.5
     assert plot_opts["padding"] == 0
     assert len(plot_opts["tools"]) == 3
@@ -200,6 +200,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         cmap=["#1f77b3", "#ff7e0e"],
         responsive=True,
         ls=None,
+        labeller_opts={},
     )
 
 
