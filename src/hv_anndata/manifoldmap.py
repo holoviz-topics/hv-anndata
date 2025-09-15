@@ -504,8 +504,13 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            if self.colormap in cmaps:
+            if isinstance(self.colormap, str) and self.colormap in cmaps:
                 cmap = cmaps[self.colormap]
+            elif isinstance(self.colormap, list):
+                if self.colormap in cmaps.values():
+                    cmap = self.colormap
+                else:
+                    cmap = next(iter(cmaps.values()))
             else:
                 cmap = next(iter(cmaps.values()))
             self.colormap = cmap
@@ -664,6 +669,7 @@ class ManifoldMap(pn.viewable.Viewer):
         "show_labels",
         "_replot",
         "plot_opts",
+        "color_by",
     )
     def _plot_view(self) -> hv.Element:
         plot = self.create_plot(
