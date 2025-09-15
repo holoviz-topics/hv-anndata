@@ -60,7 +60,7 @@ class labeller(Operation):  # noqa: N801
 
     max_labels = param.Integer(10)
 
-    min_count = param.Integer(default=100)
+    min_count = param.Integer(default=1)
 
     streams = param.List([hv.streams.RangeXY])
 
