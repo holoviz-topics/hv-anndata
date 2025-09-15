@@ -362,7 +362,10 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by
         Initial variable to use for coloring
     colormap
-        Initial colormap to use for coloring
+        Initial colormap. Auto-updates based on data type.
+        Options:
+        - Categorical: "Glasbey Cat10", "Cat20", "Glasbey cool"
+        - Continuous: "Viridis", "Fire", "Blues"
     datashade
         Whether to enable datashading
     width
