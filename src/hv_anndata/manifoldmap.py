@@ -507,7 +507,7 @@ class ManifoldMap(pn.viewable.Viewer):
             if isinstance(self.colormap, str):
                 if self.colormap not in cmaps:
                     msg = f"{self.colormap!r} is not a valid color map name."
-                    raise ValueError()
+                    raise ValueError
                 cmap = cmaps[self.colormap]
             elif isinstance(self.colormap, list):
                 if self.colormap in cmaps.values():
