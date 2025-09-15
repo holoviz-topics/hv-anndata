@@ -504,7 +504,10 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            if isinstance(self.colormap, str) and self.colormap in cmaps:
+            if isinstance(self.colormap, str):
+                if self.colormap not in cmaps:
+                    msg = f"{self.colormap!r} is not a valid color map name."
+                    raise ValueError()
                 cmap = cmaps[self.colormap]
             elif isinstance(self.colormap, list):
                 if self.colormap in cmaps.values():
