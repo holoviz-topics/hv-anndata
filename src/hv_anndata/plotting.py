@@ -37,7 +37,7 @@ class _DotmapPlotParams(TypedDict):
     groupby: str
     expression_cutoff: NotRequired[float]
     max_dot_size: NotRequired[int]
-    standard_scale: NotRequired[Literal["var", "group", None]]
+    standard_scale: NotRequired[Literal["var", "group"] | None]
     use_raw: NotRequired[bool | None]
     mean_only_expressed: NotRequired[bool]
     ls: link_selections
