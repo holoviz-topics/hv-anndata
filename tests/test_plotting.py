@@ -82,7 +82,7 @@ def test_dotmap_use_raw_explicit_bokeh() -> None:
         use_raw=True,
     )
     with pytest.raises(
-        ValueError, match="use_raw=True but .raw attribute is not present"
+        ValueError, match=r"use_raw=True but \.raw attribute is not present"
     ):
         dotmap_layout.plot()
 
