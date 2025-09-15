@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
@@ -24,7 +25,6 @@ from panel.reactive import hold
 from .interface import ACCESSOR as A
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from typing import Any, Unpack
 
     from holoviews.streams import Stream
@@ -507,9 +507,9 @@ class ManifoldMap(pn.viewable.Viewer):
             if isinstance(self.colormap, str):
                 if self.colormap not in cmaps:
                     msg = f"{self.colormap!r} is not a valid color map name."
-                    raise ValueError
+                    raise ValueError(msg)
                 cmap = cmaps[self.colormap]
-            elif isinstance(self.colormap, list):
+            elif isinstance(self.colormap, Sequence):
                 if self.colormap in cmaps.values():
                     cmap = self.colormap
                 else:
