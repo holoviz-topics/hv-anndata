@@ -366,6 +366,7 @@ class ManifoldMap(pn.viewable.Viewer):
         Options:
         - Categorical: "Glasbey Cat10", "Cat20", "Glasbey cool"
         - Continuous: "Viridis", "Fire", "Blues"
+        Custom colormaps are not yet supported.
     datashade
         Whether to enable datashading
     width
