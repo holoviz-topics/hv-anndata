@@ -25,7 +25,7 @@ from .interface import ACCESSOR as A
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from typing import Unpack
+    from typing import Any, Unpack
 
     from holoviews.streams import Stream
 
@@ -60,7 +60,7 @@ class labeller(Operation):  # noqa: N801
 
     max_labels = param.Integer(10)
 
-    min_count = param.Integer(default=100)
+    min_count = param.Integer(default=1)
 
     streams = param.List([hv.streams.RangeXY])
 
@@ -124,6 +124,8 @@ class ManifoldMapConfig(TypedDict, total=False):
     streams: list[Stream]
     """list of streams to use for dynamic updates (default: [])"""
     ls: link_selections | None
+    """Operation and plot options for the labeller"""
+    labeller_opts: dict[str, Any]
 
 
 def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
@@ -176,6 +178,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
     responsive = config.get("responsive", True)
     streams = config.get("streams", [])
     ls = config.get("ls")
+    labeller_opts = config.get("labeller_opts")
 
     if color_by in adata.obs:
         color_data = adata.obs[color_by].values
@@ -221,7 +224,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
     plot_opts = dict(
         color=vdim,
         cmap=cmap,
-        size=1,
+        size=3,
         alpha=0.5,
         colorbar=colorbar,
         padding=0,
@@ -246,7 +249,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
         # For continuous data, take the mean
         aggregator = ds.mean(vdim.name)
         plot = hd.rasterize(plot, aggregator=aggregator)
-        plot = hd.dynspread(plot, threshold=0.5)
+        plot = hd.dynspread(plot, threshold=0.5, max_px=5)
         plot = plot.opts(
             cmap=cmap,
             colorbar=colorbar,
@@ -262,7 +265,15 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
     if categorical and show_labels:
         # Options for labels
         label_opts = dict(text_font_size="8pt", text_color="black")
-        plot = plot * labeller(dataset).opts(**label_opts)
+        lop_opts = {}
+        lplot_opts = {}
+        for k, v in labeller_opts.items():
+            if k in labeller.param:
+                lop_opts[k] = v
+            else:
+                lplot_opts[k] = v
+        lplot_opts = label_opts | lplot_opts
+        plot = plot * labeller(dataset, **lop_opts).opts(**lplot_opts)
 
     if not responsive:
         plot = plot.opts(
@@ -351,7 +362,10 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by
         Initial variable to use for coloring
     colormap
-        Initial colormap to use for coloring
+        Initial colormap. Auto-updates based on data type.
+        Options:
+        - Categorical: "Glasbey Cat10", "Cat20", "Glasbey cool"
+        - Continuous: "Viridis", "Fire", "Blues"
     datashade
         Whether to enable datashading
     width
@@ -366,6 +380,10 @@ class ManifoldMap(pn.viewable.Viewer):
         Whether to show control widgets
     responsive
         Whether to make the plot size-responsive
+    plot_opts
+        HoloViews plot options for the manifoldmap plot
+    labeller_opts
+        Operation and plot options for the labeller
 
     """
 
@@ -388,7 +406,7 @@ class ManifoldMap(pn.viewable.Viewer):
     colormap: str = param.Selector()
     datashade: bool = param.Boolean(  # type: ignore[assignment]
         default=True,
-        label="Datashader Rasterize For Large Datasets",
+        label="Large Data Rendering",
         doc="Whether to enable datashading",
     )
     var_reference: str | None = param.String(  # type: ignore[assignment]
@@ -403,7 +421,7 @@ class ManifoldMap(pn.viewable.Viewer):
     height: int = param.Integer(default=300, doc="Minimum height of the plot")  # type: ignore[assignment]
     show_labels: bool = param.Boolean(  # type: ignore[assignment]
         default=False,
-        label="Overlay Labels For Categorical Coloring",
+        label="Show Labels",
         doc="Whether to show labels",
     )
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
@@ -418,12 +436,19 @@ class ManifoldMap(pn.viewable.Viewer):
         default=True,
         doc="Whether to make the plot size-responsive",
     )
+    plot_opts: dict = param.Dict(  # type: ignore[assignment]
+        default={}, doc="HoloViews plot options for the manifoldmap plot"
+    )
+    labeller_opts: dict = param.Dict(  # type: ignore[assignment]
+        default={}, doc="Operation and plot options for the labeller"
+    )
     _replot: bool = param.Event()  # type: ignore[assignment]
+
+    _categorical = param.Boolean(default=False)
 
     def __init__(self, **params: object) -> None:
         """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
-        self._categorical = False
         dr_options = []
         available_keys = list(self.adata.obsm.keys())
         priority_keys = ("X_umap", "X_tsne", "X_pca")
@@ -479,7 +504,11 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            self.colormap = next(iter(cmaps.values()))
+            if self.colormap in cmaps:
+                cmap = cmaps[self.colormap]
+            else:
+                cmap = next(iter(cmaps.values()))
+            self.colormap = cmap
         self._replot = True
 
     @hold()
@@ -551,7 +580,7 @@ class ManifoldMap(pn.viewable.Viewer):
         datashade_value: bool,
         show_labels: bool,
         cmap: list[str] | str,
-    ) -> pn.viewable.Viewable:
+    ) -> hv.Element:
         """Create a manifold map plot with the specified parameters.
 
         Parameters
@@ -606,6 +635,7 @@ class ManifoldMap(pn.viewable.Viewer):
             responsive=self.responsive,
             streams=self.streams,
             ls=self.ls,
+            labeller_opts=self.labeller_opts,
         )
 
         self.plot = create_manifoldmap_plot(
@@ -633,9 +663,10 @@ class ManifoldMap(pn.viewable.Viewer):
         "color_by_dim",
         "show_labels",
         "_replot",
+        "plot_opts",
     )
-    def _plot_view(self) -> pn.viewable.Viewable:
-        return self.create_plot(
+    def _plot_view(self) -> hv.Element:
+        plot = self.create_plot(
             dr_key=self.reduction,
             x_value=self.x_axis,
             y_value=self.y_axis,
@@ -644,6 +675,7 @@ class ManifoldMap(pn.viewable.Viewer):
             show_labels=self.show_labels,
             cmap=self.colormap,
         )
+        return plot.opts(**self.plot_opts)
 
     def __panel__(self) -> pn.viewable.Viewable:
         """Create the Panel application layout.
@@ -704,18 +736,19 @@ class ManifoldMap(pn.viewable.Viewer):
             colormap,
             pmui.widgets.Checkbox.from_param(
                 self.param.datashade,
-                description="",
+                description="Whether to enable rasterizing with Datashader",
                 sizing_mode="stretch_width",
             ),
             pmui.widgets.Checkbox.from_param(
                 self.param.show_labels,
-                description="",
+                description="Overlay labels for categorical coloring",
                 sizing_mode="stretch_width",
+                visible=self.param._categorical,  # noqa: SLF001
             ),
             visible=self.param.show_widgets,
             sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
             sizing_mode="stretch_width",
-            max_width=400,
+            max_width=280,
             min_height=590,
         )
 
