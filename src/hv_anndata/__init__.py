@@ -7,7 +7,7 @@ from .components import GeneSelector
 from .interface import ACCESSOR as _A
 from .interface import AnnDataGriddedInterface, AnnDataInterface, register
 from .manifoldmap import ManifoldMap, ManifoldMapConfig, create_manifoldmap_plot
-from .plotting import Dotmap
+from .plotting import Dotmap, DotmapParams
 
 ACCESSOR = _A
 """Accessor for anndata.
@@ -23,6 +23,7 @@ __all__ = [
     "AnnDataInterface",
     "ClusterMap",
     "Dotmap",
+    "DotmapParams",
     "GeneSelector",
     "ManifoldMap",
     "ManifoldMapConfig",
