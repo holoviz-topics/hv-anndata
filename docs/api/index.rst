@@ -11,6 +11,7 @@
    hv_anndata.AnnDataInterface
    hv_anndata.register
    hv_anndata.Dotmap
+   hv_anndata.DotmapParams
    hv_anndata.GeneSelector
    hv_anndata.ManifoldMap
    hv_anndata.ManifoldMapConfig

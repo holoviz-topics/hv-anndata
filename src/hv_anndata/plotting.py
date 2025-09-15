@@ -38,7 +38,7 @@ class _CreateDotmapPlotParams(TypedDict):
     groupby: str
     expression_cutoff: NotRequired[float]
     max_dot_size: NotRequired[int]
-    standard_scale: NotRequired[Literal["var", "group", None]]
+    standard_scale: NotRequired[Literal["var", "group"] | None]
     use_raw: NotRequired[bool | None]
     mean_only_expressed: NotRequired[bool]
 
@@ -73,7 +73,7 @@ def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0915
     use_raw: bool | None = _DEFAULT_USE_RAW,
     expression_cutoff: float = _DEFAULT_EXPRESSION_CUTOFF,
     mean_only_expressed: bool = _DEFAULT_MEAN_ONLY_EXPRESSED,
-    standard_scale: Literal["var", "group", None] = _DEFAULT_STANDARD_SCALE,
+    standard_scale: Literal["var", "group"] | None = _DEFAULT_STANDARD_SCALE,
 ) -> pd.DataFrame:
     if marker_genes is None:
         marker_genes = {}
@@ -307,7 +307,7 @@ def create_dotmap_plot(  # noqa: PLR0913
     use_raw: bool | None = _DEFAULT_USE_RAW,
     expression_cutoff: float = _DEFAULT_EXPRESSION_CUTOFF,
     mean_only_expressed: bool = _DEFAULT_MEAN_ONLY_EXPRESSED,
-    standard_scale: Literal["var", "group", None] = _DEFAULT_STANDARD_SCALE,
+    standard_scale: Literal["var", "group"] | None = _DEFAULT_STANDARD_SCALE,
     max_dot_size: int = 20,
     plot_opts: Mapping[str, Any] | None = None,
 ) -> hv.Element:
@@ -374,7 +374,7 @@ def create_dotmap_plot(  # noqa: PLR0913
     return plot.opts(**opts)
 
 
-class _DotmapParams(param.Parameterized):
+class DotmapParams(param.Parameterized):
     """Shared parameters."""
 
     kdims = param.List(
@@ -436,7 +436,7 @@ class _DotmapParams(param.Parameterized):
     plot_opts = param.Dict(doc="HoloViews plot options for the Points element.")
 
 
-class Dotmap(pn.viewable.Viewer, _DotmapParams):
+class Dotmap(pn.viewable.Viewer, DotmapParams):
     """Create a DotmapPlot from anndata."""
 
     adata = param.ClassSelector(class_=ad.AnnData)
@@ -580,7 +580,7 @@ def dotmap_from_manifoldmap(
     return mm_plot.rx.pipe(on_mm_updates)
 
 
-class DotmapOp(Operation, _DotmapParams):
+class DotmapOp(Operation, DotmapParams):
     """Operation to generate a DotMap plot.
 
     Generates a DotMap plot from an existing HoloViews object
@@ -611,7 +611,7 @@ class DotmapOp(Operation, _DotmapParams):
         return create_dotmap_plot(
             adata=element.data,
             groupby=self.p.groupby,
-            **{k: v for k, v in self.p.items() if k in _DotmapParams.param},
+            **{k: v for k, v in self.p.items() if k in DotmapParams.param},
         )
 
     def __call__(
