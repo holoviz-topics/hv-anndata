@@ -570,14 +570,14 @@ def dotmap_from_manifoldmap(
     rx: Reactive expression that updates when the ManifoldMap changes.
 
     """
-    mm_plot = param.rx(mm._plot_view)  # noqa: SLF001
+    plot = param.rx(mm._plot_view)  # noqa: SLF001
+
+    # Clear selection when plot updates (if ls exists)
     if mm.ls:
-        mm_plot.rx.watch(lambda _: mm.ls.param.update(selection_expr=None))
+        plot.rx.watch(lambda _: mm.ls.param.update(selection_expr=None))
 
-    def on_mm_updates(new_element: hv.DynamicMap) -> Dotmap:
-        return Dotmap(_input_dm=new_element, ls=mm.ls, **kwargs)
-
-    return mm_plot.rx.pipe(on_mm_updates)
+    # Pipe directly through DotmapOp like the old version did
+    return plot.rx.pipe(DotmapOp, ls=mm.ls, **kwargs)
 
 
 class DotmapOp(Operation, DotmapParams):
