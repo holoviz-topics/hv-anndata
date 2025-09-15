@@ -663,6 +663,7 @@ class ManifoldMap(pn.viewable.Viewer):
         "color_by_dim",
         "show_labels",
         "_replot",
+        "plot_opts",
     )
     def _plot_view(self) -> hv.Element:
         plot = self.create_plot(
