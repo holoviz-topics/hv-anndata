@@ -21,15 +21,15 @@ if TYPE_CHECKING:
     from hv_anndata.accessors import AdPath
 
 
-def _plotting_backend(backend: str) -> None:
+def _plotting_backend(backend: str) -> Iterator[None]:
     pytest.importorskip(backend)
     if not hv.extension._loaded:
         hv.extension(backend)
     hv.renderer(backend)
-    curent_backend = hv.Store.current_backend
+    current_backend = hv.Store.current_backend
     hv.Store.set_current_backend(backend)
     yield
-    hv.Store.set_current_backend(curent_backend)
+    hv.Store.set_current_backend(current_backend)
 
 
 @pytest.fixture

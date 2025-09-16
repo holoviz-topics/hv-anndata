@@ -12,11 +12,11 @@ from hv_anndata.interface import register, unregister
 from hv_anndata.plotting import scanpy as pl
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Iterator
 
 
 @pytest.fixture(autouse=True)
-def interface() -> Generator[None, None, None]:
+def interface() -> Iterator[None]:
     register()
     with contextlib.suppress(Exception):
         yield

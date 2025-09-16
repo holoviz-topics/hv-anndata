@@ -24,7 +24,7 @@ from hv_anndata.interface import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Iterator
     from typing import Any, Literal
 
     from numpy.typing import ArrayLike
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
-def interface() -> Generator[None, None, None]:
+def interface() -> Iterator[None]:
     register()
     with contextlib.suppress(Exception):
         yield

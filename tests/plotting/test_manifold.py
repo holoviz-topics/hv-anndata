@@ -18,12 +18,12 @@ from hv_anndata import ManifoldMap, create_manifoldmap_plot
 from hv_anndata.interface import register, unregister
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Iterator
     from unittest.mock import Mock
 
 
 @pytest.fixture
-def sadata() -> Generator[ad.AnnData, None, None]:
+def sadata() -> Iterator[ad.AnnData]:
     register()
     n_obs = 10
     n_vars = 5
