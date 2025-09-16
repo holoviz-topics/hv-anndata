@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import holoviews as hv
 
-from .interface import ACCESSOR as A
+from hv_anndata import ACCESSOR as A
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-    from .accessors import AdPath, LayerVecAcc, MultiVecAcc
+    from hv_anndata.accessors import AdPath, LayerVecAcc, MultiVecAcc
 
 
 def scatter(
