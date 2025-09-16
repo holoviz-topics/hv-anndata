@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .clustermap import ClusterMap, ClusterMapConfig, create_clustermap_plot
-from .dotmap import Dotmap, DotmapConfig
+from .dotmap import Dotmap, DotmapParams
 from .labeller import labeller
 from .manifoldmap import (
     ManifoldMap,
@@ -15,7 +15,7 @@ __all__ = [
     "ClusterMap",
     "ClusterMapConfig",
     "Dotmap",
-    "DotmapConfig",
+    "DotmapParams",
     "ManifoldMap",
     "ManifoldMapConfig",
     "create_clustermap_plot",

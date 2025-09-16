@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
     from holoviews import DynamicMap, Element
 
-    from hv_anndata.plotting.manifoldmap import ManifoldMap
+    from .manifoldmap import ManifoldMap
 
 
 class _CreateDotmapPlotParams(TypedDict):
@@ -374,7 +374,7 @@ def create_dotmap_plot(  # noqa: PLR0913
     return plot.opts(**opts)
 
 
-class DotmapConfig(param.Parameterized):
+class DotmapParams(param.Parameterized):
     """Shared parameters."""
 
     kdims = param.List(
@@ -436,7 +436,7 @@ class DotmapConfig(param.Parameterized):
     plot_opts = param.Dict(doc="HoloViews plot options for the Points element.")
 
 
-class Dotmap(pn.viewable.Viewer, DotmapConfig):
+class Dotmap(pn.viewable.Viewer, DotmapParams):
     """Create a DotmapPlot from anndata."""
 
     adata = param.ClassSelector(class_=ad.AnnData)
@@ -580,7 +580,7 @@ def dotmap_from_manifoldmap(
     return plot.rx.pipe(DotmapOp, ls=mm.ls, **kwargs)
 
 
-class DotmapOp(Operation, DotmapConfig):
+class DotmapOp(Operation, DotmapParams):
     """Operation to generate a DotMap plot.
 
     Generates a DotMap plot from an existing HoloViews object
@@ -611,7 +611,7 @@ class DotmapOp(Operation, DotmapConfig):
         return create_dotmap_plot(
             adata=element.data,
             groupby=self.p.groupby,
-            **{k: v for k, v in self.p.items() if k in DotmapConfig.param},
+            **{k: v for k, v in self.p.items() if k in DotmapParams.param},
         )
 
     def __call__(
