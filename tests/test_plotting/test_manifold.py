@@ -13,18 +13,15 @@ import panel as pn
 import pytest
 from holoviews.operation.datashader import dynspread, rasterize
 
+from hv_anndata import ACCESSOR as A
 from hv_anndata import ManifoldMap, create_manifoldmap_plot
-from hv_anndata.interface import ACCESSOR as A
-from hv_anndata.interface import register, unregister
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
     from unittest.mock import Mock
 
 
 @pytest.fixture
-def sadata() -> Generator[ad.AnnData, None, None]:
-    register()
+def sadata() -> ad.AnnData:
     n_obs = 10
     n_vars = 5
     n_dims = 2
@@ -46,8 +43,7 @@ def sadata() -> Generator[ad.AnnData, None, None]:
     var = pd.DataFrame(
         index=[f"gene_{i}" for i in range(n_vars)],
     )
-    yield ad.AnnData(X=x, obs=obs, obsm=obsm, var=var)
-    unregister()
+    return ad.AnnData(X=x, obs=obs, obsm=obsm, var=var)
 
 
 @pytest.mark.usefixtures("bokeh_backend")
