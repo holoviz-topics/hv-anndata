@@ -16,7 +16,12 @@ from anndata import AnnData
 from holoviews.core.data.interface import DataError
 
 from hv_anndata import ACCESSOR as A
-from hv_anndata.interface import AnnDataGriddedInterface, AnnDataInterface, register
+from hv_anndata.interface import (
+    AnnDataGriddedInterface,
+    AnnDataInterface,
+    register,
+    unregister,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -33,6 +38,7 @@ def interface() -> Generator[None, None, None]:
     register()
     with contextlib.suppress(Exception):
         yield
+    unregister()
 
 
 @pytest.fixture
