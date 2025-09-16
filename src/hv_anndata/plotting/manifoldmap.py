@@ -318,6 +318,7 @@ class ManifoldMap(pn.viewable.Viewer):
         Options:
         - Categorical: "Glasbey Cat10", "Cat20", "Glasbey cool"
         - Continuous: "Viridis", "Fire", "Blues"
+        Custom colormaps are not yet supported.
     datashade
         Whether to enable datashading
     width
@@ -355,7 +356,12 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by: str = param.Selector(  # type: ignore[assignment]
         doc="Coloring variable"
     )
-    colormap: str = param.Selector()
+    colormap: str = param.Selector(
+        default=None,
+        objects=list(CAT_CMAPS.keys()) + list(CONT_CMAPS.keys()),
+        allow_None=True,
+        doc="Initial colormap name. Auto-selects default if type mismatched",
+    )
     datashade: bool = param.Boolean(  # type: ignore[assignment]
         default=True,
         label="Large Data Rendering",
@@ -433,8 +439,8 @@ class ManifoldMap(pn.viewable.Viewer):
         elif self.color_by not in copts:
             msg = f"color_by variable {self.color_by!r} not found."
             raise ValueError(msg)
-        else:
-            self._update_on_color_by()
+
+        self._update_on_color_by()
         self._update_axes()
 
     @param.depends("color_by_dim", watch=True)
@@ -456,11 +462,10 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            if self.colormap in cmaps:
-                cmap = cmaps[self.colormap]
+            if self.colormap is None or self.colormap not in cmaps:
+                self.colormap = next(iter(cmaps.values()))
             else:
-                cmap = next(iter(cmaps.values()))
-            self.colormap = cmap
+                self.colormap = cmaps[self.colormap]
         self._replot = True
 
     @hold()
@@ -616,6 +621,7 @@ class ManifoldMap(pn.viewable.Viewer):
         "show_labels",
         "_replot",
         "plot_opts",
+        "color_by",
     )
     def _plot_view(self) -> hv.Element:
         plot = self.create_plot(
