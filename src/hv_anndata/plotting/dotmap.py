@@ -1,4 +1,4 @@
-"""HoloViz plotting using AnnData as input."""
+"""Dotmap plot."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from holoviews.selection import link_selections
 from holoviews.streams import Params
 from packaging.version import Version
 
-from .components import GeneSelector
+from hv_anndata.components import GeneSelector
 
 _HOLOVIEWS_VERSION = Version(hv.__version__).release
 

@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 import scanpy as sc
 
-from hv_anndata.plotting import Dotmap
+from hv_anndata import Dotmap
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:

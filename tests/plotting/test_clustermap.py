@@ -12,7 +12,7 @@ import panel_material_ui as pmui
 import pytest
 import scanpy as sc
 
-from hv_anndata.clustermap import ClusterMap, create_clustermap_plot
+from hv_anndata import ClusterMap, create_clustermap_plot
 
 if TYPE_CHECKING:
     from unittest.mock import Mock
@@ -101,7 +101,7 @@ def test_clustermap_update_on_obs_keys(sadata: ad.AnnData) -> None:
 
 
 @pytest.mark.usefixtures("bokeh_backend")
-@patch("hv_anndata.clustermap.create_clustermap_plot")
+@patch("hv_anndata.plotting.clustermap.create_clustermap_plot")
 def test_clustermap_create_plot(mock_ccp: Mock, sadata: ad.AnnData) -> None:
     """Test ClusterMap create_plot method calls underlying function correctly."""
     cm = ClusterMap(adata=sadata)
