@@ -13,16 +13,17 @@ import panel as pn
 import pytest
 from holoviews.operation.datashader import dynspread, rasterize
 
-from hv_anndata.interface import ACCESSOR as AnnAcc  # noqa: N811
+from hv_anndata import ManifoldMap, create_manifoldmap_plot
+from hv_anndata.interface import ACCESSOR as A
 from hv_anndata.interface import register, unregister
-from hv_anndata.manifoldmap import ManifoldMap, create_manifoldmap_plot, labeller
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from unittest.mock import Mock
 
 
 @pytest.fixture
-def sadata() -> ad.AnnData:
+def sadata() -> Generator[ad.AnnData, None, None]:
     register()
     n_obs = 10
     n_vars = 5
@@ -68,11 +69,11 @@ def test_create_manifoldmap_plot_no_datashading(
         "UMAP2",
         datashading=False,
     )
-    assert plot.kdims == [AnnAcc.obsm["X_umap"][:, 0], AnnAcc.obsm["X_umap"][:, 1]]
-    assert plot.vdims == [AnnAcc.obs[color_var]]
+    assert plot.kdims == [A.obsm["X_umap"][:, 0], A.obsm["X_umap"][:, 1]]
+    assert plot.vdims == [A.obs[color_var]]
     plot_opts = plot.opts.get("plot").kwargs
     style_opts = plot.opts.get("style").kwargs
-    assert style_opts["color"] == AnnAcc.obs[color_var]
+    assert style_opts["color"] == A.obs[color_var]
     assert style_opts["size"] == 3
     assert style_opts["alpha"] == 0.5
     assert plot_opts["padding"] == 0
@@ -169,7 +170,7 @@ def test_manifoldmap_get_dim_labels(sadata: ad.AnnData) -> None:
 
 
 @pytest.mark.usefixtures("bokeh_backend")
-@patch("hv_anndata.manifoldmap.create_manifoldmap_plot")
+@patch("hv_anndata.plotting.manifoldmap.create_manifoldmap_plot")
 def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
 
@@ -212,27 +213,6 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 
     assert isinstance(layout, pn.Row)
     assert len(layout) == 2
-
-
-def test_labeller() -> None:
-    df = pd.DataFrame({
-        "UMAP1": [0, 1, 2, 3, 10],
-        "UMAP2": [0, 1, 2, 3, 10],
-        "cell_type": ["a", "a", "b", "b", "b"],
-    })
-    dataset = hv.Dataset(df, kdims=["UMAP1", "UMAP2"], vdims=("cell_type"))
-    ldm = labeller(dataset, min_count=0)
-    labels = ldm[()]
-    expected_data = pd.DataFrame({
-        "cell_type": ["b", "a"],
-        "count": [3, 2],
-        "x": [5, 0.5],
-        "y": [5, 0.5],
-    })
-    pd.testing.assert_frame_equal(
-        labels.data.sort_values("cell_type"),
-        expected_data.sort_values("cell_type"),
-    )
 
 
 @pytest.mark.usefixtures("bokeh_backend")

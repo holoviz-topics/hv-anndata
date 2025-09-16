@@ -1,4 +1,4 @@
-"""HoloViz plotting using AnnData as input."""
+"""Dotmap plot."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from holoviews.selection import link_selections
 from holoviews.streams import Params
 from packaging.version import Version
 
-from .components import GeneSelector
+from hv_anndata.components import GeneSelector
 
 _HOLOVIEWS_VERSION = Version(hv.__version__).release
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
     from holoviews import DynamicMap, Element
 
-    from .manifoldmap import ManifoldMap
+    from hv_anndata.plotting.manifoldmap import ManifoldMap
 
 
 class _CreateDotmapPlotParams(TypedDict):
@@ -374,7 +374,7 @@ def create_dotmap_plot(  # noqa: PLR0913
     return plot.opts(**opts)
 
 
-class DotmapParams(param.Parameterized):
+class DotmapConfig(param.Parameterized):
     """Shared parameters."""
 
     kdims = param.List(
@@ -436,7 +436,7 @@ class DotmapParams(param.Parameterized):
     plot_opts = param.Dict(doc="HoloViews plot options for the Points element.")
 
 
-class Dotmap(pn.viewable.Viewer, DotmapParams):
+class Dotmap(pn.viewable.Viewer, DotmapConfig):
     """Create a DotmapPlot from anndata."""
 
     adata = param.ClassSelector(class_=ad.AnnData)
@@ -580,7 +580,7 @@ def dotmap_from_manifoldmap(
     return plot.rx.pipe(DotmapOp, ls=mm.ls, **kwargs)
 
 
-class DotmapOp(Operation, DotmapParams):
+class DotmapOp(Operation, DotmapConfig):
     """Operation to generate a DotMap plot.
 
     Generates a DotMap plot from an existing HoloViews object
@@ -611,7 +611,7 @@ class DotmapOp(Operation, DotmapParams):
         return create_dotmap_plot(
             adata=element.data,
             groupby=self.p.groupby,
-            **{k: v for k, v in self.p.items() if k in DotmapParams.param},
+            **{k: v for k, v in self.p.items() if k in DotmapConfig.param},
         )
 
     def __call__(

@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
-from .clustermap import ClusterMap
 from .components import GeneSelector
-from .interface import ACCESSOR as _A
-from .interface import AnnDataGriddedInterface, AnnDataInterface, register
-from .manifoldmap import ManifoldMap, ManifoldMapConfig, create_manifoldmap_plot
-from .plotting import Dotmap, DotmapParams
+from .interface import ACCESSOR, AnnDataGriddedInterface, AnnDataInterface, register
+from .plotting import (
+    ClusterMap,
+    ClusterMapConfig,
+    Dotmap,
+    DotmapConfig,
+    ManifoldMap,
+    ManifoldMapConfig,
+    create_clustermap_plot,
+    create_manifoldmap_plot,
+    labeller,
+)
 
-ACCESSOR = _A
+ACCESSOR = ACCESSOR  # noqa: PLW0127
 """Accessor for anndata.
 
 >>> from hv_anndata import ACCESSOR as A
@@ -22,11 +29,14 @@ __all__ = [
     "AnnDataGriddedInterface",
     "AnnDataInterface",
     "ClusterMap",
+    "ClusterMapConfig",
     "Dotmap",
-    "DotmapParams",
+    "DotmapConfig",
     "GeneSelector",
     "ManifoldMap",
     "ManifoldMapConfig",
+    "create_clustermap_plot",
     "create_manifoldmap_plot",
+    "labeller",
     "register",
 ]
