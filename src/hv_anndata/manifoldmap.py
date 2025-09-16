@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
@@ -25,6 +24,7 @@ from panel.reactive import hold
 from .interface import ACCESSOR as A
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from typing import Any, Unpack
 
     from holoviews.streams import Stream
@@ -404,7 +404,12 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by: str = param.Selector(  # type: ignore[assignment]
         doc="Coloring variable"
     )
-    colormap: str = param.Selector()
+    colormap: str = param.Selector(
+        default=None,
+        objects=list(CAT_CMAPS.keys()) + list(CONT_CMAPS.keys()),
+        allow_None=True,
+        doc="Initial colormap name. Auto-selects default if type mismatched",
+    )
     datashade: bool = param.Boolean(  # type: ignore[assignment]
         default=True,
         label="Large Data Rendering",
@@ -482,8 +487,8 @@ class ManifoldMap(pn.viewable.Viewer):
         elif self.color_by not in copts:
             msg = f"color_by variable {self.color_by!r} not found."
             raise ValueError(msg)
-        else:
-            self._update_on_color_by()
+
+        self._update_on_color_by()
         self._update_axes()
 
     @param.depends("color_by_dim", watch=True)
@@ -505,19 +510,10 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            if isinstance(self.colormap, str):
-                if self.colormap not in cmaps:
-                    msg = f"{self.colormap!r} is not a valid color map name."
-                    raise ValueError(msg)
-                cmap = cmaps[self.colormap]
-            elif isinstance(self.colormap, Sequence):
-                if self.colormap in cmaps.values():
-                    cmap = self.colormap
-                else:
-                    cmap = next(iter(cmaps.values()))
+            if self.colormap is None or self.colormap not in cmaps:
+                self.colormap = next(iter(cmaps.values()))
             else:
-                cmap = next(iter(cmaps.values()))
-            self.colormap = cmap
+                self.colormap = cmaps[self.colormap]
         self._replot = True
 
     @hold()
