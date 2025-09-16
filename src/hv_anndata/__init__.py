@@ -13,6 +13,7 @@ from .plotting import (
     ManifoldMapConfig,
     create_clustermap_plot,
     create_manifoldmap_plot,
+    dotmap_from_manifoldmap,
     labeller,
 )
 
@@ -37,6 +38,7 @@ __all__ = [
     "ManifoldMapConfig",
     "create_clustermap_plot",
     "create_manifoldmap_plot",
+    "dotmap_from_manifoldmap",
     "labeller",
     "register",
 ]
