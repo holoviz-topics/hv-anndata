@@ -32,6 +32,8 @@ class GeneSelector(WidgetBase, PyComponent):
 
     """
 
+    label = param.String()
+
     value: dict[str, list[str]] | list[str] = param.ClassSelector(  # type: ignore[assignment]
         default={},
         class_=(dict, list),
@@ -199,11 +201,16 @@ class GeneSelector(WidgetBase, PyComponent):
 
     def __panel__(self) -> pn.layout.Column:
         return pn.Column(
+            pmui.Typography(
+                self.param.label,
+                variant="caption",
+                visible=self.param.label.rx().rx.bool(),
+            ),
             self.w_key_input,
             self.w_value_input,
             self.w_multi_choice,
             pmui.Typography(
-                "JSON Editor:", variant="caption", color="primary", margin=(0, 10)
+                "JSON Editor:", variant="caption", color="textDisabled", margin=(0, 10)
             ),
             self.w_json_editor,
         )

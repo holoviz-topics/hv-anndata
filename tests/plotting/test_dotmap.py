@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 import scanpy as sc
 
-from hv_anndata.plotting import Dotmap
+from hv_anndata import Dotmap
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
@@ -82,7 +82,7 @@ def test_dotmap_use_raw_explicit_bokeh() -> None:
         use_raw=True,
     )
     with pytest.raises(
-        ValueError, match="use_raw=True but .raw attribute is not present"
+        ValueError, match=r"use_raw=True but \.raw attribute is not present"
     ):
         dotmap_layout.plot()
 

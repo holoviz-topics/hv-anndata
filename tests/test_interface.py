@@ -15,7 +15,7 @@ import scipy.sparse as sp
 from anndata import AnnData
 from holoviews.core.data.interface import DataError
 
-from hv_anndata.interface import ACCESSOR as A
+from hv_anndata import ACCESSOR as A
 from hv_anndata.interface import AnnDataGriddedInterface, AnnDataInterface, register
 
 if TYPE_CHECKING:

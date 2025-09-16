@@ -6,21 +6,25 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import anndata as ad
-import colorcet as cc
 import holoviews as hv
 import numpy as np
 import pandas as pd
-import panel_material_ui as pmui
+import panel as pn
 import pytest
+from holoviews.operation.datashader import dynspread, rasterize
 
-from hv_anndata.manifoldmap import ManifoldMap, create_manifoldmap_plot, labeller
+from hv_anndata import ACCESSOR as A
+from hv_anndata import ManifoldMap, create_manifoldmap_plot
+from hv_anndata.interface import register, unregister
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from unittest.mock import Mock
 
 
 @pytest.fixture
-def sadata() -> ad.AnnData:
+def sadata() -> Generator[ad.AnnData, None, None]:
+    register()
     n_obs = 10
     n_vars = 5
     n_dims = 2
@@ -42,7 +46,8 @@ def sadata() -> ad.AnnData:
     var = pd.DataFrame(
         index=[f"gene_{i}" for i in range(n_vars)],
     )
-    return ad.AnnData(X=x, obs=obs, obsm=obsm, var=var)
+    yield ad.AnnData(X=x, obs=obs, obsm=obsm, var=var)
+    unregister()
 
 
 @pytest.mark.usefixtures("bokeh_backend")
@@ -55,8 +60,8 @@ def test_create_manifoldmap_plot_no_datashading(
     elif color_kind == "continuous":
         color_var = "expression_level"
     plot = create_manifoldmap_plot(
-        sadata.obsm["X_umap"],
-        sadata.obs[color_var].values,
+        sadata,
+        "X_umap",
         0,
         1,
         color_var,
@@ -64,12 +69,12 @@ def test_create_manifoldmap_plot_no_datashading(
         "UMAP2",
         datashading=False,
     )
-    assert plot.kdims == ["UMAP1", "UMAP2"]
-    assert plot.vdims == [color_var]
+    assert plot.kdims == [A.obsm["X_umap"][:, 0], A.obsm["X_umap"][:, 1]]
+    assert plot.vdims == [A.obs[color_var]]
     plot_opts = plot.opts.get("plot").kwargs
     style_opts = plot.opts.get("style").kwargs
-    assert style_opts["color"] == color_var
-    assert style_opts["size"] == 1
+    assert style_opts["color"] == A.obs[color_var]
+    assert style_opts["size"] == 3
     assert style_opts["alpha"] == 0.5
     assert plot_opts["padding"] == 0
     assert len(plot_opts["tools"]) == 3
@@ -80,9 +85,6 @@ def test_create_manifoldmap_plot_no_datashading(
     assert plot_opts["responsive"]
 
     if color_kind == "categorical":
-        assert (
-            style_opts["cmap"] == cc.b_glasbey_category10[:2] == ["#1f77b3", "#ff7e0e"]
-        )
         assert plot_opts["show_legend"] is True
         assert plot_opts["colorbar"] is False
     elif color_kind == "continuous":
@@ -101,8 +103,8 @@ def test_create_manifoldmap_plot_datashading(
     elif color_kind == "continuous":
         color_var = "expression_level"
     plot = create_manifoldmap_plot(
-        sadata.obsm["X_umap"],
-        sadata.obs[color_var].values,
+        sadata,
+        "X_umap",
         0,
         1,
         color_var,
@@ -111,34 +113,20 @@ def test_create_manifoldmap_plot_datashading(
         datashading=True,
     )
 
+    el = plot[()]
+    rop = el.pipeline.find(rasterize, skip_nonlinked=False)
+    dop = el.pipeline.find(dynspread, skip_nonlinked=False)
     if color_kind == "categorical":
-        legend = plot.callback.inputs[0].callback.inputs[0].callback.inputs[1]
-        assert legend.keys() == ["A", "B"]
-        assert all(legend[color].label == color for color in ["A", "B"])
-        assert (
-            legend["A"].opts.get("style").kwargs["color"] == cc.b_glasbey_category10[0]
-        )
-        assert (
-            legend["B"].opts.get("style").kwargs["color"] == cc.b_glasbey_category10[1]
-        )
-
-        dm = plot.callback.inputs[0].callback.inputs[0].callback.inputs[0]
-        rop = dm.callback.inputs[0].callback.inputs[0].callback.operation
-        assert rop.name == "rasterize"
-        assert rop.p.aggregator.cat_column == color_var
-        assert rop.p.selector.column == "UMAP1"
-        dop = dm.callback.inputs[0].callback.operation
-        assert dop.name == "dynspread"
-        assert dop.p.threshold == 0.5
+        assert rop.name.startswith("datashade")
+        assert rop.aggregator.cat_column == f"A.obs['{color_var}']"
+        assert dop.name.startswith("dynspread")
+        assert dop.threshold == 0.5
     elif color_kind == "continuous":
-        dm = plot.callback.inputs[0].callback.inputs[0].callback.inputs[0]
-        rop = dm.callback.inputs[0].callback.operation
-        assert rop.name == "rasterize"
-        assert rop.p.aggregator.__class__.__name__ == "mean"
-        assert rop.p.aggregator.column == color_var
-        dop = dm.callback.operation
-        assert dop.name == "dynspread"
-        assert dop.p.threshold == 0.5
+        assert rop.name.startswith("rasterize")
+        assert rop.aggregator.__class__.__name__ == "mean"
+        assert rop.aggregator.column == f"A.obs['{color_var}']"
+        assert dop.name.startswith("dynspread")
+        assert dop.threshold == 0.5
 
 
 @pytest.mark.usefixtures("bokeh_backend")
@@ -182,7 +170,7 @@ def test_manifoldmap_get_dim_labels(sadata: ad.AnnData) -> None:
 
 
 @pytest.mark.usefixtures("bokeh_backend")
-@patch("hv_anndata.manifoldmap.create_manifoldmap_plot")
+@patch("hv_anndata.plotting.manifoldmap.create_manifoldmap_plot")
 def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
 
@@ -190,15 +178,14 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         dr_key="X_pca",
         x_value="PCA1",
         y_value="PCA2",
-        color_by_dim="obs",
         color_by="cell_type",
         datashade_value=False,
         show_labels=True,
         cmap=["#1f77b3", "#ff7e0e"],
     )
     mock_cmp.assert_called_once_with(
-        sadata.obsm["X_pca"],
-        sadata.obs["cell_type"].values,
+        sadata,
+        "X_pca",
         0,
         1,
         "cell_type",
@@ -213,6 +200,8 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         title="PCA.cell_type",
         cmap=["#1f77b3", "#ff7e0e"],
         responsive=True,
+        ls=None,
+        labeller_opts={},
     )
 
 
@@ -222,35 +211,15 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 
     layout = mm.__panel__()
 
-    assert isinstance(layout, pmui.layout.Row)
+    assert isinstance(layout, pn.Row)
     assert len(layout) == 2
-
-
-def test_labeller() -> None:
-    df = pd.DataFrame({
-        "UMAP1": [0, 1, 2, 3, 10],
-        "UMAP2": [0, 1, 2, 3, 10],
-        "cell_type": ["a", "a", "b", "b", "b"],
-    })
-    dataset = hv.Dataset(df, kdims=["UMAP1", "UMAP2"], vdims=("cell_type"))
-    ldm = labeller(dataset, min_count=0)
-    labels = ldm[()]
-    expected_data = pd.DataFrame({
-        "cell_type": ["b", "a"],
-        "count": [3, 2],
-        "x": [5, 0.5],
-        "y": [5, 0.5],
-    })
-    pd.testing.assert_frame_equal(
-        labels.data.sort_values("cell_type"),
-        expected_data.sort_values("cell_type"),
-    )
 
 
 @pytest.mark.usefixtures("bokeh_backend")
 def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
     bounds_xy = hv.streams.BoundsXY()
     mm = ManifoldMap(adata=sadata, streams=[bounds_xy])
+    mm._plot_view.clear()
     assert bounds_xy.source is None
     mm.__panel__()
     assert bounds_xy.source is not None

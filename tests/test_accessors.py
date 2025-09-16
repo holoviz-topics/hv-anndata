@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from hv_anndata import ACCESSOR as A
 from hv_anndata.accessors import AdAc
-from hv_anndata.interface import ACCESSOR as A
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def test_repr(ad_path: AdPath) -> None:
-    from hv_anndata.interface import ACCESSOR as A  # noqa: PLC0415
+    from hv_anndata import ACCESSOR as A  # noqa: PLC0415
 
     assert repr(ad_path) == str(ad_path)
     assert repr(ad_path)[:2] in {"A.", "A["}
