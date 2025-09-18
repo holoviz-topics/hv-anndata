@@ -15,12 +15,12 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-    from hv_anndata.accessors import AdPath, LayerVecAcc, MultiVecAcc
+    from hv_anndata.accessors import AdPath, GraphVecAcc, LayerVecAcc, MultiVecAcc
 
 
 def scatter(
     adata: AnnData,
-    base: MultiVecAcc | LayerVecAcc,
+    base: MultiVecAcc | LayerVecAcc | GraphVecAcc,
     /,
     components: Collection[int] | Collection[str] = (0, 1),
     vdims: Collection[AdPath] = (),
@@ -77,7 +77,7 @@ umap = partial(_scatter, A.obsm["X_umap"])
 
 def heatmap(
     adata: AnnData,
-    base: LayerVecAcc = A,
+    base: LayerVecAcc | GraphVecAcc = A,
     /,
     vdims: Collection[AdPath] = (),
     *,

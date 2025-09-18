@@ -93,12 +93,10 @@ class AnnDataInterface(hv.core.Interface):
                 f"corresponding key dimensions ({len(dataset.kdims)} ∉ {ndims})."
             )
             raise DataError(msg)
-        dims = [cls._dim(dataset, k) for k in dataset.dimensions()]
-        if set(ndims) != {1}:
-            dims = dims[:2]
 
         axes: list[Literal["obs", "var"]] = []
-        for dim in dims:
+        for k in dataset.kdims:
+            dim = cls._dim(dataset, k)
             if len(dim.axes) > 1:
                 msg = "AnnData Dataset key dimensions must map onto obs or var axes."
                 raise DataError(msg)
@@ -113,7 +111,9 @@ class AnnDataInterface(hv.core.Interface):
         return tuple(dict.fromkeys(axes).keys())
 
     @staticmethod
-    def _dim(dataset: Dataset, k: Dimension | str) -> AdPath:
+    def _dim(dataset: Dataset, k: Dimension | str | int) -> AdPath:
+        if isinstance(k, int):
+            k = cast("Dimension", dataset.get_dimension(k, strict=True))
         return AdAc.from_dimension(
             (dataset.get_dimension(k) or AdAc.resolve(k)) if isinstance(k, str) else k
         )
@@ -148,7 +148,7 @@ class AnnDataInterface(hv.core.Interface):
     def validate_selection_dim(cls, dim: AdPath, action: str) -> Literal["obs", "var"]:
         """Validate dimension as valid axis to select on."""
         if len(dim.axes) > 1:
-            msg = "AnnData Dataset key dimensions must map onto obs or var axes."
+            msg = "AnnData Dataset key dimensions must map onto one axis: obs or var."
             raise DataError(msg)
         [ax] = dim.axes
         # TODO: support ranges and sequences  # noqa: TD003
@@ -252,7 +252,7 @@ class AnnDataInterface(hv.core.Interface):
 
     @classmethod
     def dtype(
-        cls, data: Dataset, dim: Dimension | str
+        cls, data: Dataset, dim: Dimension | str | int
     ) -> np.dtype | pd.api.extensions.ExtensionDtype:
         """Get the data type for a dimension."""
         dim = cls._dim(data, dim)

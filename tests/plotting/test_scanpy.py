@@ -43,9 +43,13 @@ def renderer(request: pytest.FixtureRequest) -> Renderer:
 @pytest.mark.parametrize(
     "do_plot",
     [
-        pytest.param(lambda ad: pl.scatter(ad, A.obsm["umap"]), id="scatter"),
-        pytest.param(lambda ad: pl.scatter(ad, A.obsp["distances"]), id="scatter"),
-        pytest.param(lambda ad: pl.heatmap(ad)),
+        pytest.param(lambda ad: pl.scatter(ad, A.obsm["umap"]), id="scatter-obsm"),
+        pytest.param(
+            lambda ad: pl.scatter(ad, A.obsp["distances"], ["cell-0", "cell-1"]),
+            id="scatter-obsp",
+        ),
+        pytest.param(lambda ad: pl.heatmap(ad), id="heatmap-obsm"),
+        pytest.param(lambda ad: pl.heatmap(ad, A.obsp["distances"]), id="heatmap-obsp"),
     ],
 )
 def test_scatter(
@@ -54,6 +58,8 @@ def test_scatter(
     rng = np.random.default_rng()
     adata = AnnData(
         sps.random_array((20, 8), density=0.7, format="csr", rng=rng),
+        dict(obs_names=["cell-" + str(i) for i in range(20)]),
+        dict(var_names=["gene-" + str(i) for i in range(8)]),
         obsm=dict(umap=rng.random((20, 2))),
     )
     sc.pp.neighbors(adata)
