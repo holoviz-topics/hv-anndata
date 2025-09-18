@@ -77,9 +77,9 @@ umap = partial(_scatter, A.obsm["X_umap"])
 
 def heatmap(
     adata: AnnData,
-    base: LayerVecAcc,
+    base: LayerVecAcc = A,
     /,
-    vdims: Collection[AdPath],
+    vdims: Collection[AdPath] = (),
     *,
     transpose: bool = False,
     add_dendrogram: bool | Literal["obs", "var"] = False,

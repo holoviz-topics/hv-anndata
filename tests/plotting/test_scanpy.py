@@ -5,14 +5,21 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
+import scanpy as sc
+import scipy.sparse as sps
 from anndata import AnnData
+from holoviews.plotting.renderer import Renderer
 
 from hv_anndata import ACCESSOR as A
 from hv_anndata.interface import register, unregister
 from hv_anndata.plotting import scanpy as pl
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
+
+    import holoviews as hv
+    from holoviews.core.layout import Layoutable
+    from holoviews.plotting import Renderer
 
 
 @pytest.fixture(autouse=True)
@@ -24,16 +31,31 @@ def interface() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True, params=["bokeh", "matplotlib"])
-def backend(request: pytest.FixtureRequest) -> str:
+def renderer(request: pytest.FixtureRequest) -> Renderer:
     match request.param:
         case "bokeh":
-            request.getfixturevalue("bokeh_backend")
+            return request.getfixturevalue("bokeh_renderer")
         case "matplotlib":
-            request.getfixturevalue("mpl_backend")
+            return request.getfixturevalue("mpl_renderer")
     return request.param
 
 
-def test_scatter() -> None:
+@pytest.mark.parametrize(
+    "do_plot",
+    [
+        pytest.param(lambda ad: pl.scatter(ad, A.obsm["umap"]), id="scatter"),
+        pytest.param(lambda ad: pl.scatter(ad, A.obsp["distances"]), id="scatter"),
+        pytest.param(lambda ad: pl.heatmap(ad)),
+    ],
+)
+def test_scatter(
+    renderer: Renderer, do_plot: Callable[[AnnData], hv.Dataset | Layoutable]
+) -> None:
     rng = np.random.default_rng()
-    adata = AnnData(obsm=dict(umap=rng.random((20, 2))))
-    pl.scatter(adata, A.obsm["umap"])
+    adata = AnnData(
+        sps.random_array((20, 8), density=0.7, format="csr", rng=rng),
+        obsm=dict(umap=rng.random((20, 2))),
+    )
+    sc.pp.neighbors(adata)
+    obj = do_plot(adata)
+    _plot = renderer.get_plot(obj)

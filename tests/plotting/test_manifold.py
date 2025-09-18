@@ -50,7 +50,7 @@ def sadata() -> Iterator[ad.AnnData]:
     unregister()
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 @pytest.mark.parametrize("color_kind", ["categorical", "continuous"])
 def test_create_manifoldmap_plot_no_datashading(
     sadata: ad.AnnData, color_kind: str
@@ -93,7 +93,7 @@ def test_create_manifoldmap_plot_no_datashading(
         assert plot_opts["colorbar"] is True
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 @pytest.mark.parametrize("color_kind", ["categorical", "continuous"])
 def test_create_manifoldmap_plot_datashading(
     sadata: ad.AnnData, color_kind: str
@@ -129,7 +129,7 @@ def test_create_manifoldmap_plot_datashading(
         assert dop.threshold == 0.5
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 @pytest.mark.parametrize(
     ("kwargs", "expected"),
     [
@@ -161,7 +161,7 @@ def test_manifoldmap_initialization(
     )
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_manifoldmap_get_dim_labels(sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
 
@@ -169,7 +169,7 @@ def test_manifoldmap_get_dim_labels(sadata: ad.AnnData) -> None:
     assert mm.get_dim_labels("X_pca") == ["PCA1", "PCA2"]
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 @patch("hv_anndata.plotting.manifoldmap.create_manifoldmap_plot")
 def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
@@ -205,7 +205,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
     )
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
 
@@ -215,7 +215,7 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
     assert len(layout) == 2
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
     bounds_xy = hv.streams.BoundsXY()
     mm = ManifoldMap(adata=sadata, streams=[bounds_xy])
