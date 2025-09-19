@@ -8,7 +8,8 @@ from hv_anndata import ACCESSOR as A
 from hv_anndata.accessors import AdAc
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Collection
+    from typing import Literal
 
     from hv_anndata.accessors import AdPath
 
@@ -20,6 +21,23 @@ def test_repr(ad_path: AdPath) -> None:
     assert repr(ad_path)[:2] in {"A.", "A["}
     assert eval(repr(ad_path)) == ad_path  # noqa: S307
     del A
+
+
+@pytest.mark.parametrize(
+    ("ad_path", "axes"),
+    [
+        pytest.param(A[:, :], {"obs", "var"}, id="x"),
+        pytest.param(A.layers["y"][:, :], {"obs", "var"}, id="layer"),
+        # selecting one obs gives a vector along the var axis:
+        pytest.param(A.layers["y"]["c", :], {"var"}, id="layer-obs"),
+        pytest.param(A.var["a"], {"var"}, id="var"),
+        pytest.param(A.obsm["c"][:, 0], {"obs"}, id="obsm"),
+        pytest.param(A.varp["d"][:, :], ("var", "var"), id="varp"),
+        pytest.param(A.varp["d"][:, "c2"], {"var"}, id="varp-col"),
+    ],
+)
+def test_axes(ad_path: AdPath, axes: Collection[Literal["obs", "var"]]) -> None:
+    assert ad_path.axes == axes
 
 
 @pytest.mark.parametrize(
