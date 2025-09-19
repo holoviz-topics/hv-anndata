@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import holoviews as hv
@@ -18,28 +19,33 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import TypeAlias
 
+    from holoviews.plotting import Renderer
+
     from hv_anndata.accessors import AdPath
 
 
-def _plotting_backend(backend: str) -> None:
+@contextmanager
+def _renderer(backend: str) -> Iterator[Renderer]:
     pytest.importorskip(backend)
     if not hv.extension._loaded:
         hv.extension(backend)
-    hv.renderer(backend)
-    curent_backend = hv.Store.current_backend
+    renderer = hv.renderer(backend)
+    old_backend = hv.Store.current_backend
     hv.Store.set_current_backend(backend)
-    yield
-    hv.Store.set_current_backend(curent_backend)
+    yield renderer
+    hv.Store.set_current_backend(old_backend)
 
 
 @pytest.fixture
-def bokeh_backend() -> Iterator[None]:
-    yield from _plotting_backend("bokeh")
+def bokeh_renderer() -> Iterator[Renderer]:
+    with _renderer("bokeh") as renderer:
+        yield renderer
 
 
 @pytest.fixture
-def mpl_backend() -> Iterator[None]:
-    yield from _plotting_backend("matplotlib")
+def mpl_renderer() -> Iterator[Renderer]:
+    with _renderer("matplotlib") as renderer:
+        yield renderer
 
 
 AdPathExpected: TypeAlias = Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series]

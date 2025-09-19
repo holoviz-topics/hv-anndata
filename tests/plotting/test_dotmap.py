@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 @pytest.mark.parametrize(
     "marker_func", [lambda x: {"group A": x}, list], ids=["dict", "list"]
 )
@@ -40,7 +40,7 @@ def test_dotmap_bokeh(marker_func: Callable) -> None:
     assert "size" in dotmap.opts.get().kwargs
 
 
-@pytest.mark.usefixtures("mpl_backend")
+@pytest.mark.usefixtures("mpl_renderer")
 @pytest.mark.parametrize(
     "marker_func", [lambda x: {"group A": x}, list], ids=["dict", "list"]
 )
@@ -67,7 +67,7 @@ def test_dotmap_mpl(marker_func: Callable) -> None:
     assert "s" in dotmap.opts.get().kwargs
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_dotmap_use_raw_explicit_bokeh() -> None:
     """Test explicit use_raw settings with bokeh backend."""
     adata = sc.datasets.pbmc68k_reduced()
@@ -87,7 +87,7 @@ def test_dotmap_use_raw_explicit_bokeh() -> None:
         dotmap_layout.plot()
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_dotmap_all_missing_genes_bokeh() -> None:
     """Test error when all genes are missing with bokeh backend."""
     adata = sc.datasets.pbmc68k_reduced()
@@ -102,7 +102,7 @@ def test_dotmap_all_missing_genes_bokeh() -> None:
         dotmap_layout.plot()
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_dotmap_duplicate_genes_bokeh() -> None:
     adata = sc.datasets.pbmc68k_reduced()
     sel_marker_genes = {"A": ["FCN1"], "B": ["FCN1"]}
