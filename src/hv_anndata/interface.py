@@ -95,7 +95,8 @@ class AnnDataInterface(hv.core.Interface):
             raise DataError(msg)
 
         axes: list[Literal["obs", "var"]] = []
-        for k in dataset.kdims:
+        # e.g. `Violin` only takes vdims
+        for k in dataset.kdims or dataset.vdims:
             dim = cls._dim(dataset, k)
             if len(dim.axes) > 1:
                 msg = "AnnData Dataset key dimensions must map onto obs or var axes."
