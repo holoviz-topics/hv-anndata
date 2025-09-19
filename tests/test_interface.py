@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import re
 from string import ascii_lowercase
 from typing import TYPE_CHECKING
 
@@ -15,11 +16,16 @@ import scipy.sparse as sp
 from anndata import AnnData
 from holoviews.core.data.interface import DataError
 
-from hv_anndata.interface import ACCESSOR as A
-from hv_anndata.interface import AnnDataGriddedInterface, AnnDataInterface, register
+from hv_anndata import ACCESSOR as A
+from hv_anndata.interface import (
+    AnnDataGriddedInterface,
+    AnnDataInterface,
+    register,
+    unregister,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Iterator
     from typing import Any, Literal
 
     from numpy.typing import ArrayLike
@@ -29,10 +35,11 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
-def interface() -> Generator[None, None, None]:
+def _registered_interface() -> Iterator[None]:
     register()
     with contextlib.suppress(Exception):
         yield
+    unregister()
 
 
 @pytest.fixture
@@ -54,6 +61,61 @@ def adata() -> AnnData:
     obsm = dict(umap=gen.random((100, 2)))
     varp = dict(cons=sp.csr_array(sp.random(50, 50, rng=gen)))
     return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
+
+
+@pytest.mark.parametrize(
+    ("hv_obj", "axes_or_err"),
+    [
+        pytest.param(
+            lambda ad: hv.Violin(ad, vdims=[A.obs["type"]]), ("obs",), id="violin"
+        ),
+        pytest.param(
+            lambda ad: hv.Scatter(ad, A.obsm["umap"][0], A.obsm["umap"][1]),
+            ("obs",),
+            id="scatter",
+        ),
+        pytest.param(
+            lambda ad: hv.HeatMap(ad, [A.obs.index, A.var.index], A[:, :]),
+            ("obs", "var"),
+            id="heatmap-X",
+        ),
+        # TODO: obsm heatmap?  # noqa: TD003
+        pytest.param(
+            lambda ad: hv.HeatMap(ad, [A.var.index, A.var.index], A.varp["cons"][:, :]),
+            ("var", "var"),
+            id="heatmap-varp",
+        ),
+        # errors
+        pytest.param(
+            lambda ad: hv.Scatter(ad, A.obsm["umap"][0], A.var.index),
+            DataError(
+                "AnnData Dataset in tabular mode must reference data along either the "
+                "obs or the var axis, not both."
+            ),
+            id="error-scatter-1D",
+        ),
+        pytest.param(
+            lambda ad: hv.HeatMap(ad, [A.obs.index, A.obs.index], A.varp["cons"][:, :]),
+            DataError("AnnData Dataset in gridded mode vdim axes must match kdims."),
+            id="error-heatmap-2D",
+        ),
+    ],
+)
+def test_interface_selection(
+    adata: AnnData,
+    hv_obj: Callable[[AnnData], hv.Dataset],
+    axes_or_err: Exception | list[Literal["obs", "var"]],
+) -> None:
+    if isinstance(axes_or_err, Exception):
+        with pytest.raises(type(axes_or_err), match=re.escape(str(axes_or_err))):
+            hv_obj(adata)
+        return
+    iface_expected = {1: AnnDataInterface, 2: AnnDataGriddedInterface}[len(axes_or_err)]
+
+    dataset = hv_obj(adata)
+    assert issubclass(dataset.interface, AnnDataInterface)
+    assert dataset.interface is iface_expected
+    assert dataset.interface.axes(dataset) == axes_or_err
 
 
 def test_get_values_table(
@@ -261,6 +323,7 @@ def test_gridded_ax(
     )
     kdims = [A.var.index, A.obs.index] if transposed else [A.obs.index, A.var.index]
     ds = hv.Dataset(adata, kdims=kdims, vdims=[A[:, :], A.obs["x"], A.var["y"]])
+    assert ds.interface is AnnDataGriddedInterface
 
     values = ds.dimension_values(dim, flat=False)
 

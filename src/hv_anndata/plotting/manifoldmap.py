@@ -17,12 +17,16 @@ import panel as pn
 import panel_material_ui as pmui
 import param
 from bokeh.models.tools import BoxSelectTool, LassoSelectTool
-from holoviews.operation import Operation
+from holoviews.selection import link_selections
 from panel.reactive import hold
+
+from hv_anndata import ACCESSOR as A
+
+from .labeller import labeller
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from typing import Literal, Unpack
+    from typing import Any, Unpack
 
     from holoviews.streams import Stream
 
@@ -42,61 +46,12 @@ DEFAULT_CAT_CMAP = cc.b_glasbey_category10
 DEFAULT_CONT_CMAP = "viridis"
 
 
-def _is_categorical(arr: np.ndarr) -> bool:
+def _is_categorical(arr: np.ndarray) -> bool:
     return (
         arr.dtype.name in ["category", "categorical", "bool"]
         or np.issubdtype(arr.dtype, np.object_)
         or np.issubdtype(arr.dtype, np.str_)
     )
-
-
-class labeller(Operation):  # noqa: N801
-    """Add a Label element centered over categorical points."""
-
-    column = param.String()
-
-    max_labels = param.Integer(10)
-
-    min_count = param.Integer(default=100)
-
-    streams = param.List([hv.streams.RangeXY])
-
-    x_range = param.Tuple(
-        default=None,
-        length=2,
-        doc="""
-       The x_range as a tuple of min and max x-value. Auto-ranges
-       if set to None.""",
-    )
-
-    y_range = param.Tuple(
-        default=None,
-        length=2,
-        doc="""
-       The x_range as a tuple of min and max x-value. Auto-ranges
-       if set to None.""",
-    )
-
-    def _process(self, el: hv.Dataset, key=None) -> hv.Labels:  # noqa: ARG002, ANN001
-        if self.p.x_range and self.p.y_range:
-            el = el[slice(*self.p.x_range), slice(*self.p.y_range)]
-
-        df = el.dframe()
-        xd, yd, cd = el.dimensions()[:3]
-        col = self.p.column or cd.name
-        result = (
-            df.groupby(col)
-            .agg(
-                count=(col, "size"),  # count of rows per group
-                x=(xd.name, "mean"),
-                y=(yd.name, "mean"),
-            )
-            .query(f"count > {self.p.min_count}")
-            .sort_values("count", ascending=False)
-            .iloc[: self.p.max_labels]
-            .reset_index()
-        )
-        return hv.Labels(result, ["x", "y"], col)
 
 
 class ManifoldMapConfig(TypedDict, total=False):
@@ -120,11 +75,14 @@ class ManifoldMapConfig(TypedDict, total=False):
     """whether to make the plot size-responsive. (default: True)"""
     streams: list[Stream]
     """list of streams to use for dynamic updates (default: [])"""
+    ls: link_selections | None
+    """Operation and plot options for the labeller"""
+    labeller_opts: dict[str, Any]
 
 
-def create_manifoldmap_plot(
-    x_data: np.ndarray,
-    color_data: np.ndarray,
+def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
+    adata: ad.AnnData,
+    dr_key: str,
     x_dim: int,
     y_dim: int,
     color_by: str,
@@ -138,10 +96,10 @@ def create_manifoldmap_plot(
 
     Parameters
     ----------
-    x_data
-        Array with shape n_obs by n_dimensions containing coordinates
-    color_data
-        Array with shape n_obs containing color values (categorical or continuous)
+    adata
+        AnnData object
+    dr_key
+        Key into the observation annotations in the AnnData object
     x_dim
         Index to use for x-axis data
     y_dim
@@ -171,6 +129,13 @@ def create_manifoldmap_plot(
     title = config.get("title", "")
     responsive = config.get("responsive", True)
     streams = config.get("streams", [])
+    ls = config.get("ls")
+    labeller_opts = config.get("labeller_opts")
+
+    if color_by in adata.obs:
+        color_data = adata.obs[color_by].values
+    else:
+        color_data = adata.obs_vector(color_by)
 
     # Determine if color data is categorical
     if categorical is None:
@@ -195,10 +160,11 @@ def create_manifoldmap_plot(
         colorbar = True
 
     # Create basic plot
+    vdim = A.obs[color_by] if color_by in adata.obs else A[:, color_by]
     dataset = hv.Dataset(
-        (x_data[:, x_dim], x_data[:, y_dim], color_data),
-        [xaxis_label, yaxis_label],
-        color_by,
+        adata,
+        [A.obsm[dr_key][:, x_dim], A.obsm[dr_key][:, y_dim]],
+        [vdim],
     )
     plot = dataset.to(hv.Points)
 
@@ -208,9 +174,9 @@ def create_manifoldmap_plot(
 
     # Options for standard (non-datashaded) plot
     plot_opts = dict(
-        color=color_by,
+        color=vdim,
         cmap=cmap,
-        size=1,
+        size=3,
         alpha=0.5,
         colorbar=colorbar,
         padding=0,
@@ -230,17 +196,12 @@ def create_manifoldmap_plot(
 
     # Apply datashading with different approaches for categorical vs continuous
     elif categorical:
-        plot = _apply_categorical_datashading(
-            plot,
-            color_data=color_data,
-            color_by=color_by,
-            cmap=cmap,
-        )
+        plot = _apply_categorical_datashading(plot, color_by=vdim.name, cmap=cmap)
     else:
         # For continuous data, take the mean
-        aggregator = ds.mean(color_by)
+        aggregator = ds.mean(vdim.name)
         plot = hd.rasterize(plot, aggregator=aggregator)
-        plot = hd.dynspread(plot, threshold=0.5)
+        plot = hd.dynspread(plot, threshold=0.5, max_px=5)
         plot = plot.opts(
             cmap=cmap,
             colorbar=colorbar,
@@ -250,11 +211,21 @@ def create_manifoldmap_plot(
                 LassoSelectTool(persistent=True),
             ],
         )
+    if ls is not None:
+        plot = ls(plot)
 
     if categorical and show_labels:
         # Options for labels
         label_opts = dict(text_font_size="8pt", text_color="black")
-        plot = plot * labeller(dataset).opts(**label_opts)
+        lop_opts = {}
+        lplot_opts = {}
+        for k, v in labeller_opts.items():
+            if k in labeller.param:
+                lop_opts[k] = v
+            else:
+                lplot_opts[k] = v
+        lplot_opts = label_opts | lplot_opts
+        plot = plot * labeller(dataset, **lop_opts).opts(**lplot_opts)
 
     if not responsive:
         plot = plot.opts(
@@ -269,19 +240,18 @@ def create_manifoldmap_plot(
             min_width=width,
         )
 
+    final_kwargs = {}
+    if xaxis_label:
+        final_kwargs["xlabel"] = xaxis_label
+    if yaxis_label:
+        final_kwargs["ylabel"] = yaxis_label
+
     # Apply final options to the plot
-    return plot.opts(
-        title=title,
-        show_legend=show_legend,
-    )
+    return plot.opts(title=title, show_legend=show_legend, **final_kwargs)
 
 
 def _apply_categorical_datashading(
-    plot: hv.Element,
-    *,
-    color_data: np.ndarray,
-    color_by: str,
-    cmap: Sequence[str],
+    plot: hv.Element, *, color_by: str, cmap: Sequence[str]
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -305,44 +275,26 @@ def _apply_categorical_datashading(
     aggregator = ds.count_cat(color_by)
     # Selector used as a workaround to display categorical counts per pixel
     # One day done directly in Bokeh, see https://github.com/bokeh/bokeh/issues/13354
-    selector = ds.first(plot.kdims[0].name)
-    plot = hd.rasterize(plot, aggregator=aggregator, selector=selector)
+    plot = hd.datashade(
+        plot,
+        aggregator=aggregator,
+        selector=ds.first(),
+        color_key=cmap,
+    )
     plot = hd.dynspread(plot, threshold=0.5)
-    unique_categories = np.unique(color_data)
-    plot = plot.opts(
-        cmap=cmap,
+    return plot.opts(
         tools=[
             "hover",
             BoxSelectTool(persistent=True),
             LassoSelectTool(persistent=True),
         ],
         # Override hover_tooltips to exclude the selector value
-        hover_tooltips=list(unique_categories),
+        hover_tooltips=[("Label", str(color_by))],
         # Don't include the selector heading
         selector_in_hovertool=False,
-    )
-
-    # Create a custom legend for datashaded categorical plot
-    if len(unique_categories) > len(cmap):
-        # cmap not long enough, cycle it
-        cmap = cmap * (len(unique_categories) // len(cmap) + 1)
-    color_key = dict(
-        zip(unique_categories, cmap[: len(unique_categories)], strict=False)
-    )
-    legend_items = [
-        hv.Points([0, 0], label=str(cat)).opts(color=color_key[cat], size=0)
-        for cat in unique_categories
-    ]
-    legend = hv.NdOverlay({
-        str(cat): item
-        for cat, item in zip(unique_categories, legend_items, strict=False)
-    }).opts(
         show_legend=True,
         legend_position="right",
-        legend_limit=100,
-        legend_cols=len(unique_categories) // 10 + 1,
     )
-    return plot * legend
 
 
 class ManifoldMap(pn.viewable.Viewer):
@@ -362,7 +314,11 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by
         Initial variable to use for coloring
     colormap
-        Initial colormap to use for coloring
+        Initial colormap. Auto-updates based on data type.
+        Options:
+        - Categorical: "Glasbey Cat10", "Cat20", "Glasbey cool"
+        - Continuous: "Viridis", "Fire", "Blues"
+        Custom colormaps are not yet supported.
     datashade
         Whether to enable datashading
     width
@@ -377,6 +333,10 @@ class ManifoldMap(pn.viewable.Viewer):
         Whether to show control widgets
     responsive
         Whether to make the plot size-responsive
+    plot_opts
+        HoloViews plot options for the manifoldmap plot
+    labeller_opts
+        Operation and plot options for the labeller
 
     """
 
@@ -396,10 +356,15 @@ class ManifoldMap(pn.viewable.Viewer):
     color_by: str = param.Selector(  # type: ignore[assignment]
         doc="Coloring variable"
     )
-    colormap: str = param.Selector()
+    colormap: str = param.Selector(
+        default=None,
+        objects=list(CAT_CMAPS.keys()) + list(CONT_CMAPS.keys()),
+        allow_None=True,
+        doc="Initial colormap name. Auto-selects default if type mismatched",
+    )
     datashade: bool = param.Boolean(  # type: ignore[assignment]
         default=True,
-        label="Datashader Rasterize For Large Datasets",
+        label="Large Data Rendering",
         doc="Whether to enable datashading",
     )
     var_reference: str | None = param.String(  # type: ignore[assignment]
@@ -414,12 +379,13 @@ class ManifoldMap(pn.viewable.Viewer):
     height: int = param.Integer(default=300, doc="Minimum height of the plot")  # type: ignore[assignment]
     show_labels: bool = param.Boolean(  # type: ignore[assignment]
         default=False,
-        label="Overlay Labels For Categorical Coloring",
+        label="Show Labels",
         doc="Whether to show labels",
     )
     show_widgets: bool = param.Boolean(  # type: ignore[assignment]
         default=True, doc="Whether to show control widgets"
     )
+    ls = param.ClassSelector(class_=link_selections)
     streams = param.List(  # type: ignore[assignment]
         default=[],
         doc="List of streams to use for dynamic updates",
@@ -428,12 +394,19 @@ class ManifoldMap(pn.viewable.Viewer):
         default=True,
         doc="Whether to make the plot size-responsive",
     )
+    plot_opts: dict = param.Dict(  # type: ignore[assignment]
+        default={}, doc="HoloViews plot options for the manifoldmap plot"
+    )
+    labeller_opts: dict = param.Dict(  # type: ignore[assignment]
+        default={}, doc="Operation and plot options for the labeller"
+    )
     _replot: bool = param.Event()  # type: ignore[assignment]
+
+    _categorical = param.Boolean(default=False)
 
     def __init__(self, **params: object) -> None:
         """Initialize the ManifoldMapApp with the given parameters."""
         super().__init__(**params)
-        self._categorical = False
         dr_options = []
         available_keys = list(self.adata.obsm.keys())
         priority_keys = ("X_umap", "X_tsne", "X_pca")
@@ -466,8 +439,8 @@ class ManifoldMap(pn.viewable.Viewer):
         elif self.color_by not in copts:
             msg = f"color_by variable {self.color_by!r} not found."
             raise ValueError(msg)
-        else:
-            self._update_on_color_by()
+
+        self._update_on_color_by()
         self._update_axes()
 
     @param.depends("color_by_dim", watch=True)
@@ -489,7 +462,10 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            self.colormap = next(iter(cmaps.values()))
+            if self.colormap is None or self.colormap not in cmaps:
+                self.colormap = next(iter(cmaps.values()))
+            else:
+                self.colormap = cmaps[self.colormap]
         self._replot = True
 
     @hold()
@@ -557,12 +533,11 @@ class ManifoldMap(pn.viewable.Viewer):
         dr_key: str,
         x_value: str,
         y_value: str,
-        color_by_dim: Literal["obs", "cols"],
         color_by: str,
         datashade_value: bool,
         show_labels: bool,
         cmap: list[str] | str,
-    ) -> pn.viewable.Viewable:
+    ) -> hv.Element:
         """Create a manifold map plot with the specified parameters.
 
         Parameters
@@ -589,7 +564,6 @@ class ManifoldMap(pn.viewable.Viewer):
         The plot or an error message
 
         """
-        x_data = self.adata.obsm[dr_key]
         dr_label = self.get_reduction_label(dr_key)
 
         if x_value == y_value:
@@ -607,14 +581,6 @@ class ManifoldMap(pn.viewable.Viewer):
                 f"Make sure to select valid {dr_label} dimensions."
             )
 
-        if color_by_dim == "obs":
-            color_data = self.adata.obs[color_by].values
-        elif color_by_dim == "cols":
-            color_data = self.adata.obs_vector(self._get_var())
-        else:
-            msg = "color_by_dim must be obs or cols"
-            raise ValueError(msg)
-
         # Configure the plot
         config = ManifoldMapConfig(
             width=self.width,
@@ -625,14 +591,16 @@ class ManifoldMap(pn.viewable.Viewer):
             cmap=cmap,
             responsive=self.responsive,
             streams=self.streams,
+            ls=self.ls,
+            labeller_opts=self.labeller_opts,
         )
 
         self.plot = create_manifoldmap_plot(
-            x_data,
-            color_data,
+            self.adata,
+            dr_key,
             x_dim,
             y_dim,
-            color_by,
+            color_by if self.color_by_dim == "obs" else self._get_var(),
             x_value,
             y_value,
             categorical=self._categorical,
@@ -641,6 +609,7 @@ class ManifoldMap(pn.viewable.Viewer):
 
         return self.plot
 
+    @pn.cache(max_items=1)
     @param.depends(
         # Only include derived parameters to avoid calling create_plot
         # unnecessarily.
@@ -648,20 +617,23 @@ class ManifoldMap(pn.viewable.Viewer):
         "y_axis",
         "colormap",
         "datashade",
+        "color_by_dim",
         "show_labels",
         "_replot",
+        "plot_opts",
+        "color_by",
     )
-    def _plot_view(self) -> pn.viewable.Viewable:
-        return self.create_plot(
+    def _plot_view(self) -> hv.Element:
+        plot = self.create_plot(
             dr_key=self.reduction,
             x_value=self.x_axis,
             y_value=self.y_axis,
-            color_by_dim=self.color_by_dim,
             color_by=self.color_by,
             datashade_value=self.datashade,
             show_labels=self.show_labels,
             cmap=self.colormap,
         )
+        return plot.opts(**self.plot_opts)
 
     def __panel__(self) -> pn.viewable.Viewable:
         """Create the Panel application layout.
@@ -722,19 +694,21 @@ class ManifoldMap(pn.viewable.Viewer):
             colormap,
             pmui.widgets.Checkbox.from_param(
                 self.param.datashade,
-                description="",
+                description="Whether to enable rasterizing with Datashader",
                 sizing_mode="stretch_width",
             ),
             pmui.widgets.Checkbox.from_param(
                 self.param.show_labels,
-                description="",
+                description="Overlay labels for categorical coloring",
                 sizing_mode="stretch_width",
+                visible=self.param._categorical,  # noqa: SLF001
             ),
             visible=self.param.show_widgets,
             sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
             sizing_mode="stretch_width",
-            max_width=400,
+            max_width=280,
+            min_height=590,
         )
 
         # Return the assembled layout
-        return pmui.Row(widgets, self._plot_view)
+        return pn.Row(widgets, self._plot_view, height_policy="auto")

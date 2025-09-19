@@ -12,7 +12,7 @@ import panel_material_ui as pmui
 import pytest
 import scanpy as sc
 
-from hv_anndata.clustermap import ClusterMap, create_clustermap_plot
+from hv_anndata import ClusterMap, create_clustermap_plot
 
 if TYPE_CHECKING:
     from unittest.mock import Mock
@@ -44,7 +44,7 @@ def sadata() -> ad.AnnData:
     return adata
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_create_clustermap_plot_invalid_obs_keys(sadata: ad.AnnData) -> None:
     """Test error handling for invalid observation keys."""
     with pytest.raises(ValueError, match="obs_keys 'invalid_key' not found"):
@@ -55,7 +55,7 @@ def test_create_clustermap_plot_invalid_obs_keys(sadata: ad.AnnData) -> None:
         )
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 @pytest.mark.parametrize(
     ("kwargs", "expected"),
     [
@@ -85,7 +85,7 @@ def test_clustermap_initialization(
     assert cm.height == expected.get("height", 400)
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_clustermap_update_on_obs_keys(sadata: ad.AnnData) -> None:
     """Test that changing obs_keys updates colormap appropriately."""
     cm = ClusterMap(adata=sadata)
@@ -100,8 +100,8 @@ def test_clustermap_update_on_obs_keys(sadata: ad.AnnData) -> None:
     assert list(cm.param.cmap.objects.keys()) != initial_cmap_options
 
 
-@pytest.mark.usefixtures("bokeh_backend")
-@patch("hv_anndata.clustermap.create_clustermap_plot")
+@pytest.mark.usefixtures("bokeh_renderer")
+@patch("hv_anndata.plotting.clustermap.create_clustermap_plot")
 def test_clustermap_create_plot(mock_ccp: Mock, sadata: ad.AnnData) -> None:
     """Test ClusterMap create_plot method calls underlying function correctly."""
     cm = ClusterMap(adata=sadata)
@@ -125,7 +125,7 @@ def test_clustermap_create_plot(mock_ccp: Mock, sadata: ad.AnnData) -> None:
     )
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_clustermap_panel_layout(sadata: ad.AnnData) -> None:
     """Test ClusterMap Panel layout creation."""
     cm = ClusterMap(adata=sadata)
@@ -136,7 +136,7 @@ def test_clustermap_panel_layout(sadata: ad.AnnData) -> None:
     assert len(layout) == 2  # Widgets + plot view
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_clustermap_no_raw_data() -> None:
     """Test ClusterMap behavior when no raw data is available."""
     n_obs = 5
@@ -155,7 +155,7 @@ def test_clustermap_no_raw_data() -> None:
     assert cm.use_raw is False  # Should default to False when no raw data
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_integration() -> None:
     adata = sc.datasets.pbmc68k_reduced()  # errors
 

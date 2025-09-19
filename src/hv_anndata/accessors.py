@@ -10,8 +10,7 @@ import scipy.sparse as sp
 from holoviews.core.dimension import Dimension
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from collections.abc import Set as AbstractSet
+    from collections.abc import Callable, Collection
     from typing import Any, Literal, Self, TypeVar
 
     import pandas as pd
@@ -22,7 +21,7 @@ if TYPE_CHECKING:
     Idx = TypeVar("Idx", int, str)
     Idx2D = tuple[Idx | slice, Idx | slice]
     AdPathFunc = Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
-    Axes = AbstractSet[Literal["obs", "var"]]
+    Axes = Collection[Literal["obs", "var"]]
 
 
 class AdPath(Dimension):
@@ -258,14 +257,23 @@ class GraphVecAcc:
         if not all(isinstance(i, str | slice) for i in idx):
             msg = f"Unsupported index {idx!r}"
             raise TypeError(msg)
+        if (n_slices := sum(isinstance(i, slice) for i in idx)) not in {1, 2}:
+            msg = (
+                f"Unsupported index {idx!r}: "
+                f"should be ['c1', :], ['c1', 'c2'], or [:, 'c2']"
+            )
+            raise TypeError(msg)
 
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             df = cast("pd.DataFrame", getattr(ad, self.ax[:-1]))
             iloc = tuple(df.index.get_loc(i) if isinstance(i, str) else i for i in idx)
-            return getattr(ad, self.ax)[self.k][iloc].toarray().flatten()
+            return getattr(ad, self.ax)[self.k][iloc].toarray()
 
         ax = cast("Literal['obs', 'var']", self.ax[:-1])
-        return AdPath(f"A.{self.ax}[{self.k!r}][{idx[0]!r}, {idx[1]!r}]", get, {ax})
+        axes: Collection[Literal["obs", "var"]] = (
+            (ax,) * n_slices if n_slices > 1 else {ax}
+        )
+        return AdPath(f"A.{self.ax}[{self.k!r}][{idx[0]!r}, {idx[1]!r}]", get, axes)
 
 
 @dataclass(frozen=True)
