@@ -96,6 +96,7 @@ def create_clustermap_plot(
         "yaxis": None,
         "show_grid": False,
         "tools": ["hover"],
+        "colorbar": True,
     }
 
     return clustered_plot.opts(
