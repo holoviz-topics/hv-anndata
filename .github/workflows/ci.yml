@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
-      - run: uv tool install hatch
+      - run: uv tool install '--with=click!=8.3.0' hatch
       - run: hatch test --cover --python=${{ matrix.python-version }}
       - run: hatch --env hatch-test.py${{ matrix.python-version }} run coverage xml
       - uses: codecov/codecov-action@v5
