@@ -109,6 +109,8 @@ def heatmap(
     hm = hv.HeatMap(adata, kdims, [base[:, :], *vdims]).opts(
         xlabel=xlabel, ylabel=ylabel
     )
+    if isinstance(base, GraphVecAcc):
+        hm = hm.opts(aspect="square")
     if add_dendrogram:
         dims = kdims
         if isinstance(add_dendrogram, str):
