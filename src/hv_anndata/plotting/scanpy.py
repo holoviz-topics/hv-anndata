@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import holoviews as hv
 
 from hv_anndata import ACCESSOR as A
+from hv_anndata.accessors import GraphVecAcc
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-    from hv_anndata.accessors import AdPath, GraphVecAcc, LayerVecAcc, MultiVecAcc
+    from hv_anndata.accessors import AdPath, LayerVecAcc, MultiVecAcc
 
 
 def scatter(
@@ -97,7 +98,11 @@ def heatmap(
     >>> hv.operation.dendrogram(heatmap, adjoint_dims=..., main_dim=base[:, :])
 
     """
-    kdims = [A.obs.index, A.var.index]
+    kdims = (
+        [getattr(A, base.ax[:-1]).index] * 2
+        if isinstance(base, GraphVecAcc)
+        else [A.obs.index, A.var.index]
+    )
     if transpose:
         kdims.reverse()
     xlabel, ylabel = [next(iter(d.axes)) for d in kdims]
@@ -105,7 +110,7 @@ def heatmap(
         xlabel=xlabel, ylabel=ylabel
     )
     if add_dendrogram:
-        dims = [A.obs.index, A.var.index]
+        dims = kdims
         if isinstance(add_dendrogram, str):
             dims = [dims[0] if add_dendrogram == "obs" else dims[1]]
         hm = hv.operation.dendrogram(hm, adjoint_dims=dims, main_dim=base[:, :])

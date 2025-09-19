@@ -54,6 +54,8 @@ if TYPE_CHECKING:
 
 ACCESSOR = AdAc()
 
+MSG_1D = "AnnData Dataset key dimensions must map onto one axis: obs or var."
+
 
 class AnnDataInterface(hv.core.Interface):
     """Anndata interface for holoviews."""
@@ -94,22 +96,33 @@ class AnnDataInterface(hv.core.Interface):
             )
             raise DataError(msg)
 
-        axes: list[Literal["obs", "var"]] = []
-        # e.g. `Violin` only takes vdims
-        for k in dataset.kdims or dataset.vdims:
-            dim = cls._dim(dataset, k)
-            if len(dim.axes) > 1:
-                msg = "AnnData Dataset key dimensions must map onto obs or var axes."
-                raise DataError(msg)
-            axes.append(next(iter(dim.axes)))
+        # Check that all key dimensions map onto the same axis
+        kdims = [cls._dim(dataset, k) for k in dataset.dimensions()]
+        if set(ndims) != {1}:
+            kdims = kdims[:2]
+        if any(len(dim.axes) > 1 for dim in kdims):
+            raise DataError(MSG_1D)
 
-        if set(ndims) == {1} and len(set(axes)) != 1:
+        # Determine spanned axes from key dimensions (order matters)
+        axes: tuple[Literal["obs", "var"], ...] = tuple({
+            next(iter(dim.axes)): None for dim in kdims
+        })
+
+        # If vdim is ("obs", "obs") | ("var", "var") use it directly
+        if vdim and vdim.axes in {("obs", "obs"), ("var", "var")}:
+            if next(iter(vdim.axes)) not in axes:
+                msg = "AnnData Dataset in gridded mode vdim axes must match kdims."
+                raise DataError(msg)
+            axes = tuple(vdim.axes)
+        # Check if vdim axes match key dimension axes
+        elif len(axes) not in ndims:
             msg = (
                 "AnnData Dataset in tabular mode must reference data along either the "
                 "obs or the var axis, not both."
             )
             raise DataError(msg)
-        return tuple(dict.fromkeys(axes).keys())
+
+        return axes
 
     @staticmethod
     def _dim(dataset: Dataset, k: Dimension | str | int) -> AdPath:
@@ -149,8 +162,7 @@ class AnnDataInterface(hv.core.Interface):
     def validate_selection_dim(cls, dim: AdPath, action: str) -> Literal["obs", "var"]:
         """Validate dimension as valid axis to select on."""
         if len(dim.axes) > 1:
-            msg = "AnnData Dataset key dimensions must map onto one axis: obs or var."
-            raise DataError(msg)
+            raise DataError(MSG_1D)
         [ax] = dim.axes
         # TODO: support ranges and sequences  # noqa: TD003
         if ax not in ("obs", "var"):  # pragma: no cover
