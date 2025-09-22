@@ -38,7 +38,7 @@ def sadata() -> ad.AnnData:
     return adata
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_clustermap_panel_layout(sadata: ad.AnnData) -> None:
     """Test ClusterMap Panel layout creation."""
     cm = ClusterMap(adata=sadata)
