@@ -49,7 +49,7 @@ def test_clustermap_panel_layout(sadata: ad.AnnData) -> None:
     assert len(layout) == 2  # Widgets + plot view
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_clustermap_no_raw_data() -> None:
     """Test ClusterMap behavior when no raw data is available."""
     n_obs = 5
@@ -68,7 +68,7 @@ def test_clustermap_no_raw_data() -> None:
     assert cm.use_raw is False  # Should default to False when no raw data
 
 
-@pytest.mark.usefixtures("bokeh_backend")
+@pytest.mark.usefixtures("bokeh_renderer")
 def test_integration() -> None:
     adata = sc.datasets.pbmc68k_reduced()  # errors
 
