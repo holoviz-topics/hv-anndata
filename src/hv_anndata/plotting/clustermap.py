@@ -45,7 +45,7 @@ def create_clustermap_plot(
     max_genes
         Maximum number of genes to include in the heatmap.
         If None, all genes are included.
-    **config
+    config
         Additional configuration options, see :class:`ClusterMapConfig`
 
     Returns
