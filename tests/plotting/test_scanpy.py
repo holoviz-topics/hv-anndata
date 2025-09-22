@@ -50,9 +50,17 @@ def renderer(request: pytest.FixtureRequest) -> Renderer:
         ),
         pytest.param(lambda ad: pl.heatmap(ad), id="heatmap-obsm"),
         pytest.param(lambda ad: pl.heatmap(ad, A.obsp["distances"]), id="heatmap-obsp"),
+        pytest.param(
+            lambda ad: pl.violin(ad, A.obsm["umap"][0], color=A.obs.index),
+            id="violin-obsm-color",
+        ),
+        pytest.param(
+            lambda ad: pl.violin(ad, [A.obsm["umap"][0], A.obsm["umap"][1]]),
+            id="violin-obsm-multi",
+        ),
     ],
 )
-def test_scatter(
+def test_basic(
     renderer: Renderer, do_plot: Callable[[AnnData], hv.Dataset | Layoutable]
 ) -> None:
     rng = np.random.default_rng()

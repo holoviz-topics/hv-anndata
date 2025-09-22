@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import holoviews as hv
 
 from hv_anndata import ACCESSOR as A
-from hv_anndata.accessors import GraphVecAcc
+from hv_anndata.accessors import AdPath, GraphVecAcc
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-    from hv_anndata.accessors import AdPath, LayerVecAcc, MultiVecAcc
+    from hv_anndata.accessors import LayerVecAcc, MultiVecAcc
 
 
 def scatter(
@@ -117,3 +117,55 @@ def heatmap(
             dims = [dims[0] if add_dendrogram == "obs" else dims[1]]
         hm = hv.operation.dendrogram(hm, adjoint_dims=dims, main_dim=base[:, :])
     return hm
+
+
+@overload
+def violin(
+    adata: AnnData,
+    /,
+    vdims: AdPath,
+    *,
+    kdims: Collection[AdPath] = (),
+    color: AdPath | None = None,
+) -> hv.Violin: ...
+@overload
+def violin(
+    adata: AnnData,
+    /,
+    vdims: Collection[AdPath],
+    *,
+    kdims: Collection[AdPath] = (),
+    color: AdPath | None = None,
+) -> hv.Layout: ...
+def violin(
+    adata: AnnData,
+    /,
+    vdims: Collection[AdPath] | AdPath,
+    *,
+    kdims: Collection[AdPath] = (),
+    color: AdPath | None = None,
+) -> hv.Violin | hv.Layout:
+    """Shortcut for a violin plot.
+
+    If `vdims` is an `AdPath`, a single violin is returned:
+    >>> hv.Violin(adata, kdims, [vdims, color]).opts(violin_fill_color=color, ...)
+
+    Otherwise, a layout is returned:
+    >>> hv.Layout([violin(adata, kdims, vdim, ...) for vdim in vdims]).opts(...)
+
+    """
+    if not isinstance(vdims, AdPath):
+        vdims = list(vdims)
+        if not all(isinstance(vdim, AdPath) for vdim in vdims):
+            msg = f"vdims must be an AdPath or a collection of AdPaths, got {vdims!r}."
+            raise TypeError(msg)
+        return hv.Layout([
+            violin(adata, vdim, color=color).opts(title=str(vdim), ylabel="")
+            for vdim in vdims
+        ]).opts(axiswise=True)
+
+    kdims = list(kdims)
+    if color and color not in kdims:
+        kdims.append(color)
+    opts = dict(violin_fill_color=color) if color else {}
+    return hv.Violin(adata, kdims, vdims).opts(**opts, ylabel=str(vdims))
