@@ -441,9 +441,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
         ND-array matching the dimensionality of the dataset.
         """
         dim = cls._dim(dataset, dim)
-        irregular = cls.irregular(dataset, dim)
         vdim = dataset.vdims[0]
-        if irregular or expanded:
+        if expanded:
             data = expand_grid_coords(dataset, dim)
             if edges and data.shape == vdim(dataset.data).shape:
                 data = GridInterface._infer_interval_breaks(data, axis=1)  # noqa: SLF001
@@ -488,35 +487,50 @@ class AnnDataGriddedInterface(AnnDataInterface):
             # On 2D datasets we generate synthetic coordinates
             [ax] = dim.axes
             return np.arange(len(getattr(adata, ax)))
-        if len(dim.axes) > 1 or not expanded:
-            values = dim(adata)
-            if len(dim.axes) > 1 and data.kdims[0].axes == {"var"}:
-                values = values.T
-        else:
-            [ax] = dim.axes
-            idx = cls._expand_grid(data)[ax]
-            values = dim(adata)[idx]
+
+        # Axes are transposed relative to the key-dimension order.
+        # When flattened, this transpose is omitted so arrays follow
+        # hierarchical (row-major) ordering.
+        transpose = [d.axes for d in data.kdims] == [{"obs"}, {"var"}]
+        match len(dim.axes), expanded:
+            case 1, True:
+                obs, var = cls._expand_grid(data)
+                idx = var if dim.axes == {"var"} else obs
+                coords = dim(adata)
+                values = coords[idx]
+                if transpose != flat:
+                    values = values.T
+            case 1, False:
+                values = dim(adata)
+            case _, True:
+                values = dim(adata)
+                if transpose != flat:
+                    values = values.T
+            case _:
+                assert dim in data.vdims, "test_init_errors[tab-x_2d] prevents 2D kdims"  # noqa: S101
+                error = (
+                    "When requesting data for a value dimension, "
+                    "it is invalid to request expanded=False. "
+                    "Value dimension arrays must cover the whole "
+                    "multi-dimensional space."
+                )
+                raise ValueError(error)
+
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
-        elif flat and values.ndim > 1:
+        if flat and values.ndim > 1:
             if isinstance(values, pd.api.extensions.ExtensionArray):
                 values = values.to_numpy()
             values = values.flatten()
         return values
 
     @classmethod
-    def _expand_grid(
-        cls, data: Dataset
-    ) -> dict[Literal["obs", "var"], NDArray[np.intp]]:
-        arrays = cartesian_product(
-            [
-                np.arange(len(getattr(data.data, next(iter(d.axes)))))
-                for d in data.kdims
-            ],
+    def _expand_grid(cls, data: Dataset) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
+        obs, var = cartesian_product(
+            [np.arange(len(data.data.obs)), np.arange(len(data.data.var))],
             flat=False,
         )
-        axes = cls.axes(data)
-        return {ax: arrays[axes.index(ax)] for ax in axes}
+        return obs, var
 
     @classmethod
     def irregular(cls, dataset: Dataset, dim: Dimension | str) -> Literal[False]:
