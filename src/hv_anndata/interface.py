@@ -488,21 +488,29 @@ class AnnDataGriddedInterface(AnnDataInterface):
             [ax] = dim.axes
             return np.arange(len(getattr(adata, ax)))
 
+        # Axes are transposed relative to the key-dimension order.
+        # When flattened, this transpose is omitted so arrays follow
+        # hierarchical (row-major) ordering.
         transpose = [d.axes for d in data.kdims] == [{"obs"}, {"var"}]
-        flip = np.flipud if transpose else np.fliplr
         if dim in data.vdims:
+            if not expanded:
+                error = (
+                    "When requesting data for a value dimension, "
+                    "it is invalid to request expanded=False. "
+                    "Value dimension arrays must cover the whole "
+                    "multi-dimensional space."
+                )
+                raise ValueError(error)
             values = dim(adata)
-            if (transpose and not flat) or (not transpose and flat):
+            if transpose != flat:
                 values = values.T
         elif expanded:
             obs, var = cls._expand_grid(data)
             idx = var if dim.axes == {"var"} else obs
             coords = dim(adata)
             values = coords[idx]
-            if not transpose:
+            if transpose != flat:
                 values = values.T
-            if dim.axes == {"var"}:
-                values = flip(values)
         else:
             values = dim(adata)
 
