@@ -492,7 +492,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         # When flattened, this transpose is omitted so arrays follow
         # hierarchical (row-major) ordering.
         transpose = [d.axes for d in data.kdims] == [{"obs"}, {"var"}]
-        if dim in data.vdims:
+        if dim in data.vdims and len(dim.axes) > 1:
             if not expanded:
                 error = (
                     "When requesting data for a value dimension, "

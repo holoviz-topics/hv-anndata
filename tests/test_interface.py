@@ -147,7 +147,7 @@ def test_get_values_grid(
     flat: bool,
     ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    data = hv.Dataset(adata, [A.obs.index, A.var.index], [A[:, :], ad_path])
+    data = hv.Dataset(adata, [A.var.index, A.obs.index], [A[:, :], ad_path])
     assert data.interface is AnnDataGriddedInterface
     # prepare expected array
     expected = ad_expected(adata)
@@ -163,17 +163,21 @@ def test_get_values_grid(
         else:
             assert ad_path.axes == {"var", "obs"}
     if flat:
-        expected = expected.flatten()
+        expected = expected.T.flatten()
 
     # get values
-    vals = data.interface.values(
-        data, ad_path, expanded=expanded, flat=flat, keep_index=False
-    )
-
-    # compare
-    if not isinstance(vals, np.ndarray):
-        pytest.fail(f"Unexpected return type {type(vals)}")
-    np.testing.assert_array_equal(vals, expected, strict=True)
+    try:
+        vals = data.interface.values(
+            data, ad_path, expanded=expanded, flat=flat, keep_index=False
+        )
+    except ValueError:
+        assert ad_path in data.vdims
+        assert not expanded
+    else:
+        # compare
+        if not isinstance(vals, np.ndarray):
+            pytest.fail(f"Unexpected return type {type(vals)}")
+        np.testing.assert_array_equal(vals, expected, strict=True)
 
 
 @pytest.mark.parametrize(
@@ -321,11 +325,11 @@ def test_gridded_ax(
             dict(y=["A", "B"]),
         )
     )
-    kdims = [A.var.index, A.obs.index] if transposed else [A.obs.index, A.var.index]
+    kdims = [A.obs.index, A.var.index] if transposed else [A.var.index, A.obs.index]
     ds = hv.Dataset(adata, kdims=kdims, vdims=[A[:, :], A.obs["x"], A.var["y"]])
     assert ds.interface is AnnDataGriddedInterface
 
-    values = ds.dimension_values(dim, flat=False)
+    values = ds.dimension_values(dim, expanded=True, flat=False)
 
     assert values.shape == (adata.shape[::-1] if transposed else adata.shape)
     npt.assert_equal(values, np.transpose(expected) if transposed else expected)
