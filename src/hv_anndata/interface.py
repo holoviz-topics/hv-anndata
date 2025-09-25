@@ -492,8 +492,22 @@ class AnnDataGriddedInterface(AnnDataInterface):
         # When flattened, this transpose is omitted so arrays follow
         # hierarchical (row-major) ordering.
         transpose = [d.axes for d in data.kdims] == [{"obs"}, {"var"}]
-        if dim in data.vdims and len(dim.axes) > 1:
-            if not expanded:
+        match len(dim.axes), expanded:
+            case 1, True:
+                obs, var = cls._expand_grid(data)
+                idx = var if dim.axes == {"var"} else obs
+                coords = dim(adata)
+                values = coords[idx]
+                if transpose != flat:
+                    values = values.T
+            case 1, False:
+                values = dim(adata)
+            case _, True:
+                values = dim(adata)
+                if transpose != flat:
+                    values = values.T
+            case _:
+                assert dim in data.vdims, "test_init_errors[tab-x_2d] prevents 2D kdims"  # noqa: S101
                 error = (
                     "When requesting data for a value dimension, "
                     "it is invalid to request expanded=False. "
@@ -501,18 +515,6 @@ class AnnDataGriddedInterface(AnnDataInterface):
                     "multi-dimensional space."
                 )
                 raise ValueError(error)
-            values = dim(adata)
-            if transpose != flat:
-                values = values.T
-        elif expanded:
-            obs, var = cls._expand_grid(data)
-            idx = var if dim.axes == {"var"} else obs
-            coords = dim(adata)
-            values = coords[idx]
-            if transpose != flat:
-                values = values.T
-        else:
-            values = dim(adata)
 
         if not keep_index and isinstance(values, pd.Series):
             values = values.values

@@ -162,19 +162,19 @@ def test_get_values_grid(
             expected = np.broadcast_to(expected, (adata.n_vars, len(expected))).T
         else:
             assert ad_path.axes == {"var", "obs"}
-    if flat:
+    if flat:  # see comment in AnnDataGriddedInterface.values()
         expected = expected.T.flatten()
 
-    # get values
-    try:
+    vals = None
+    with (
+        pytest.raises(ValueError, match=r"value dimension.*must cover")
+        if len(ad_path.axes) == 2 and not expanded
+        else contextlib.nullcontext()
+    ):
         vals = data.interface.values(
             data, ad_path, expanded=expanded, flat=flat, keep_index=False
         )
-    except ValueError:
-        assert ad_path in data.vdims
-        assert not expanded
-    else:
-        # compare
+    if vals is not None:
         if not isinstance(vals, np.ndarray):
             pytest.fail(f"Unexpected return type {type(vals)}")
         np.testing.assert_array_equal(vals, expected, strict=True)
@@ -251,6 +251,9 @@ def test_init_errors(
     [
         pytest.param(
             [A.obs["zzzzz"]], r"dimensions.*not found.*A.obs\['zzzzz'\]", id="missing"
+        ),
+        pytest.param(
+            [A[:, :]], r"AnnData Dataset key dimensions must map onto one axis", id="2d"
         ),
     ],
 )
