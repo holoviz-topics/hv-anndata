@@ -6,15 +6,18 @@ from functools import partial
 from typing import TYPE_CHECKING, overload
 
 import holoviews as hv
+import numpy as np
+import pandas as pd
 
 from hv_anndata import ACCESSOR as A
 from hv_anndata.accessors import AdPath, GraphVecAcc
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterable
     from typing import Literal
 
     from anndata import AnnData
+    from pandas.api.extensions import ExtensionArray
 
     from hv_anndata.accessors import LayerVecAcc, MultiVecAcc
 
@@ -119,6 +122,46 @@ def heatmap(
     return hm
 
 
+def tracksplot(
+    adata: AnnData, markers: Collection[AdPath], color: AdPath | None = None
+) -> hv.NdLayout:
+    """Shortcut for a tracksplot."""
+    more_vdims = [] if color is None else [color]
+    curves = {
+        m: hv.Curve(adata, [A.obs.index], [A[:, m], *more_vdims]).opts(
+            xticks=0,
+            xlabel="",
+            ylabel=m,
+            title="",
+            show_legend=False,  # TODO: switch to below impl after fixing https://github.com/holoviz/holoviews/issues/5438
+            aspect=2 * len(markers),
+        )
+        for m in markers
+    }
+    if color is not None:
+        curves = {m: c.groupby(color, hv.NdOverlay) for m, c in curves.items()}
+    return hv.NdLayout(curves, kdims=["marker"]).cols(1)
+
+
+def _tracksplot2(
+    adata: AnnData, markers: Collection[str], color: AdPath | None = None
+) -> hv.GridSpace:
+    """Tracksplot variant. Faster but Gridspace is generally buggy.
+
+    We can switch after <https://github.com/holoviz/holoviews/issues/5438> is fixed.
+    """
+    assert color is not None  # noqa: S101
+    return hv.GridSpace(
+        {
+            (0, m): hv.Curve(adata, [A.obs.index], [A[:, m], color])
+            .opts(aspect=2 * len(markers))
+            .groupby(A.obs["bulk_labels"], hv.NdOverlay)
+            for m in markers
+        },
+        kdims=["_", "marker"],
+    ).opts(show_legend=True, xaxis=None)
+
+
 @overload
 def violin(
     adata: AnnData,
@@ -169,3 +212,47 @@ def violin(
         kdims.append(color)
     opts = dict(violin_fill_color=color) if color else {}
     return hv.Violin(adata, kdims, vdims).opts(**opts, ylabel=str(vdims))
+
+
+def stacked_violin(adata: AnnData, xdim: AdPath, ydim: AdPath) -> hv.GridSpace:
+    """Stacked violin plot.
+
+    Groups data by `xdim` and `ydim` and then plots a single violin for each group.
+    """
+    if len(xdim.axes) != 1 or len(ydim.axes) != 1:
+        msg = "xdim and ydim must map to the same axis."
+        raise ValueError(msg)
+    xvals = xdim(adata)
+    yvals = ydim(adata)
+
+    match next(iter(xdim.axes)), next(iter(ydim.axes)):
+        case "obs", "obs":
+            idx = lambda x, y: adata[(xvals == x) & (yvals == y), :]  # noqa: E731
+        case "var", "var":
+            idx = lambda x, y: adata[:, (xvals == x) & (yvals == y)]  # noqa: E731
+        case "obs", "var":
+            idx = lambda x, y: adata[xvals == x, yvals == y]  # noqa: E731
+        case "obs", "var":
+            idx = lambda x, y: adata[yvals == y, xvals == x]  # noqa: E731
+        case _:
+            raise AssertionError
+
+    return hv.GridSpace(
+        {
+            # TODO: should Violin vdim be able to be 2D?  # noqa: TD003
+            (x, y): hv.Violin(idx(x, y), vdims=[A[:, :]]).opts(inner=None)
+            for x in _get_categories(xvals)
+            for y in _get_categories(yvals)
+        },
+        ["marker", "bulk label"],
+    )
+
+
+def _get_categories(
+    vals: ExtensionArray | np.ndarray,
+) -> Iterable[str | int | float]:
+    if isinstance(vals, np.ndarray):
+        return np.unique(vals)
+    if isinstance(vals, pd.Categorical):
+        return vals.categories
+    return vals.unique()
