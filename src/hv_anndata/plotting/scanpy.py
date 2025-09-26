@@ -232,7 +232,7 @@ def stacked_violin(adata: AnnData, xdim: AdPath, ydim: AdPath) -> hv.GridSpace:
             idx = lambda x, y: adata[:, (xvals == x) & (yvals == y)]  # noqa: E731
         case "obs", "var":
             idx = lambda x, y: adata[xvals == x, yvals == y]  # noqa: E731
-        case "obs", "var":
+        case "var", "obs":
             idx = lambda x, y: adata[yvals == y, xvals == x]  # noqa: E731
         case _:
             raise AssertionError
@@ -254,5 +254,5 @@ def _get_categories(
     if isinstance(vals, np.ndarray):
         return np.unique(vals)
     if isinstance(vals, pd.Categorical):
-        return vals.categories
+        return vals.categories[vals.categories.isin(vals)]
     return vals.unique()
