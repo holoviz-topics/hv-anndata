@@ -131,10 +131,9 @@ def test_get_values_table(
     assert data.interface is AnnDataInterface
     vals = data.interface.values(data, ad_path, keep_index=True)
 
-    if isinstance(vals, np.ndarray):
-        np.testing.assert_array_equal(vals, ad_expected(adata), strict=True)
-    else:  # pragma: no cover
+    if not isinstance(vals, np.ndarray):  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
+    np.testing.assert_array_equal(vals, ad_expected(adata), strict=True)
 
 
 @pytest.mark.parametrize("expanded", [True, False], ids=["expanded", "normal"])
@@ -292,6 +291,13 @@ def test_axes_errors(
     ):
         # Dataset.__init__ calls self.interface.axes after initializing the interface
         hv.Dataset(adata, kdims, vdims)
+
+
+@pytest.mark.parametrize("vdim", [A[:, :], A.obsm["umap"][0]], ids=["2d", "1d"])
+def test_violin_2d(adata: AnnData, vdim: AdPath) -> None:
+    """Violin plots don’t have kdims and just do stats on flattened data,
+    so they should accept both a 1D and 2D vdim."""
+    hv.Violin(adata, [], [vdim])
 
 
 @pytest.mark.parametrize(
