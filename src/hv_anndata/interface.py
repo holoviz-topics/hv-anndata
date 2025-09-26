@@ -26,7 +26,7 @@ from holoviews.element.raster import SheetCoordinateSystem
 from .accessors import AdAc, AdPath
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from numbers import Number
     from typing import Any, Literal, TypedDict, TypeVar
 
@@ -72,14 +72,17 @@ class AnnDataInterface(hv.core.Interface):
         vdims: list[Dimension] | None,
     ) -> tuple[AnnData, Dims, dict[str, Any]]:
         """Initialize the interface."""
+        if not isinstance(data, AnnData):
+            msg = f"{cls.__name__} only supports AnnData."
+            raise TypeError(msg)
         key_dimensions = [AdAc.from_dimension(d) for d in kdims or []]
         value_dimensions = [AdAc.from_dimension(d) for d in vdims or []]
         vdim = value_dimensions[0] if value_dimensions else None
-        ndims = cls._ndims(vdim, data)
-        if not cls.gridded and 1 not in ndims:
+        ndims = len(vdim.axes) if vdim else 1
+        if not cls.gridded and ndims > 1:
             msg = f"{cls.__name__} cannot handle gridded data."
             raise ValueError(msg)
-        if cls.gridded and set(ndims) == {1}:
+        if cls.gridded and ndims == 1:
             msg = f"{cls.__name__} cannot handle tabular data."
             raise ValueError(msg)
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
@@ -88,17 +91,21 @@ class AnnDataInterface(hv.core.Interface):
     def axes(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
         """Detect if the data is gridded or columnar and along which axes it is indexed."""  # noqa: E501
         vdim = cls._dim(dataset, dataset.vdims[0]) if dataset.vdims else None
-        ndims = cls._ndims(vdim, dataset.data)
-        if 1 not in ndims and len(dataset.kdims) not in ndims:
+        if len(dataset.kdims) == 0 and vdim:
+            # e.g. Violin plot doesn’t have kdims
+            return tuple(vdim.axes)
+
+        ndims = len(vdim.axes) if vdim else 1
+        if ndims not in (allowed := {1, len(dataset.kdims)}):
             msg = (
                 "AnnData Dataset with multi-dimensional data must declare "
-                f"corresponding key dimensions ({len(dataset.kdims)} ∉ {ndims})."
+                f"corresponding key dimensions ({ndims} ∉ {allowed})."
             )
             raise DataError(msg)
 
         # Check that all key dimensions map onto the same axis
         kdims = [cls._dim(dataset, k) for k in dataset.dimensions()]
-        if set(ndims) != {1}:
+        if ndims != 1:
             kdims = kdims[:2]
         if any(len(dim.axes) > 1 for dim in kdims):
             raise DataError(MSG_1D)
@@ -115,7 +122,7 @@ class AnnDataInterface(hv.core.Interface):
                 raise DataError(msg)
             axes = tuple(vdim.axes)
         # Check if vdim axes match key dimension axes
-        elif len(axes) not in ndims:
+        elif ndims != len(axes):
             msg = (
                 "AnnData Dataset in tabular mode must reference data along either the "
                 "obs or the var axis, not both."
@@ -131,13 +138,6 @@ class AnnDataInterface(hv.core.Interface):
         return AdAc.from_dimension(
             (dataset.get_dimension(k) or AdAc.resolve(k)) if isinstance(k, str) else k
         )
-
-    @staticmethod
-    def _ndims(vdim: AdPath | None, data: AnnData) -> Collection[int]:
-        if not vdim:
-            return {1}
-        d = vdim(data)
-        return range(sum(ax > 1 for ax in d.shape), d.ndim + 1)
 
     @classmethod
     def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002

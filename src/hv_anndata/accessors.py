@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, cast, overload
 
@@ -184,7 +185,14 @@ class MetaAcc:
 
         return AdPath(f"A.{self.ax}.index", get, {self.ax})
 
-    def __getitem__(self, k: str) -> AdPath:
+    @overload
+    def __getitem__(self, k: str) -> AdPath: ...
+    @overload
+    def __getitem__(self, k: list[str]) -> list[AdPath]: ...
+    def __getitem__(self, k: str | Iterable[str]) -> AdPath | list[AdPath]:
+        if not isinstance(k, str) and isinstance(k, Iterable):
+            return [self[i] for i in k]
+
         if not isinstance(k, str):
             msg = f"Unsupported {self.ax} column {k!r}"
             raise TypeError(msg)
