@@ -82,3 +82,15 @@ def test_resolve(spec: str, expected: AdPath) -> None:
 def test_invalid(mk_path: Callable[[], AdPath]) -> None:
     with pytest.raises((ValueError, TypeError)):
         mk_path()
+
+
+@pytest.mark.parametrize(
+    ("expr", "expanded"),
+    [
+        pytest.param(A.obs[["a", "b"]], [A.obs["a"], A.obs["b"]], id="obs"),
+        pytest.param(A.var[["x", "y"]], [A.var["x"], A.var["y"]], id="var"),
+    ],
+)
+def test_special(expr: AdPath, expanded: object) -> None:
+    """Some paths have shortcuts for convenience."""
+    assert expr == expanded
