@@ -11,5 +11,5 @@ build:
     - asdf global uv latest
     build:
       html:
-      - env UV_CONSTRAINT=.github/constraints.txt uvx '--with=click!=8.3.0' hatch run docs:build
+      - env UV_CONSTRAINT=.github/constraints.txt uvx hatch run docs:build
       - mv docs/_build $READTHEDOCS_OUTPUT
