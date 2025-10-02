@@ -48,8 +48,8 @@ scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata -
 extra-dependencies = [
   "fast-array-utils",
   "furo",
-  # https://github.com/holoviz/holoviews/pull/6669
-  "holoviews @ git+https://github.com/holoviz/holoviews@fix_edge_cases_dendrogram",
+  # Needs https://github.com/holoviz/holoviews/pull/6669
+  "holoviews>=1.22a1",
   "ipykernel",
   "ipywidgets",
   "jupyter-bokeh",
