@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import re
 from functools import partial
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, cast, overload
 
 import holoviews as hv
 import numpy as np
 import pandas as pd
+import scanpy as sc
+from fast_array_utils import stats
 
 from hv_anndata import ACCESSOR as A
-from hv_anndata.accessors import AdPath, GraphVecAcc
+from hv_anndata.accessors import AdPath, GraphVecAcc, LayerVecAcc, MultiVecAcc
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -19,7 +22,8 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from pandas.api.extensions import ExtensionArray
 
-    from hv_anndata.accessors import LayerVecAcc, MultiVecAcc
+    # TODO: export in scanpy: https://github.com/scverse/scanpy/issues/3826
+    AggType = Literal["count_nonzero", "mean", "sum", "var", "median"]
 
 
 def scatter(
@@ -214,7 +218,7 @@ def violin(
     return hv.Violin(adata, kdims, vdims).opts(**opts, ylabel=str(vdims))
 
 
-def stacked_violin(adata: AnnData, xdim: AdPath, ydim: AdPath) -> hv.GridSpace:
+def stacked_violin(adata: AnnData, /, xdim: AdPath, ydim: AdPath) -> hv.GridSpace:
     """Stacked violin plot.
 
     Groups data by `xdim` and `ydim` and then plots a single violin for each group.
@@ -244,8 +248,58 @@ def stacked_violin(adata: AnnData, xdim: AdPath, ydim: AdPath) -> hv.GridSpace:
             for x in _get_categories(xvals)
             for y in _get_categories(yvals)
         },
-        ["marker", "bulk label"],
+        [xdim, ydim],
     )
+
+
+def matrixplot(
+    adata: AnnData,
+    /,
+    group_by: AdPath,
+    *,
+    func: AggType = "mean",
+    data: LayerVecAcc | MultiVecAcc = A,
+    add_totals: bool = False,
+) -> hv.HeatMap | hv.AdjointLayout:
+    """Heatmap with totals per column."""
+    # TODO: make AdPath inspectable: https://github.com/holoviz-topics/hv-anndata/pull/87
+    if match := re.fullmatch(r"A\.(obs|var)\['(\w+)'\]", str(group_by)):
+        axis, by = cast("tuple[Literal['obs', 'var'], str]", match.groups())
+    else:
+        msg = f"`by` needs to be `A.obs['…']` or `A.var['…']`, got {group_by!r}"
+        raise TypeError(msg)
+
+    layer = obsm = varm = None
+    if isinstance(data, LayerVecAcc):
+        layer = data.k
+    elif not isinstance(data, MultiVecAcc):
+        msg = (
+            "`data` needs to be `A[:, :]` or `A.{layers,obsm,varm}['…'][:, :]`, "
+            f"got {data!r}"
+        )
+        raise TypeError(msg)
+    elif data.ax == "obsm":
+        obsm = data.k
+    elif data.ax == "varm":
+        varm = data.k
+
+    agg = sc.get.aggregate(
+        adata, by, func, axis=axis, layer=layer, obsm=obsm, varm=varm
+    )
+    agg.var["totals"] = stats.sum(agg.layers[func], axis=0)
+    heatmap = hv.HeatMap(
+        agg,
+        [A.obs.index, A.var.index],
+        [A.layers[func][:, :]],
+    ).opts(xrotation=30, tools=["hover"])
+    if not add_totals:
+        return heatmap
+    bars = hv.Bars(agg, A.var.index, A.var["totals"]).opts(
+        yticks=0,
+        xlabel="",  #  TODO: holoviews issue  # noqa: TD003
+        tools=["hover"],
+    )
+    return hv.AdjointLayout([heatmap, bars])
 
 
 def _get_categories(
