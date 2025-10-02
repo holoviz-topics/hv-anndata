@@ -19,6 +19,7 @@ dependencies = [
   "anndata",
   "bokeh",
   "datashader",
+  "fast-array-utils",
   "holoviews>=1.21.0rc0",
   "numpy",
   "pandas",
@@ -46,7 +47,6 @@ scripts.open = "python -m webbrowser {args:docs/_build/html/index.html}"
 scripts.clean = "git clean -fdX -- {args:docs}"
 scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
 extra-dependencies = [
-  "fast-array-utils",
   "furo",
   # Needs https://github.com/holoviz/holoviews/pull/6669
   "holoviews>=1.22a1",

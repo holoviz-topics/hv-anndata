@@ -15,6 +15,7 @@ from .plotting import (
     create_manifoldmap_plot,
     dotmap_from_manifoldmap,
     labeller,
+    scanpy,
 )
 
 ACCESSOR = ACCESSOR  # noqa: PLW0127
@@ -41,4 +42,5 @@ __all__ = [
     "dotmap_from_manifoldmap",
     "labeller",
     "register",
+    "scanpy",
 ]
