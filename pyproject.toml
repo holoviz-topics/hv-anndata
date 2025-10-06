@@ -19,11 +19,11 @@ dependencies = [
   "anndata",
   "bokeh",
   "datashader",
-  "holoviews>=1.21.0rc0",
+  "holoviews>=1.21rc0",
   "numpy",
   "pandas",
   "panel",
-  "panel-material-ui>=0.4.0rc1",
+  "panel-material-ui>=0.4rc1",
   "param",
 ]
 
