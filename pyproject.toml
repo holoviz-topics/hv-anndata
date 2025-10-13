@@ -115,9 +115,10 @@ lint.pylint.max-positional-args = 3
 
 [tool.pytest.ini_options]
 addopts = [ "--import-mode=importlib", "--strict-markers" ]
-# filterwarnings = [
-# "error",
-# ]
+filterwarnings = [
+  "error",
+  # add ignore filters here if something fails in 3rd party dependencies
+]
 
 [tool.coverage.run]
 source_pkgs = [ "hv_anndata", "tests" ]
