@@ -82,3 +82,27 @@ def ranking(
     return hv.Labels(data, ["rank", "score"], ["text", "align"]).opts(
         angle=90, text_align="align", xticks=0
     ) * hv.Points(data, ["rank", "score"], ["text", "dot"]).opts(alpha="dot")
+
+
+def embedding_density(
+    adata: AnnData,
+    basis: MultiVecAcc,
+    *,
+    groupby: str | None = None,
+    key: str | None = None,
+) -> hv.Scatter | hv.NdLayout:
+    basis_name = basis.k.removeprefix("X_")
+    if key is None:
+        key = f"{basis_name}_density{'' if groupby is None else f'_{groupby}'}"
+
+    groupby_vdims = [] if groupby is None else [A.obs[groupby]]
+    scatter = hv.Scatter(adata, basis[0], [basis[1], *groupby_vdims, A.obs[key]]).opts(
+        color=A.obs[key],
+        aspect="square",
+        xlabel=f"{basis_name} 1",
+        ylabel=f"{basis_name} 2",
+        legend_position="right",
+    )
+    if groupby is None:
+        return scatter
+    return scatter.groupby(A.obs[groupby], hv.NdLayout)
