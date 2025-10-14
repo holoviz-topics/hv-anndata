@@ -26,6 +26,17 @@ if TYPE_CHECKING:
     AggType = Literal["count_nonzero", "mean", "sum", "var", "median"]
 
 
+__all__ = [
+    "heatmap",
+    "matrixplot",
+    "scatter",
+    "stacked_violin",
+    "tracksplot",
+    "umap",
+    "violin",
+]
+
+
 def scatter(
     adata: AnnData,
     base: MultiVecAcc | LayerVecAcc | GraphVecAcc,
