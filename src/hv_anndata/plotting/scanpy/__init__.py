@@ -12,12 +12,15 @@ from ._core import (
     violin,
 )
 from ._pp import highest_expr_genes, highly_variable_genes, scrublet_score_distribution
+from ._tl import draw_graph, ranking
 
 __all__ = [
+    "draw_graph",
     "heatmap",
     "highest_expr_genes",
     "highly_variable_genes",
     "matrixplot",
+    "ranking",
     "scatter",
     "scrublet_score_distribution",
     "stacked_violin",
