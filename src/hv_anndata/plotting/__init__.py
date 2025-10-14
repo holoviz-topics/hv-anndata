@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from . import scanpy
+from . import scanpy, utils
 from .clustermap import ClusterMap, ClusterMapConfig, create_clustermap_plot
 from .dotmap import Dotmap, DotmapParams, dotmap_from_manifoldmap
 from .labeller import labeller
@@ -20,4 +20,5 @@ __all__ = [
     "dotmap_from_manifoldmap",
     "labeller",
     "scanpy",
+    "utils",
 ]

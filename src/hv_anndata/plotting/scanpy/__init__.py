@@ -11,9 +11,11 @@ from ._core import (
     umap,
     violin,
 )
+from ._pp import highest_expr_genes
 
 __all__ = [
     "heatmap",
+    "highest_expr_genes",
     "matrixplot",
     "scatter",
     "stacked_violin",
