@@ -11,13 +11,15 @@ from ._core import (
     umap,
     violin,
 )
-from ._pp import highest_expr_genes
+from ._pp import highest_expr_genes, highly_variable_genes, scrublet_score_distribution
 
 __all__ = [
     "heatmap",
     "highest_expr_genes",
+    "highly_variable_genes",
     "matrixplot",
     "scatter",
+    "scrublet_score_distribution",
     "stacked_violin",
     "tracksplot",
     "umap",
