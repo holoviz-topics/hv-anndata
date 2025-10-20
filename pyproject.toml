@@ -33,20 +33,21 @@ dependencies = [
 source = "vcs"
 
 [tool.hatch.envs.default]
-extra-dependencies = [ "ipykernel" ]
+dependencies = [ "ipykernel" ]
 installer = "uv"
+python = "3.13"
 [tool.hatch.envs.hatch-test]
-extra-dependencies = [
+dependencies = [
   "pytest-cov",     # for VS Code’s coverage function (not needed for `hatch test -c`)
   "nbformat-types",
   "scanpy",
 ]
 [tool.hatch.envs.docs]
-scripts.build = "sphinx-build -W --keep-going -b html docs docs/_build/html {args}"
+scripts.build = "sphinx-build -b html docs docs/_build/html -W {args}"
 scripts.open = "python -m webbrowser {args:docs/_build/html/index.html}"
 scripts.clean = "git clean -fdX -- {args:docs}"
 scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
-extra-dependencies = [
+dependencies = [
   "furo",
   # Needs https://github.com/holoviz/holoviews/pull/6669
   "holoviews>=1.22a1",
@@ -59,6 +60,7 @@ extra-dependencies = [
   "scanpy[scrublet]",
   "sphinx",
   "sphinx-autodoc-typehints",
+  "sphinx-exec-jupyter[holoviews] @ git+https://github.com/flying-sheep/sphinx-exec-jupyter.git",
 ]
 
 [tool.ruff]

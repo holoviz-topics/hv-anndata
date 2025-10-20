@@ -22,7 +22,9 @@ html_theme = "furo"
 extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
+    # "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
+    "sphinx_exec_jupyter",
     "myst_nb",
     "paramdoc",
 ]
@@ -43,7 +45,7 @@ typehints_defaults = "comma"
 # myst_nb settings
 nb_execution_mode = "cache"
 nb_execution_show_tb = True
-nb_execution_timeout = 60  # seconds
+nb_execution_timeout = 30  # seconds
 
 # autodoc/autosummary
 autodoc_default_options = {

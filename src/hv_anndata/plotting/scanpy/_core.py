@@ -49,12 +49,26 @@ def scatter(
     """Shortcut for a scatter plot.
 
     Basically just
+
     >>> i, j = components
     >>> hv.Scatter(adata, base[:, i], [base[:, j], *vdims]).opts(aspect="square", ...)
 
-    Set `base` to `A.obsm[key]`, `A.varm[key]`, `A`, or `A.layers[key]`.
+    Set ``base`` to ``A.obsm[key]``, ``A.varm[key]``, ``A``, or ``A.layers[key]``.
 
-    If `color` is set, it’s both added to `vdims` and in `.opts(color=...)`.
+    If ``color`` is set, it’s both added to ``vdims`` and in ``.opts(color=...)``.
+
+    ..  holoviews::
+
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, ACCESSOR as A
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        hv_sc.scatter(adata, A, ["PSAP", "C1QA"], color=A.obs["bulk_labels"]).opts(
+            cmap="tab10", show_legend=False
+        )
+
     """
     try:
         i, j = components
@@ -106,13 +120,15 @@ def heatmap(
     """Shortcut for a heatmap.
 
     Basically just
+
     >>> hv.HeatMap(adata, [A.obs.index, A.var.index], [base[:, :], *vdims]).opts(...)
 
-    Set `base` to `A` or `A.layers[key]`,
-    and `transpose=True` to switch the order of the axes.
+    Set ``base`` to ``A`` or ``A.layers[key]``,
+    and ``transpose=True`` to switch the order of the axes.
 
-    If `add_dendrogram` is True, the dendrogram is added.
+    If ``add_dendrogram`` is True, the dendrogram is added.
     Call it directly to customize the dendrogram:
+
     >>> hv.operation.dendrogram(heatmap, adjoint_dims=..., main_dim=base[:, :])
 
     """
@@ -205,10 +221,12 @@ def violin(
 ) -> hv.Violin | hv.Layout:
     """Shortcut for a violin plot.
 
-    If `vdims` is an `AdPath`, a single violin is returned:
+    If ``vdims`` is an ``AdPath``, a single violin is returned:
+
     >>> hv.Violin(adata, kdims, [vdims, color]).opts(violin_fill_color=color, ...)
 
     Otherwise, a layout is returned:
+
     >>> hv.Layout([violin(adata, kdims, vdim, ...) for vdim in vdims]).opts(...)
 
     """
