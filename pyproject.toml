@@ -117,6 +117,7 @@ lint.pylint.max-positional-args = 3
 
 [tool.pytest.ini_options]
 addopts = [ "--import-mode=importlib", "--strict-markers" ]
+xfail_strict = true
 filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
