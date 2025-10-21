@@ -396,10 +396,15 @@ class AdAc(LayerVecAcc):
 
 
 def _is_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> TypeIs[Idx2DList[Idx]]:
-    return sum(isinstance(i, list) for i in idx) == 1
+    """Check if a 2D index contains a list in one of its dimensions."""
+    return any(isinstance(i, list) for i in idx)
 
 
 def _expand_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> list[Idx2D[Idx]]:
+    """Expand a 2D index containing a list in one of its dimensions.
+
+    Also validates that the 2D index contains at most one list.
+    """
     match idx:
         case list() as ixs, iy:
             return [(ix, iy) for ix in ixs]
