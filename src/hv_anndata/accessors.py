@@ -231,12 +231,20 @@ class MultiVecAcc:
     ax: Literal["obsm", "varm"]
     k: str
 
-    def __getitem__(self, i: int | tuple[slice, int]) -> AdPath:
+    @overload
+    def __getitem__(self, i: int | tuple[slice, int]) -> AdPath: ...
+    @overload
+    def __getitem__(self, i: list[int] | tuple[slice, list[int]]) -> list[AdPath]: ...
+    def __getitem__(
+        self, i: int | tuple[slice, int] | list[int] | tuple[slice, list[int]]
+    ) -> AdPath | list[AdPath]:
         if isinstance(i, tuple):
-            if i[0] != slice(None):
+            if len(i) != 2 or i[0] != slice(None):  # noqa: PLR2004
                 msg = f"Unsupported slice {i!r}"
                 raise ValueError(msg)
             i = i[1]
+        if isinstance(i, list):
+            return [self[j] for j in i]
 
         if not isinstance(i, int):
             msg = f"Unsupported index {i!r}"

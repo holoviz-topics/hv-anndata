@@ -62,6 +62,7 @@ dependencies = [
   "sphinx",
   "sphinx-autodoc-typehints",
   "sphinx-exec-jupyter[holoviews] @ git+https://github.com/flying-sheep/sphinx-exec-jupyter.git",
+  "sphinx-design",
 ]
 
 [tool.ruff]

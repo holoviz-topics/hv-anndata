@@ -25,6 +25,7 @@ extensions = [
     # "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
     "sphinx_exec_jupyter",
+    "sphinx_design",
     "myst_nb",
     "paramdoc",
 ]
@@ -46,6 +47,8 @@ typehints_defaults = "comma"
 nb_execution_mode = "cache"
 nb_execution_show_tb = True
 nb_execution_timeout = 30  # seconds
+
+holoviews_backends = ["bokeh", "matplotlib", "plotly"]
 
 # autodoc/autosummary
 autodoc_default_options = {

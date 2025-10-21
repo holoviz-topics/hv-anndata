@@ -39,9 +39,8 @@ __all__ = [
 
 def scatter(
     adata: AnnData,
-    base: MultiVecAcc | LayerVecAcc | GraphVecAcc,
     /,
-    components: Collection[int] | Collection[str] = (0, 1),
+    kdims: Collection[AdPath],
     vdims: Collection[AdPath] = (),
     *,
     color: AdPath | None = None,
@@ -51,9 +50,7 @@ def scatter(
     Basically just
 
     >>> i, j = components
-    >>> hv.Scatter(adata, base[:, i], [base[:, j], *vdims]).opts(aspect="square", ...)
-
-    Set ``base`` to ``A.obsm[key]``, ``A.varm[key]``, ``A``, or ``A.layers[key]``.
+    >>> hv.Scatter(adata, kdims[0], [kdims[1], *vdims]).opts(aspect="square", ...)
 
     If ``color`` is set, it’s both added to ``vdims`` and in ``.opts(color=...)``.
 
@@ -65,47 +62,39 @@ def scatter(
         register()
 
         adata = data.pbmc68k_processed()
-        hv_sc.scatter(adata, A, ["PSAP", "C1QA"], color=A.obs["bulk_labels"]).opts(
+        hv_sc.scatter(adata, A[:, ["PSAP", "C1QA"]], color=A.obs["bulk_labels"]).opts(
             cmap="tab10", show_legend=False
         )
 
     """
     try:
-        i, j = components
+        i, j = kdims
     except ValueError:
-        msg = "components must have length 2"
+        msg = "kdims must have length 2"
         raise ValueError(msg) from None
 
     if color is not None:
         vdims = [*vdims, color]
-    # TODO: allow plotting obs against each other: base["o1", :]  # noqa: TD003
-    sc = hv.Scatter(adata, base[:, i], [base[:, j], *vdims])
+    sc = hv.Scatter(adata, i, [j, *vdims])
     if color is not None:
         sc = sc.opts(color=color)
 
-    label = f"{base.k} " if base.k is not None else ""
-    return sc.opts(
-        aspect="square",
-        legend_position="right",
-        xlabel=f"{label}{i}",
-        ylabel=f"{label}{j}",
-    )
+    return sc.opts(aspect="square", legend_position="right")
 
 
 def _scatter(
-    base: MultiVecAcc,
+    kdims: Collection[AdPath],
     adata: AnnData,
     /,
     vdims: Collection[AdPath] = (),
     *,
-    components: Collection[int] = (0, 1),
     color: AdPath | None = None,
 ) -> hv.Scatter:
     __tracebackhide__ = True
-    return scatter(adata, base, components, vdims, color=color)
+    return scatter(adata, kdims, vdims, color=color)
 
 
-umap = partial(_scatter, A.obsm["X_umap"])
+umap = partial(_scatter, A.obsm["X_umap"][:, [0, 1]])
 
 
 def heatmap(
