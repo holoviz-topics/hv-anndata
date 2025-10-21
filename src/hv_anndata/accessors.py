@@ -413,8 +413,9 @@ def _expand_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> list[Idx2D[Idx]]:
             return [(ix, iy) for ix in ixs]
         case ix, list() as iys:
             return [(ix, iy) for iy in iys]
-    msg = "Should have checked _is_idx2d_list before calling _expand_idx2d_list."
-    raise AssertionError(msg)
+        case _:  # pragma: no cover
+            msg = "Should have checked _is_idx2d_list before."
+            raise AssertionError(msg)
 
 
 def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
