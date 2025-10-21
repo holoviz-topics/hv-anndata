@@ -32,12 +32,14 @@ class AdPath(Dimension):
     _repr: str
     _func: AdPathFunc
     axes: Axes
+    k: str | None
 
     def __init__(  # noqa: D107
         self,
         _repr: str | tuple[str, str],
         func: AdPathFunc,
         axes: Axes,
+        k: str | None,
         /,
         **params: object,
     ) -> None:
@@ -48,6 +50,7 @@ class AdPath(Dimension):
         self._repr = _repr[0] if isinstance(_repr, tuple) else _repr
         self._func = func
         self.axes = axes
+        self.k = k
 
     def __repr__(self) -> str:
         return str(self)
@@ -66,6 +69,7 @@ class AdPath(Dimension):
         spec: str | tuple[str, str] | None = None,
         func: AdPathFunc | None = None,
         axes: Axes | None = None,
+        k: str | None = None,
         **overrides: Any,  # noqa: ANN401
     ) -> Self:
         """Clones the Dimension with new parameters.
@@ -82,6 +86,8 @@ class AdPath(Dimension):
             given the AnnData object.
         axes : AbstractSet[Literal["obs", "var"]], optional
             The axes represented by the Dimension
+        k : str, optional
+            The name of the dimension if applicable
         **overrides:
             Dimension parameter overrides
 
@@ -93,6 +99,7 @@ class AdPath(Dimension):
         settings = dict(self.param.values(), **overrides)
         func = settings.pop("func", self._func)
         axes = settings.pop("axes", self.axes)
+        k = settings.pop("k", self.k)
 
         if spec is None:
             spec = (self.name, overrides.get("label", self.label))
@@ -109,6 +116,7 @@ class AdPath(Dimension):
             spec,
             func,
             axes,
+            k,
             **{k: v for k, v in settings.items() if k not in ["name", "label"]},
         )
 
@@ -174,8 +182,11 @@ class LayerVecAcc:
             # TODO: pandas  # noqa: TD003
             return ver_or_mat.flatten() if len(axes) == 1 else ver_or_mat
 
+        name = next(
+            (f"{self.k} {i}" if self.k else i for i in idx if isinstance(i, str)), None
+        )
         sub = "" if self.k is None else f".layers[{self.k!r}]"
-        return AdPath(f"A{sub}[{idx[0]!r}, {idx[1]!r}]", get, axes)
+        return AdPath(f"A{sub}[{idx[0]!r}, {idx[1]!r}]", get, axes, name)
 
 
 @dataclass(frozen=True)
@@ -191,7 +202,7 @@ class MetaAcc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return cast("pd.DataFrame", getattr(ad, self.ax)).index.values
 
-        return AdPath(f"A.{self.ax}.index", get, {self.ax})
+        return AdPath(f"A.{self.ax}.index", get, {self.ax}, f"{self.ax} index")
 
     @overload
     def __getitem__(self, k: str) -> AdPath: ...
@@ -208,7 +219,7 @@ class MetaAcc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return cast("pd.DataFrame", getattr(ad, self.ax))[k].values
 
-        return AdPath(f"A.{self.ax}[{k!r}]", get, {self.ax})
+        return AdPath(f"A.{self.ax}[{k!r}]", get, {self.ax}, k)
 
 
 @dataclass(frozen=True)
@@ -231,12 +242,20 @@ class MultiVecAcc:
     ax: Literal["obsm", "varm"]
     k: str
 
-    def __getitem__(self, i: int | tuple[slice, int]) -> AdPath:
+    @overload
+    def __getitem__(self, i: int | tuple[slice, int]) -> AdPath: ...
+    @overload
+    def __getitem__(self, i: list[int] | tuple[slice, list[int]]) -> list[AdPath]: ...
+    def __getitem__(
+        self, i: int | tuple[slice, int] | list[int] | tuple[slice, list[int]]
+    ) -> AdPath | list[AdPath]:
         if isinstance(i, tuple):
-            if i[0] != slice(None):
+            if len(i) != 2 or i[0] != slice(None):  # noqa: PLR2004
                 msg = f"Unsupported slice {i!r}"
                 raise ValueError(msg)
             i = i[1]
+        if isinstance(i, list):
+            return [self[j] for j in i]
 
         if not isinstance(i, int):
             msg = f"Unsupported index {i!r}"
@@ -246,7 +265,7 @@ class MultiVecAcc:
             return getattr(ad, self.ax)[self.k][:, i]
 
         ax = cast("Literal['obs', 'var']", self.ax[:-1])
-        return AdPath(f"A.{self.ax}[{self.k!r}][:, {i!r}]", get, {ax})
+        return AdPath(f"A.{self.ax}[{self.k!r}][:, {i!r}]", get, {ax}, f"{self.k} {i}")
 
 
 @dataclass(frozen=True)
@@ -292,11 +311,14 @@ class GraphVecAcc:
             iloc = tuple(df.index.get_loc(i) if isinstance(i, str) else i for i in idx)
             return getattr(ad, self.ax)[self.k][iloc].toarray()
 
+        name = next((f"{self.k} {i}" for i in idx if isinstance(i, str)), None)
         ax = cast("Literal['obs', 'var']", self.ax[:-1])
         axes: Collection[Literal["obs", "var"]] = (
             (ax,) * n_slices if n_slices > 1 else {ax}
         )
-        return AdPath(f"A.{self.ax}[{self.k!r}][{idx[0]!r}, {idx[1]!r}]", get, axes)
+        return AdPath(
+            f"A.{self.ax}[{self.k!r}][{idx[0]!r}, {idx[1]!r}]", get, axes, name
+        )
 
 
 @dataclass(frozen=True)
