@@ -68,15 +68,19 @@ def test_resolve(spec: str, expected: AdPath) -> None:
     [
         pytest.param(lambda: A[:3, :], id="x-partslice"),
         pytest.param(lambda: A[:, b""], id="x-nostr"),
+        pytest.param(lambda: A[["a"], ["b"]], id="x-twolists"),
         pytest.param(lambda: A.layers[1], id="layer-nostr"),
         pytest.param(lambda: A.layers["a"][:3, :], id="layer-partslice"),
         pytest.param(lambda: A.layers["a"][:, b""], id="layer-nostr"),
+        pytest.param(lambda: A.layers["a"][["a"], ["b"]], id="layer-twolists"),
         pytest.param(lambda: A.obs[1], id="obs-nostr"),
         pytest.param(lambda: A.obsm[0], id="obsm-nostr"),
         pytest.param(lambda: A.obsm["a"][:3, 0], id="obsm-partslice"),
         pytest.param(lambda: A.obsm["a"]["b"], id="obsm-noint"),
         pytest.param(lambda: A.varp[0], id="varp-nostr"),
         pytest.param(lambda: A.varp["x"][0, :], id="varp-nostr-inner"),
+        pytest.param(lambda: A.varp["x"]["a", "b"], id="varp-twostr"),
+        pytest.param(lambda: A.varp["x"][["a"], ["b"]], id="varp-twolists"),
     ],
 )
 def test_invalid(mk_path: Callable[[], AdPath]) -> None:
@@ -89,6 +93,28 @@ def test_invalid(mk_path: Callable[[], AdPath]) -> None:
     [
         pytest.param(A.obs[["a", "b"]], [A.obs["a"], A.obs["b"]], id="obs"),
         pytest.param(A.var[["x", "y"]], [A.var["x"], A.var["y"]], id="var"),
+        pytest.param(A[["a", "b"], :], [A["a", :], A["b", :]], id="x-obs"),
+        pytest.param(A[:, ["x", "y"]], [A[:, "x"], A[:, "y"]], id="x-var"),
+        pytest.param(
+            A.layers["l"][["a", "b"], :],
+            [A.layers["l"]["a", :], A.layers["l"]["b", :]],
+            id="layer-obs",
+        ),
+        pytest.param(
+            A.layers["l"][:, ["x", "y"]],
+            [A.layers["l"][:, "x"], A.layers["l"][:, "y"]],
+            id="layer-var",
+        ),
+        pytest.param(
+            A.obsp["p"][["a", "b"], :],
+            [A.obsp["p"]["a", :], A.obsp["p"]["b", :]],
+            id="obsp-0",
+        ),
+        pytest.param(
+            A.obsp["p"][:, ["a", "b"]],
+            [A.obsp["p"][:, "a"], A.obsp["p"][:, "b"]],
+            id="obsp-1",
+        ),
     ],
 )
 def test_special(expr: AdPath, expanded: object) -> None:

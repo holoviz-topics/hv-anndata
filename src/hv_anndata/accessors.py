@@ -12,7 +12,7 @@ from holoviews.core.dimension import Dimension
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection
-    from typing import Any, Literal, Self, TypeVar
+    from typing import Any, Literal, Self, TypeIs, TypeVar
 
     import pandas as pd
     from anndata import AnnData
@@ -20,7 +20,8 @@ if TYPE_CHECKING:
 
     # full slices: e.g. a[:, 5] or a[18, :]
     Idx = TypeVar("Idx", int, str)
-    Idx2D = tuple[Idx | slice, Idx | slice]
+    Idx2D = tuple[Idx | slice, slice] | tuple[slice, Idx | slice]
+    Idx2DList = tuple[list[Idx], slice] | tuple[slice, list[Idx]]
     AdPathFunc = Callable[[AnnData], pd.api.extensions.ExtensionArray | NDArray[Any]]
     Axes = Collection[Literal["obs", "var"]]
 
@@ -156,7 +157,14 @@ class LayerVecAcc:
 
     k: str | None
 
-    def __getitem__(self, idx: Idx2D[str]) -> AdPath:
+    @overload
+    def __getitem__(self, idx: Idx2D[str]) -> AdPath: ...
+    @overload
+    def __getitem__(self, idx: Idx2DList[str]) -> list[AdPath]: ...
+    def __getitem__(self, idx: Idx2D[str] | Idx2DList[str]) -> AdPath | list[AdPath]:
+        if _is_idx2d_list(idx):
+            return [self[i] for i in _expand_idx2d_list(idx)]
+
         axes = _idx2axes(idx)
 
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
@@ -261,7 +269,14 @@ class GraphVecAcc:
     ax: Literal["obsp", "varp"]
     k: str
 
-    def __getitem__(self, idx: Idx2D[str]) -> AdPath:
+    @overload
+    def __getitem__(self, idx: Idx2D[str]) -> AdPath: ...
+    @overload
+    def __getitem__(self, idx: Idx2DList[str]) -> list[AdPath]: ...
+    def __getitem__(self, idx: Idx2D[str] | Idx2DList[str]) -> AdPath | list[AdPath]:
+        if _is_idx2d_list(idx):
+            return [self[i] for i in _expand_idx2d_list(idx)]
+
         if not all(isinstance(i, str | slice) for i in idx):
             msg = f"Unsupported index {idx!r}"
             raise TypeError(msg)
@@ -378,6 +393,20 @@ class AdAc(LayerVecAcc):
                 raise ValueError(msg)
         msg = f"Unhandled accessor {spec!r}. This is a bug!"  # pragma: no cover
         raise AssertionError(msg)  # pragma: no cover
+
+
+def _is_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> TypeIs[Idx2DList[Idx]]:
+    return sum(isinstance(i, list) for i in idx) == 1
+
+
+def _expand_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> list[Idx2D[Idx]]:
+    match idx:
+        case list() as ixs, iy:
+            return [(ix, iy) for ix in ixs]
+        case ix, list() as iys:
+            return [(ix, iy) for iy in iys]
+    msg = "2D index can have at most one list: …[:, [...]] or …[[...], :]"
+    raise TypeError(msg)
 
 
 def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
