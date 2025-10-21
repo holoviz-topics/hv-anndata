@@ -406,12 +406,15 @@ def _expand_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> list[Idx2D[Idx]]:
     Also validates that the 2D index contains at most one list.
     """
     match idx:
+        case list(), list():
+            msg = "2D index can have at most one list: …[:, [...]] or …[[...], :]"
+            raise TypeError(msg)
         case list() as ixs, iy:
             return [(ix, iy) for ix in ixs]
         case ix, list() as iys:
             return [(ix, iy) for iy in iys]
-    msg = "2D index can have at most one list: …[:, [...]] or …[[...], :]"
-    raise TypeError(msg)
+    msg = "Should have checked _is_idx2d_list before calling _expand_idx2d_list."
+    raise AssertionError(msg)
 
 
 def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
