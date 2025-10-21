@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
 
     from hv_anndata.accessors import AdPath
-    from hv_anndata.interface import SelectionValues
 
 
 @pytest.fixture(autouse=True)
@@ -180,32 +179,31 @@ def test_get_values_grid(
 
 
 @pytest.mark.parametrize(
-    "zero", [0, slice(0, 1), {0}, [0], lambda vs: vs == 0], ids=type
-)
-@pytest.mark.parametrize(
-    "mk_sel",
+    ("sel_args", "sel_kw"),
     [
-        pytest.param(lambda i: (({A.obs["type"]: i},), {}), id="dict"),
-        pytest.param(lambda i: ((), {"obs.type": i}), id="kwargs"),
-        pytest.param(
-            lambda i: ((hv.dim(A.obs["type"]) == i,), {}),
-            id="expression",
-            marks=pytest.mark.xfail(reason="Not implemented"),
+        *(
+            pytest.param(*mk_sel(zero), id=f"{sel_name}-{type(zero).__name__}")
+            for sel_name, mk_sel in dict(
+                dict=lambda i: (({A.obs["type"]: i},), {}),
+                kwargs=lambda i: ((), {"obs.type": i}),
+            ).items()
+            for zero in [0, slice(0, 1), {0}, [0], lambda vs: vs == 0]
         ),
+        # TODO: https://github.com/holoviz-topics/hv-anndata/issues/109
+        # 1. pytest.param(hv.dim(A.obs["type"]) == 0, {}, id="expression-eq"),
+        # 2. pytest.param(hv.dim(A.obs["type"]).isin([0]), {}, id="expression-isin"),
         pytest.param(
             # TODO: actually figure out how selection_specs work  # noqa: TD003
-            lambda _: ((), dict(selection_specs=[hv.Dataset])),
+            (),
+            dict(selection_specs=[hv.Dataset]),
             id="specs",
             marks=pytest.mark.xfail(reason="Not implemented"),
         ),
     ],
 )
 def test_select(
-    adata: AnnData,
-    mk_sel: Callable[[SelectionValues], tuple[tuple[Any, ...], dict[str, Any]]],
-    zero: SelectionValues,
+    adata: AnnData, sel_args: tuple[Any, ...], sel_kw: dict[str, Any]
 ) -> None:
-    sel_args, sel_kw = mk_sel(zero)
     data = hv.Dataset(adata, A.obsm["umap"][0], [A.obsm["umap"][1], A.obs["type"]])
     assert data.interface is AnnDataInterface
     ds_sel = data.select(*sel_args, **sel_kw)

@@ -415,7 +415,7 @@ def _expand_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> list[Idx2D[Idx]]:
 
 
 def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
-    """Get along which axes the referenced vector is."""
+    """Get along which axes the referenced vector is and validate the index."""
     for ax_idx in idx:
         if isinstance(ax_idx, str):
             continue
@@ -434,7 +434,7 @@ def _idx2axes(idx: Idx2D[str]) -> set[Literal["obs", "var"]]:
             return {"obs", "var"}
         case _:  # pragma: no cover
             msg = f"Invalid index: {idx}"
-            raise AssertionError(msg)
+            raise TypeError(msg)
 
 
 def _parse_idx_2d(i: str, j: str, cls: type[Idx]) -> Idx2D[Idx]:
