@@ -15,7 +15,32 @@ def highest_expr_genes(
     layer: str | None = None,
     gene_symbols: str | None = None,
 ) -> AnnData:
-    """Get top n genes by mean expression."""
+    """Get ``n_top`` genes by mean expression.
+
+    Used in :func:`hv_anndata.plotting.scanpy.highest_expr_genes`.
+
+    Examples
+    --------
+
+    ..  holoviews::
+
+        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata.plotting import utils as hv_sc_utils
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        adata_hi_expr = hv_sc_utils.highest_expr_genes(adata)
+        hv.HeatMap(adata_hi_expr, [A.obs.index, A.var.index], A[:, :]).opts(
+            xrotation=30
+        )
+
+    Returns
+    -------
+    A :class:`~anndata.AnnData` object containing normalized expressions
+    for the top ``n_top`` genes.
+
+    """
     norm_expr = sc.pp.normalize_total(
         adata, target_sum=100, layer=layer, inplace=False
     )["X"]

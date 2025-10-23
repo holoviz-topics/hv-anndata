@@ -28,9 +28,40 @@ def draw_graph(
 ) -> hv.Graph:
     """Draw a graph.
 
-    If `edge_vdim` is `"distances"`/`"connectivities"`, the graph data is retrieved like
-    :func:`scanpy.pp.neighbors` stores it: `A.uns[neighbors_key][f"{edge_vdim}_key"]`.
-    Therefore `.opts(edge_color=calculated_edge_vdim)` is set by default.
+    If ``edge_vdim`` is ``"distances"``/``"connectivities"``,
+    the graph data is retrieved like
+    :func:`scanpy.pp.neighbors` stores it: ``A.uns[neighbors_key][f"{edge_vdim}_key"]``.
+    Therefore ``.opts(edge_color=calculated_edge_vdim)`` is set by default.
+
+    Examples
+    --------
+
+    ..  holoviews::
+        :backends: bokeh
+
+        import scanpy as sc
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, ACCESSOR as A
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        sc.pp.neighbors(adata)
+
+        hv_sc.draw_graph(
+            adata, A.obsm["X_umap"], "distances", [A.obs["bulk_labels"]]
+        ).opts(
+            node_color=A.obs["bulk_labels"],
+            node_cmap="tab10",
+            aspect="square",
+            show_legend=True,
+            legend_position="right",
+        )
+
+    Returns
+    -------
+    Graph with colored edges.
+
     """
     adata = adata.copy()
     adata.obs["cell index"] = range(adata.n_obs)
@@ -52,6 +83,25 @@ def draw_graph(
 def ranking(
     adata: AnnData, dim: AdPath, n_points: int = 10, *, include_lowest: bool = True
 ) -> hv.Labels:
+    """Plot PCA ranking.
+
+    Examples
+    --------
+
+    ..  holoviews::
+
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, ACCESSOR as A
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        hv.Layout([
+            hv_sc.ranking(adata, A.varm["PCs"][0]).opts(aspect=1.2),
+            hv_sc.ranking(adata, A.varm["PCs"][0], include_lowest=False).opts(aspect=0.6),
+        ]).opts(shared_axes=False)
+
+    """  # noqa: E501
     [ax] = dim.axes
     # full arrays
     scores = dim(adata)
@@ -91,6 +141,28 @@ def embedding_density(
     groupby: str | None = None,
     key: str | None = None,
 ) -> hv.Scatter | hv.NdLayout:
+    """Plot embedding density.
+
+    Examples
+    --------
+
+    ..  holoviews::
+
+        import scanpy as sc
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, ACCESSOR as A
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        sc.tl.embedding_density(adata, basis="umap", groupby="phase")
+        hv_sc.embedding_density(adata, A.obsm["X_umap"], groupby="phase")
+
+    Returns
+    -------
+    Scatter plot if ``groupby is None``, else a layout of scatter plots.
+
+    """
     basis_name = basis.k.removeprefix("X_")
     if key is None:
         key = f"{basis_name}_density{'' if groupby is None else f'_{groupby}'}"

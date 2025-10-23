@@ -18,6 +18,28 @@ def highest_expr_genes(
     layer: str | None = None,
     gene_symbols: str | None = None,
 ) -> hv.BoxWhisker:
+    """Get ``n_top`` genes by mean expression.
+
+    Uses :func:`hv_anndata.plotting.utils.highest_expr_genes` internally.
+
+    Examples
+    --------
+
+    ..  holoviews::
+
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, ACCESSOR as A
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        hv_sc.highest_expr_genes(adata, layer="counts")
+
+    Returns
+    -------
+    A box-and-whisker plot.
+
+    """
     hxg = utils.highest_expr_genes(adata, n_top, layer=layer, gene_symbols=gene_symbols)
     hxg_melted = hxg.to_df().melt(var_name="gene", value_name="frac_pct")
     return hv.BoxWhisker(hxg_melted, ["gene"], ["frac_pct"]).opts(
@@ -26,6 +48,30 @@ def highest_expr_genes(
 
 
 def highly_variable_genes(adata: AnnData) -> hv.Layout:
+    """Plot dispersions used to identify highly variable genes.
+
+    Examples
+    --------
+
+    ..  holoviews::
+
+        import scanpy as sc
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, ACCESSOR as A
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        sc.pp.highly_variable_genes(adata)
+
+        hv_sc.highly_variable_genes(adata)
+
+    Returns
+    -------
+    A layout containing two :class:`~holoviews.Scatter` plots,
+    one normalized and one not.
+
+    """
     d1, d2 = (
         ("variances", "variances_norm")
         if adata.uns["hvg"]["flavor"] == "seurat_v3"
@@ -49,6 +95,33 @@ def highly_variable_genes(adata: AnnData) -> hv.Layout:
 
 
 def scrublet_score_distribution(adata: AnnData) -> hv.Layout:
+    """Plot the doublet score distribution.
+
+    Plots the doublet score probability densities for observed transcriptomes
+    and simulated doublets.
+
+    Examples
+    --------
+
+    ..  holoviews::
+
+        import scanpy as sc
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, ACCESSOR as A
+
+        register()
+
+        adata = data.pbmc68k_processed()
+        adata_sim = sc.pp.scrublet_simulate_doublets(adata)
+        sc.pp.scrublet(adata, adata_sim)
+
+        hv_sc.scrublet_score_distribution(adata)
+
+    Returns
+    -------
+    Layout containing two histograms.
+
+    """
     labels = dict(
         xlabel="Doublet score",
         ylabel="Probability density",
