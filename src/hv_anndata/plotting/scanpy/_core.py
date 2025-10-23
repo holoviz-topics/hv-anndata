@@ -452,6 +452,6 @@ _D = TypeVar("_D", bound=hv.core.dimension.Dimensioned)
 
 
 def _add_hover(obj: _D) -> _D:
-    if hv.Store.current_backend() == "bokeh":
+    if hv.Store.current_backend == "bokeh":
         return obj.opts(tools=["hover"])
     return obj
