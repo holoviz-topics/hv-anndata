@@ -59,10 +59,12 @@ dependencies = [
   "pooch",
   "plotly",
   "scanpy[scrublet]",
+  "scanpydoc",
   "sphinx",
   "sphinx-autodoc-typehints",
   "sphinx-exec-jupyter[holoviews] @ git+https://github.com/flying-sheep/sphinx-exec-jupyter.git",
   "sphinx-design",
+  "sphinx-issues",
 ]
 
 [tool.ruff]

@@ -54,6 +54,9 @@ def scatter(
 
     If ``color`` is set, it’s both added to ``vdims`` and in ``.opts(color=...)``.
 
+    Examples
+    --------
+
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
@@ -65,6 +68,10 @@ def scatter(
         hv_sc.scatter(adata, A[:, ["PSAP", "C1QA"]], color=A.obs["bulk_labels"]).opts(
             cmap="tab10", show_legend=False
         )
+
+    Returns
+    -------
+    A scatter plot object
 
     """
     try:
@@ -128,10 +135,7 @@ def heatmap(
     )
     if transpose:
         kdims.reverse()
-    xlabel, ylabel = [next(iter(d.axes)) for d in kdims]
-    hm = hv.HeatMap(adata, kdims, [base[:, :], *vdims]).opts(
-        xlabel=xlabel, ylabel=ylabel
-    )
+    hm = hv.HeatMap(adata, kdims, [base[:, :], *vdims])
     if isinstance(base, GraphVecAcc):
         hm = hm.opts(aspect="square")
     if add_dendrogram:

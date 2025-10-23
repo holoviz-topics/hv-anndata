@@ -122,11 +122,11 @@ class AdPath(Dimension):
             return False
         # if dim is a non-matching dimension (e.g. from a string), convert
         if isinstance(dim, Dimension):
-            if (
-                not isinstance(dim, AdPath)
-                and (dim := AdAc.from_dimension(dim, strict=False)) is None
-            ):
-                return False
+            if not isinstance(dim, AdPath):
+                if dim.name == self.name:
+                    return True
+                if (dim := AdAc.from_dimension(dim, strict=False)) is None:
+                    return False
             # dim is an AdPath, check equality
             return hash(self) == hash(dim)
         # some unknown type
@@ -405,7 +405,7 @@ class AdAc(LayerVecAcc):
             case None:  # pragma: no cover
                 msg = (
                     f"Unknown accessor {spec!r}. "
-                    "We support '{cls.ATTRS}.*' and `AdPath` instances."
+                    f"We support '{cls.ATTRS}.*' and `AdPath` instances."
                 )
                 raise ValueError(msg)
         msg = f"Unhandled accessor {spec!r}. This is a bug!"  # pragma: no cover

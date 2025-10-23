@@ -23,9 +23,13 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
     # "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
     "sphinx_exec_jupyter",
     "sphinx_design",
+    "sphinx_issues",
+    "scanpydoc.definition_list_typed_field",
+    "scanpydoc.elegant_typehints",  # for qualname_overrides
     "myst_nb",
     "paramdoc",
 ]
@@ -37,11 +41,15 @@ intersphinx_mapping = dict(
     python=("https://docs.python.org/3/", None),
     holoviews=("https://holoviews.org/", None),
     panel=("https://panel.holoviz.org/", None),
+    anndata=("https://anndata.readthedocs.io/en/stable/", None),
     scanpy=("https://scanpy.readthedocs.io/en/latest/", None),
 )
 
 always_use_bars_union = True
 typehints_defaults = "comma"
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_use_param = True
 
 # myst_nb settings
 nb_execution_mode = "cache"
