@@ -106,6 +106,16 @@ def test_invalid(mk_path: Callable[[], AdPath]) -> None:
             id="layer-var",
         ),
         pytest.param(
+            A.varm["p"][[0, 1]],
+            [A.varm["p"][:, 0], A.varm["p"][:, 1]],
+            id="varm-int",
+        ),
+        pytest.param(
+            A.varm["p"][:, [3, 4]],
+            [A.varm["p"][:, 3], A.varm["p"][:, 4]],
+            id="varm-tuple",
+        ),
+        pytest.param(
             A.obsp["p"][["a", "b"], :],
             [A.obsp["p"]["a", :], A.obsp["p"]["b", :]],
             id="obsp-0",
