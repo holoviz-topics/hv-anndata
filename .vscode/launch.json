@@ -1,0 +1,28 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Build Documentation",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "sphinx",
+			"args": ["-M", "html", ".", "_build"],
+			"cwd": "${workspaceFolder}/docs",
+			"console": "internalConsole",
+			"justMyCode": false,
+		},
+		{
+			"name": "Debug test",
+			"type": "debugpy",
+			"request": "launch",
+			"program": "${file}",
+			"pythonArgs": ["-Xfrozen_modules=off"],
+			"console": "internalConsole",
+			"justMyCode": false,
+			"purpose": ["debug-test"],
+			"presentation": {
+				"hidden": true,
+			},
+		},
+	],
+}

@@ -19,3 +19,5 @@
    hv_anndata.ManifoldMap
    hv_anndata.ManifoldMapConfig
    hv_anndata.create_manifoldmap_plot
+   hv_anndata.plotting.scanpy
+   hv_anndata.plotting.utils

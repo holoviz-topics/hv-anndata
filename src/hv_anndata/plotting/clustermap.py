@@ -32,7 +32,7 @@ def create_clustermap_plot(
     use_raw: bool | None = None,
     max_genes: int | None = None,
     **config: Unpack[ClusterMapConfig],
-) -> hv.core.layout.AdjointLayout:
+) -> hv.AdjointLayout:
     """Create a hierarchically-clustered heatmap using HoloViews.
 
     Parameters
@@ -50,7 +50,7 @@ def create_clustermap_plot(
 
     Returns
     -------
-    HoloViews AdjointLayout object containing the clustered heatmap with dendrograms
+    Clustered heatmap with dendrograms
 
     """
     if use_raw is None:

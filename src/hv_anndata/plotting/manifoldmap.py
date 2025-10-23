@@ -110,10 +110,10 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
         Label for the x axis
     yaxis_label
         Label for the y axis
-    categorical: bool or None, default=None
+    categorical
         Whether the data in color_by is categorical
     config
-        Additional configuration options including, see :class:`ManifoldMapConfig`.
+        Additional configuration options.
 
     Returns
     -------

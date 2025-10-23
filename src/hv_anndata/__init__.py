@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from . import data
 from .components import GeneSelector
 from .interface import ACCESSOR, AnnDataGriddedInterface, AnnDataInterface, register
 from .plotting import (
@@ -15,6 +16,7 @@ from .plotting import (
     create_manifoldmap_plot,
     dotmap_from_manifoldmap,
     labeller,
+    scanpy,
 )
 
 ACCESSOR = ACCESSOR  # noqa: PLW0127
@@ -38,7 +40,9 @@ __all__ = [
     "ManifoldMapConfig",
     "create_clustermap_plot",
     "create_manifoldmap_plot",
+    "data",
     "dotmap_from_manifoldmap",
     "labeller",
     "register",
+    "scanpy",
 ]
