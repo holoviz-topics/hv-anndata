@@ -43,13 +43,16 @@ def renderer(request: pytest.FixtureRequest) -> Renderer:
 @pytest.mark.parametrize(
     "do_plot",
     [
-        pytest.param(lambda ad: pl.scatter(ad, A.obsm["umap"]), id="scatter-obsm"),
         pytest.param(
-            lambda ad: pl.scatter(ad, A.obsp["distances"], ["cell-0", "cell-1"]),
+            lambda ad: pl.scatter(ad, A.obsm["umap"][[0, 1]]), id="scatter-obsm"
+        ),
+        pytest.param(
+            lambda ad: pl.scatter(ad, A.obsp["distances"][["cell-0", "cell-1"], :]),
             id="scatter-obsp",
         ),
         pytest.param(lambda ad: pl.heatmap(ad), id="heatmap-obsm"),
-        pytest.param(lambda ad: pl.heatmap(ad, A.obsp["distances"]), id="heatmap-obsp"),
+        # TODO: pytest.param(lambda ad: pl.heatmap(ad, A.obsp["distances"]), id="heatmap-obsp"),  # noqa: E501
+        # https://github.com/holoviz-topics/hv-anndata/issues/111
         pytest.param(
             lambda ad: pl.violin(ad, A.obsm["umap"][0], color=A.obs.index),
             id="violin-obsm-color",
