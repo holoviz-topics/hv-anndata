@@ -53,6 +53,17 @@ def scatter(
 
     If ``color`` is set, it’s both added to ``vdims`` and in ``.opts(color=...)``.
 
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    kdims
+        A sequence containing the x and y dimension.
+    vdims
+        The value dimensions (``color`` will be added automatically).
+    color
+        The color dimension.
+
     Examples
     --------
 
@@ -118,13 +129,27 @@ def heatmap(
 
     >>> hv.HeatMap(adata, [A.obs.index, A.var.index], [base[:, :], *vdims]).opts(...)
 
-    Set ``base`` to ``A`` or ``A.layers[key]``,
+    Set ``base`` to e.g. ``A`` or ``A.layers[key]``,
     and ``transpose=True`` to switch the order of the axes.
 
     If ``add_dendrogram`` is True, the dendrogram is added.
     Call it directly to customize the dendrogram:
 
     >>> hv.operation.dendrogram(heatmap, adjoint_dims=..., main_dim=base[:, :])
+
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    base
+        The base layer/graph of the heatmap.
+    vdims
+        The value dimensions.
+    transpose
+        Whether to transpose the axes.
+    add_dendrogram
+        Where to add dendrograms to the heatmap: ``True`` for both,
+        ``"obs"``/``"var"`` for one, and ``False`` for none.
 
     Examples
     --------
@@ -166,9 +191,25 @@ def heatmap(
 
 
 def tracksplot(
-    adata: AnnData, markers: Collection[AdPath], color: AdPath | None = None
+    adata: AnnData,
+    /,
+    vdims: Collection[AdPath],
+    *,
+    kdim: AdPath | None = None,
+    color: AdPath | None = None,
 ) -> hv.NdLayout:
     """Tracksplot.
+
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    vdims
+        The value dimensions (one per curve).
+    kdim
+        The key dimension (inferred if ``None``).
+    color
+        The color dimension.
 
     Examples
     --------
@@ -183,7 +224,7 @@ def tracksplot(
         adata = data.pbmc68k_processed()
         markers = ["C1QA", "PSAP", "CD79A", "CD79B", "CST3", "LYZ"]
         hv_sc.tracksplot(
-            adata, markers, color=A.obs["bulk_labels"]
+            adata, A[:, markers], color=A.obs["bulk_labels"]
         ).opts(hv.opts.Curve(aspect=20))
 
     Returns
@@ -191,20 +232,23 @@ def tracksplot(
     A :class:`~holoviews.NdLayout` containing :class:`~holoviews.Curve` objects.
 
     """
+    if kdim is None:
+        [ax] = {ax for vdim in vdims for ax in vdim.axes}
+        kdim = getattr(A, ax).index
     more_vdims = [] if color is None else [color]
     curves = {
-        m: hv.Curve(adata, [A.obs.index], [A[:, m], *more_vdims]).opts(
+        vdim: hv.Curve(adata, [kdim], [vdim, *more_vdims]).opts(
             xticks=0,
             xlabel="",
-            ylabel=m,
+            ylabel=vdim,
             title="",
             show_legend=False,  # TODO: switch to below impl after fixing https://github.com/holoviz/holoviews/issues/5438
-            aspect=2 * len(markers),
+            aspect=2 * len(vdims),
         )
-        for m in markers
+        for vdim in vdims
     }
     if color is not None:
-        curves = {m: c.groupby(color, hv.NdOverlay) for m, c in curves.items()}
+        curves = {vdim: c.groupby(color, hv.NdOverlay) for vdim, c in curves.items()}
     return hv.NdLayout(curves, kdims=["marker"]).cols(1)
 
 
@@ -263,6 +307,17 @@ def violin(
 
     >>> hv.Layout([violin(adata, kdims, vdim, ...) for vdim in vdims]).opts(...)
 
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    vdims
+        The value dimension(s). If multiple, a :class:`~holoviews.Layout` is returned.
+    kdims
+        The key dimensions (``color`` will be added automatically).
+    color
+        The color dimension.
+
     Examples
     --------
 
@@ -319,6 +374,15 @@ def stacked_violin(adata: AnnData, /, xdim: AdPath, ydim: AdPath) -> hv.GridSpac
     """Stacked violin plot.
 
     Groups data by `xdim` and `ydim` and then plots a single violin for each group.
+
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    xdim
+        The x dimension.
+    ydim
+        The y dimension.
 
     Examples
     --------
@@ -380,6 +444,19 @@ def matrixplot(
     add_totals: bool = False,
 ) -> hv.HeatMap | hv.AdjointLayout:
     """Heatmap with totals per column.
+
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    group_by
+        The groupby expression.
+    func
+        The aggregation function.
+    data
+        The data to plot.
+    add_totals
+        Whether to add totals per group.
 
     Examples
     --------

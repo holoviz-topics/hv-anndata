@@ -19,6 +19,17 @@ def highest_expr_genes(
 
     Used in :func:`hv_anndata.plotting.scanpy.highest_expr_genes`.
 
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    n_top
+        The number of top genes to return.
+    layer
+        The layer to use.
+    gene_symbols
+        The ``.var`` column name containing gene symbols.
+
     Examples
     --------
 

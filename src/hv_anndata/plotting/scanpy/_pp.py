@@ -22,6 +22,17 @@ def highest_expr_genes(
 
     Uses :func:`hv_anndata.plotting.utils.highest_expr_genes` internally.
 
+    Parameters
+    ----------
+    adata
+        The AnnData object.
+    n_top
+        The number of top genes to plot.
+    layer
+        The layer to use.
+    gene_symbols
+        The column name containing gene symbols.
+
     Examples
     --------
 
@@ -49,6 +60,11 @@ def highest_expr_genes(
 
 def highly_variable_genes(adata: AnnData) -> hv.Layout:
     """Plot dispersions used to identify highly variable genes.
+
+    Parameters
+    ----------
+    adata
+        The AnnData object.
 
     Examples
     --------
@@ -99,6 +115,11 @@ def scrublet_score_distribution(adata: AnnData) -> hv.Layout:
 
     Plots the doublet score probability densities for observed transcriptomes
     and simulated doublets.
+
+    Parameters
+    ----------
+    adata
+        The AnnData object.
 
     Examples
     --------

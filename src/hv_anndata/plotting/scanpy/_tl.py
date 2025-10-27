@@ -28,10 +28,24 @@ def draw_graph(
 ) -> hv.Graph:
     """Draw a graph.
 
-    If ``edge_vdim`` is ``"distances"``/``"connectivities"``,
-    the graph data is retrieved like
-    :func:`scanpy.pp.neighbors` stores it: ``A.uns[neighbors_key][f"{edge_vdim}_key"]``.
-    Therefore ``.opts(edge_color=calculated_edge_vdim)`` is set by default.
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    kdims
+        Key dimensions of the graph.
+        Can just be ``A.obsm[<k>]`` or ``A.varm[<k>]`` to auto-select components.
+    edge_vdim
+        Edge value dimension.
+        If ``"distances"``/``"connectivities"``,
+        the graph data is retrieved like :func:`scanpy.pp.neighbors` stores it:
+        ``A.uns[neighbors_key][f"{edge_vdim}_key"]``.
+        Therefore ``.opts(edge_color=calculated_edge_vdim)`` is set by default.
+    node_vdims
+        Node value dimensions.
+    neighbors_key
+        Key in ``adata.uns`` where neighbors are stored.
+        Used only if ``edge_vdim`` is ``"distances"``/``"connectivities"``.
 
     Examples
     --------
@@ -81,9 +95,28 @@ def draw_graph(
 
 
 def ranking(
-    adata: AnnData, dim: AdPath, n_points: int = 10, *, include_lowest: bool = True
+    adata: AnnData,
+    dim: AdPath,
+    n_points: int = 10,
+    *,
+    include_lowest: bool = True,
+    label_dim: AdPath | None = None,
 ) -> hv.Labels:
-    """Plot PCA ranking.
+    """Plot (e.g. PCA) score ranking.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    dim
+        Dimension containing scores to rank.
+    n_points
+        Number of points to plot.
+    include_lowest
+        Whether to include the lowest-scored names in addition to the highest-scored ones.
+    label_dim
+        Dimension to use for labels.
+        The default is ``dim``’s axis index (e.g. ``A.obs.index`` for ``A.obs["scores"]``).
 
     Examples
     --------
@@ -103,9 +136,11 @@ def ranking(
 
     """  # noqa: E501
     [ax] = dim.axes
+    if label_dim is None:
+        label_dim = getattr(A, ax).index
     # full arrays
     scores = dim(adata)
-    labels = getattr(adata, ax).index
+    labels = label_dim(adata)
 
     # subset
     idx = np.argsort(scores)
@@ -142,6 +177,17 @@ def embedding_density(
     key: str | None = None,
 ) -> hv.Scatter | hv.NdLayout:
     """Plot embedding density.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    basis
+        Embedding to plot (e.g. ``A.obsm["X_umap"]``).
+    groupby
+        ``groupby`` as specified in :func:`scanpy.tl.embedding_density`.
+    key
+        ``key_added`` as specified in :func:`scanpy.tl.embedding_density`.
 
     Examples
     --------
