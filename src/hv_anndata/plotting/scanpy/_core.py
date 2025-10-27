@@ -49,7 +49,6 @@ def scatter(
 
     Basically just
 
-    >>> i, j = components
     >>> hv.Scatter(adata, kdims[0], [kdims[1], *vdims]).opts(aspect="square", ...)
 
     If ``color`` is set, it’s both added to ``vdims`` and in ``.opts(color=...)``.
@@ -290,6 +289,13 @@ def violin(
         hv_sc.violin(adata, A.obs["S_score"], color=A.obs["bulk_labels"]).opts(
             width=500, xrotation=30
         )
+
+    Returns
+    -------
+    ``if isinstance(vdims, AdPath):``
+        A :class:`~holoviews.Violin` plot.
+    ``else:``
+        A :class:`~holoviews.Layout` containing :class:`~holoviews.Violin` plots.
 
     """
     if not isinstance(vdims, AdPath):
