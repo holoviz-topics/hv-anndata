@@ -26,6 +26,19 @@ if TYPE_CHECKING:
     Axes = Collection[Literal["obs", "var"]]
 
 
+__all__ = [
+    "AdAc",
+    "AdPath",
+    "GraphAcc",
+    "GraphVecAcc",
+    "LayerAcc",
+    "LayerVecAcc",
+    "MetaAcc",
+    "MultiAcc",
+    "MultiVecAcc",
+]
+
+
 class AdPath(Dimension):
     """A path referencing an array in an AnnData object."""
 
@@ -76,14 +89,14 @@ class AdPath(Dimension):
 
         Parameters
         ----------
-        spec : tuple, optional
+        spec
             Dimension tuple specification
-        func : Function[AnnData, np.ndarray], optional
+        func
             Function to resolve the dimension values
             given the AnnData object.
-        axes : AbstractSet[Literal["obs", "var"]], optional
+        axes
             The axes represented by the Dimension
-        **overrides:
+        overrides
             Dimension parameter overrides
 
         Returns
@@ -122,11 +135,11 @@ class AdPath(Dimension):
             return False
         # if dim is a non-matching dimension (e.g. from a string), convert
         if isinstance(dim, Dimension):
-            if (
-                not isinstance(dim, AdPath)
-                and (dim := AdAc.from_dimension(dim, strict=False)) is None
-            ):
-                return False
+            if not isinstance(dim, AdPath):
+                if dim.name == self.name:
+                    return True
+                if (dim := AdAc.from_dimension(dim, strict=False)) is None:
+                    return False
             # dim is an AdPath, check equality
             return hash(self) == hash(dim)
         # some unknown type
@@ -150,6 +163,9 @@ class LayerAcc:
             msg = f"Unsupported layer {k!r}"
             raise TypeError(msg)
         return LayerVecAcc(k)
+
+    def __repr__(self) -> str:
+        return "A.layers"
 
 
 @dataclass(frozen=True)
@@ -178,8 +194,10 @@ class LayerVecAcc:
         label = next(
             (f"{self.k} {i}" if self.k else i for i in idx if isinstance(i, str)), None
         )
-        sub = "" if self.k is None else f".layers[{self.k!r}]"
-        return AdPath(f"A{sub}[{idx[0]!r}, {idx[1]!r}]", get, axes, label=label)
+        return AdPath(f"{self!r}[{idx[0]!r}, {idx[1]!r}]", get, axes, label=label)
+
+    def __repr__(self) -> str:
+        return f"A.layers[{self.k!r}]"
 
 
 @dataclass(frozen=True)
@@ -212,7 +230,10 @@ class MetaAcc:
         def get(ad: AnnData) -> pd.api.extensions.ExtensionArray | NDArray[Any]:
             return cast("pd.DataFrame", getattr(ad, self.ax))[k].values
 
-        return AdPath(f"A.{self.ax}[{k!r}]", get, {self.ax}, label=k)
+        return AdPath(f"{self!r}[{k!r}]", get, {self.ax}, label=k)
+
+    def __repr__(self) -> str:
+        return f"A.{self.ax}"
 
 
 @dataclass(frozen=True)
@@ -226,6 +247,9 @@ class MultiAcc:
             msg = f"Unsupported {self.ax} key {k!r}"
             raise TypeError(msg)
         return MultiVecAcc(self.ax, k)
+
+    def __repr__(self) -> str:
+        return f"A.{self.ax}"
 
 
 @dataclass(frozen=True)
@@ -258,9 +282,10 @@ class MultiVecAcc:
             return getattr(ad, self.ax)[self.k][:, i]
 
         ax = cast("Literal['obs', 'var']", self.ax[:-1])
-        return AdPath(
-            f"A.{self.ax}[{self.k!r}][:, {i!r}]", get, {ax}, label=f"{self.k} {i}"
-        )
+        return AdPath(f"{self!r}[:, {i!r}]", get, {ax}, label=f"{self.k} {i}")
+
+    def __repr__(self) -> str:
+        return f"A.{self.ax}[{self.k!r}]"
 
 
 @dataclass(frozen=True)
@@ -274,6 +299,9 @@ class GraphAcc:
             msg = f"Unsupported {self.ax} key {k!r}"
             raise TypeError(msg)
         return GraphVecAcc(self.ax, k)
+
+    def __repr__(self) -> str:
+        return f"A.{self.ax}"
 
 
 @dataclass(frozen=True)
@@ -311,9 +339,10 @@ class GraphVecAcc:
         axes: Collection[Literal["obs", "var"]] = (
             (ax,) * n_slices if n_slices > 1 else {ax}
         )
-        return AdPath(
-            f"A.{self.ax}[{self.k!r}][{idx[0]!r}, {idx[1]!r}]", get, axes, label=label
-        )
+        return AdPath(f"{self!r}[{idx[0]!r}, {idx[1]!r}]", get, axes, label=label)
+
+    def __repr__(self) -> str:
+        return f"A.{self.ax}[{self.k!r}]"
 
 
 @dataclass(frozen=True)
@@ -405,11 +434,14 @@ class AdAc(LayerVecAcc):
             case None:  # pragma: no cover
                 msg = (
                     f"Unknown accessor {spec!r}. "
-                    "We support '{cls.ATTRS}.*' and `AdPath` instances."
+                    f"We support '{cls.ATTRS}.*' and `AdPath` instances."
                 )
                 raise ValueError(msg)
         msg = f"Unhandled accessor {spec!r}. This is a bug!"  # pragma: no cover
         raise AssertionError(msg)  # pragma: no cover
+
+    def __repr__(self) -> str:
+        return "A"
 
 
 def _is_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> TypeIs[Idx2DList[Idx]]:

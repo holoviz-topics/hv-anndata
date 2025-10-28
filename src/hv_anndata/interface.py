@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from itertools import product
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, TypedDict, cast
 
 import holoviews as hv
 import numpy as np
@@ -28,16 +28,10 @@ from .accessors import AdAc, AdPath
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
     from numbers import Number
-    from typing import Any, Literal, TypedDict, TypeVar
+    from typing import Any, Literal, TypeVar
 
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray
-
-    class Dims(TypedDict):
-        """Holoviews Dimensions."""
-
-        kdims: Sequence[Dimension] | None
-        vdims: Sequence[Dimension] | None
 
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L594-L607
     SelectionValues = (
@@ -55,6 +49,13 @@ if TYPE_CHECKING:
 ACCESSOR = AdAc()
 
 MSG_1D = "AnnData Dataset key dimensions must map onto one axis: obs or var."
+
+
+class Dims(TypedDict):
+    """Holoviews Dimensions."""
+
+    kdims: Sequence[Dimension] | None
+    vdims: Sequence[Dimension] | None
 
 
 class AnnDataInterface(hv.core.Interface):

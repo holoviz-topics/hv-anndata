@@ -5,17 +5,35 @@
 .. currentmodule:: hv_anndata
 
 
-.. toctree::
+.. autosummary::
+   :toctree: .
 
-   hv_anndata.ACCESSOR
-   hv_anndata.AnnDataInterface
-   hv_anndata.register
-   hv_anndata.GeneSelector
-   hv_anndata.ClusterMap
-   hv_anndata.ClusterMapConfig
-   hv_anndata.create_clustermap_plot
-   hv_anndata.Dotmap
-   hv_anndata.DotmapParams
-   hv_anndata.ManifoldMap
-   hv_anndata.ManifoldMapConfig
-   hv_anndata.create_manifoldmap_plot
+   ACCESSOR
+   AnnDataInterface
+   Dims
+   register
+   GeneSelector
+   ClusterMap
+   ClusterMapConfig
+   create_clustermap_plot
+   Dotmap
+   DotmapParams
+   ManifoldMap
+   ManifoldMapConfig
+   create_manifoldmap_plot
+
+Submodules
+----------
+
+.. autosummary::
+
+   accessors
+   plotting.scanpy
+   plotting.utils
+
+.. toctree::
+   :hidden:
+
+   hv_anndata.accessors
+   hv_anndata.plotting.scanpy
+   hv_anndata.plotting.utils

@@ -3,7 +3,7 @@
 Adapted from <https://github.com/holoviz-dev/nbsite/blob/main/nbsite/paramdoc.py>
 
 See <https://github.com/holoviz/param/issues/197>
-"""  # noqa: INP001
+"""
 
 from __future__ import annotations
 
