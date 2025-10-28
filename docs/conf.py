@@ -22,7 +22,7 @@ html_theme = "furo"
 extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
-    # "sphinx.ext.autosummary",
+    "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
     "sphinx_exec_jupyter",

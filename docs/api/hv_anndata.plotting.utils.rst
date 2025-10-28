@@ -4,6 +4,7 @@
 .. module:: hv_anndata.plotting.utils
 .. currentmodule:: hv_anndata.plotting.utils
 
-..  toctree::
+..  autosummary::
+    :toctree: .
 
-    hv_anndata.plotting.utils.highest_expr_genes
+    highest_expr_genes
