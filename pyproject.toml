@@ -91,7 +91,7 @@ lint.per-file-ignores."**/*.ipynb" = [
   "I002", # Missing `from __future__ import annotations` is fine
   "T201", # print is fine
 ]
-lint.per-file-ignores."docs/conf.py" = [
+lint.per-file-ignores."docs/**/*.py" = [
   "INP001", # __init__.py
 ]
 lint.per-file-ignores."scripts/*" = [

@@ -32,16 +32,23 @@ extensions = [
     "scanpydoc.elegant_typehints",  # for qualname_overrides
     "myst_nb",
     "paramdoc",
+    "has_attr_test",
 ]
+templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 nitpicky = True
-suppress_warnings = ["mystnb.unknown_mime_type"]
+suppress_warnings = [
+    "mystnb.unknown_mime_type",
+    "ref.class",  # auto-generated docs
+]
 
 intersphinx_mapping = dict(
-    python=("https://docs.python.org/3/", None),
-    holoviews=("https://holoviews.org/", None),
-    panel=("https://panel.holoviz.org/", None),
     anndata=("https://anndata.readthedocs.io/en/stable/", None),
+    holoviews=("https://holoviews.org/", None),
+    numpy=("https://numpy.org/doc/stable/", None),
+    pandas=("https://pandas.pydata.org/pandas-docs/stable/", None),
+    panel=("https://panel.holoviz.org/", None),
+    python=("https://docs.python.org/3/", None),
     scanpy=("https://scanpy.readthedocs.io/en/latest/", None),
 )
 

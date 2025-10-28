@@ -10,6 +10,7 @@
 
    ACCESSOR
    AnnDataInterface
+   Dims
    register
    GeneSelector
    ClusterMap
@@ -21,7 +22,18 @@
    ManifoldMapConfig
    create_manifoldmap_plot
 
+Submodules
+----------
+
 .. autosummary::
 
-   plotting-scanpy
-   plotting-utils
+   accessors
+   plotting.scanpy
+   plotting.utils
+
+.. toctree::
+   :hidden:
+
+   hv_anndata.accessors
+   hv_anndata.plotting.scanpy
+   hv_anndata.plotting.utils

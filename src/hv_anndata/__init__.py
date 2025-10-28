@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from . import data
 from .components import GeneSelector
-from .interface import ACCESSOR, AnnDataGriddedInterface, AnnDataInterface, register
+from .interface import (
+    ACCESSOR,
+    AnnDataGriddedInterface,
+    AnnDataInterface,
+    Dims,
+    register,
+)
 from .plotting import (
     ClusterMap,
     ClusterMapConfig,
@@ -33,6 +39,7 @@ __all__ = [
     "AnnDataInterface",
     "ClusterMap",
     "ClusterMapConfig",
+    "Dims",
     "Dotmap",
     "DotmapParams",
     "GeneSelector",

@@ -26,6 +26,19 @@ if TYPE_CHECKING:
     Axes = Collection[Literal["obs", "var"]]
 
 
+__all__ = [
+    "AdAc",
+    "AdPath",
+    "GraphAcc",
+    "GraphVecAcc",
+    "LayerAcc",
+    "LayerVecAcc",
+    "MetaAcc",
+    "MultiAcc",
+    "MultiVecAcc",
+]
+
+
 class AdPath(Dimension):
     """A path referencing an array in an AnnData object."""
 
@@ -76,14 +89,14 @@ class AdPath(Dimension):
 
         Parameters
         ----------
-        spec : tuple, optional
+        spec
             Dimension tuple specification
-        func : Function[AnnData, np.ndarray], optional
+        func
             Function to resolve the dimension values
             given the AnnData object.
-        axes : AbstractSet[Literal["obs", "var"]], optional
+        axes
             The axes represented by the Dimension
-        **overrides:
+        overrides
             Dimension parameter overrides
 
         Returns
