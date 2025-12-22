@@ -156,7 +156,8 @@ def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
     if is_mapping_marker_genes:
         data = [  # Likely faster way to do this, but harder to read
-            expression_stats.xs(gene, level=1)
+            expression_stats
+            .xs(gene, level=1)
             .reset_index(names="cluster")
             .assign(
                 marker_cluster_name=marker_cluster_name,
@@ -169,7 +170,8 @@ def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0915
         ]
     else:
         data = [  # Likely faster way to do this, but harder to read
-            expression_stats.xs(gene, level=1)
+            expression_stats
+            .xs(gene, level=1)
             .reset_index(names="cluster")
             .assign(gene_id=gene)
             for gene in marker_genes

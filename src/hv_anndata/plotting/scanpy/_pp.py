@@ -149,7 +149,8 @@ def scrublet_score_distribution(adata: AnnData) -> hv.Layout:
     )
 
     observed = (
-        hv.Dataset(adata, [], [A.obs["doublet_score"]])
+        hv
+        .Dataset(adata, [], [A.obs["doublet_score"]])
         .hist(A.obs["doublet_score"], adjoin=False)
         .opts(
             xlim=(0, 1),
@@ -161,7 +162,8 @@ def scrublet_score_distribution(adata: AnnData) -> hv.Layout:
     )
 
     doublets_sim = (
-        hv.Table(adata.uns["scrublet"]["doublet_scores_sim"], "scores")
+        hv
+        .Table(adata.uns["scrublet"]["doublet_scores_sim"], "scores")
         .hist("scores", adjoin=False)
         .opts(xlim=(0, 1), shared_axes=False, title="Simulated doublets", **labels)
     )
