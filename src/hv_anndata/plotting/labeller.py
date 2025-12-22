@@ -44,7 +44,8 @@ class labeller(Operation):  # noqa: N801
         xd, yd, cd = el.dimensions()[:3]
         col = self.p.column or cd.name
         result = (
-            df.groupby(col)
+            df
+            .groupby(col)
             .agg(
                 count=(col, "size"),  # count of rows per group
                 x=(xd.name, "mean"),

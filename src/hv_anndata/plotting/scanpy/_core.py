@@ -262,7 +262,8 @@ def _tracksplot2(
     assert color is not None  # noqa: S101
     return hv.GridSpace(
         {
-            (0, m): hv.Curve(adata, [A.obs.index], [A[:, m], color])
+            (0, m): hv
+            .Curve(adata, [A.obs.index], [A[:, m], color])
             .opts(aspect=2 * len(markers))
             .groupby(A.obs["bulk_labels"], hv.NdOverlay)
             for m in markers
