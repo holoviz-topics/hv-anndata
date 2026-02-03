@@ -166,7 +166,7 @@ class AnnDataInterface(hv.core.Interface):
             raise DataError(MSG_1D)
         [ax] = dim.axes
         # TODO: support ranges and sequences  # noqa: TD003
-        if ax not in ("obs", "var"):  # pragma: no cover
+        if ax not in {"obs", "var"}:  # pragma: no cover
             msg = f"Cannot {action} along unknown axis: {ax}"
             raise AssertionError(msg)
         return ax
@@ -440,7 +440,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
 
         Ordered ensures coordinates are in ascending order and expanded creates
         ND-array matching the dimensionality of the dataset.
-        """
+        """  # noqa: DOC201
         dim = cls._dim(dataset, dim)
         vdim = dataset.vdims[0]
         if expanded:

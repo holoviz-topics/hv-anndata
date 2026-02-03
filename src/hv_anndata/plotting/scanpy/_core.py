@@ -258,7 +258,7 @@ def _tracksplot2(
     """Tracksplot variant. Faster but Gridspace is generally buggy.
 
     We can switch after <https://github.com/holoviz/holoviews/issues/5438> is fixed.
-    """
+    """  # noqa: DOC201
     assert color is not None  # noqa: S101
     return hv.GridSpace(
         {
@@ -517,7 +517,7 @@ def matrixplot(
         return _add_hover(heatmap)
     bars = hv.Bars(agg, A.var.index, A.var["totals"]).opts(
         yticks=0,
-        xlabel="",  #  TODO: holoviews issue  # noqa: TD003
+        xlabel="",  # TODO: holoviews issue  # noqa: TD003
     )
     return hv.AdjointLayout([_add_hover(heatmap), _add_hover(bars)])
 

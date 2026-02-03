@@ -62,11 +62,9 @@ def test_create_manifoldmap_plot_no_datashading(
     plot = create_manifoldmap_plot(
         sadata,
         "X_umap",
-        0,
-        1,
-        color_var,
-        "UMAP1",
-        "UMAP2",
+        color_by=color_var,
+        xaxis_label="UMAP1",
+        yaxis_label="UMAP2",
         datashading=False,
     )
     assert plot.kdims == [A.obsm["X_umap"][:, 0], A.obsm["X_umap"][:, 1]]
@@ -105,11 +103,9 @@ def test_create_manifoldmap_plot_datashading(
     plot = create_manifoldmap_plot(
         sadata,
         "X_umap",
-        0,
-        1,
-        color_var,
-        "UMAP1",
-        "UMAP2",
+        color_by=color_var,
+        xaxis_label="UMAP1",
+        yaxis_label="UMAP2",
         datashading=True,
     )
 

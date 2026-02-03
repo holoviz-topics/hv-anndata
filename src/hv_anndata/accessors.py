@@ -123,7 +123,7 @@ class AdPath(Dimension):
             spec,
             func,
             axes,
-            **{k: v for k, v in settings.items() if k not in ["name", "label"]},
+            **{k: v for k, v in settings.items() if k not in {"name", "label"}},
         )
 
     def __eq__(self, dim: object) -> bool:
@@ -453,7 +453,7 @@ def _expand_idx2d_list(idx: Idx2D[Idx] | Idx2DList[Idx]) -> list[Idx2D[Idx]]:
     """Expand a 2D index containing a list in one of its dimensions.
 
     Also validates that the 2D index contains at most one list.
-    """
+    """  # noqa: DOC201
     match idx:
         case list(), list():
             msg = "2D index can have at most one list: …[:, [...]] or …[[...], :]"

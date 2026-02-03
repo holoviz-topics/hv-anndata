@@ -118,6 +118,10 @@ def ranking(
         Dimension to use for labels.
         The default is ``dim``’s axis index (e.g. ``A.obs.index`` for ``A.obs["scores"]``).
 
+    Returns
+    -------
+    Holoviews plot with labels and points.
+
     Examples
     --------
 

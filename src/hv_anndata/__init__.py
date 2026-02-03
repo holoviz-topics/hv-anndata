@@ -25,7 +25,7 @@ from .plotting import (
     scanpy,
 )
 
-ACCESSOR = ACCESSOR  # noqa: PLW0127
+ACCESSOR = ACCESSOR  # noqa: PLW0127, RUF067
 """Accessor for anndata.
 
 >>> from hv_anndata import ACCESSOR as A
