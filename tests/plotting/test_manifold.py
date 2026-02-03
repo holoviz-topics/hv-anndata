@@ -180,13 +180,10 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         cmap=["#1f77b3", "#ff7e0e"],
     )
     mock_cmp.assert_called_once_with(
-        sadata,
-        "X_pca",
-        0,
-        1,
-        "cell_type",
-        "PCA1",
-        "PCA2",
+        *(sadata, "X_pca", 0, 1),
+        color_by="cell_type",
+        xaxis_label="PCA1",
+        yaxis_label="PCA2",
         categorical=True,
         width=300,
         height=300,
