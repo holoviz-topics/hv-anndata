@@ -63,7 +63,7 @@ _DEFAULT_MAX_DOT_SIZE = 20
 _DEFAULT_STANDARD_SCALE = None
 
 
-def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0914, PLR0915
     adata: ad.AnnData,
     *,
     groupby: str = _DEFAULT_GROUPBY,
@@ -365,7 +365,7 @@ def create_dotmap_plot(  # noqa: PLR0913
         standard_scale=standard_scale,
     )
     plot = hv.Points(data, kdims=kdims, vdims=vdims)
-    plot_opts = plot_opts if plot_opts else {}
+    plot_opts = plot_opts or {}
     opts = _get_opts(
         kdims=kdims,
         vdims=vdims,

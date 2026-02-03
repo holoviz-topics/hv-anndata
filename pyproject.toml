@@ -74,12 +74,15 @@ lint.ignore = [
   "B019",   # functools.cache is fine to use
   "C408",   # dict(...) calls are good
   "COM812", # Incompatible with formatter
+  "CPY001", # No copyright notice necessary
   "D105",   # magic methods are usually self-explanatory
   "D203",   # 0 instead of 1 blank lines before class docstring
   "D213",   # Multi-line docstring summary should start at the first instead of second line
+  "DOC501", # No need to document obvious exceptions like TypeError or ValueError
   "FIX002", # TODOs are fine
   "ISC001", # Incompatible with formatter
   "PD011",  # We actually do want `.values` give us a numpy or extension array
+  "S404",   # Using the subprocess module is fine
   "S603",   # We don’t want to use `subprocess.run(shell=True)`
   "S607",   # We don’t run commands with untrusted input
   "TD002",  # No need to assign TODOs to some person
@@ -104,19 +107,22 @@ lint.per-file-ignores."src/hv_anndata/__main__.py" = [
 lint.per-file-ignores."tests/*" = [
   "D",       # Missing docstrings in tests are OK
   "INP001",  # __init__.py should not be in tests
+  "PLC1901", # comparing to empty string in tests is clearer
+  "PLR0917", # tests and fixures don’t have positional arguments
   "PLR2004", # magic-value-comparison
   "RUF018",  # assert with := is fine
   "S101",    # Use of assert
   "SLF",     # private member access in tests is fine
 ]
 lint.allowed-confusables = [ "×", "’" ]
-lint.flake8-copyright.notice-rgx = "SPDX-License-Identifier: MPL-2\\.0"
 lint.flake8-type-checking.exempt-modules = [  ]
 lint.flake8-type-checking.strict = true
 lint.isort.known-first-party = [ "hv_anndata" ]
 lint.isort.required-imports = [ "from __future__ import annotations" ]
+lint.pylint.allow-dunder-method-names = [ "__panel__" ]
 lint.pylint.max-args = 8
-lint.pylint.max-positional-args = 3
+lint.pylint.max-positional-args = 4
+lint.pydoclint.ignore-one-line-docstrings = true
 
 [tool.pytest.ini_options]
 addopts = [ "--import-mode=importlib", "--strict-markers" ]

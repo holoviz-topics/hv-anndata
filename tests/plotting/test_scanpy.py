@@ -50,7 +50,7 @@ def renderer(request: pytest.FixtureRequest) -> Renderer:
             lambda ad: pl.scatter(ad, A.obsp["distances"][["cell-0", "cell-1"], :]),
             id="scatter-obsp",
         ),
-        pytest.param(lambda ad: pl.heatmap(ad), id="heatmap-obsm"),
+        pytest.param(pl.heatmap, id="heatmap-obsm"),
         # TODO: pytest.param(lambda ad: pl.heatmap(ad, A.obsp["distances"]), id="heatmap-obsp"),  # noqa: E501
         # https://github.com/holoviz-topics/hv-anndata/issues/111
         pytest.param(

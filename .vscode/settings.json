@@ -19,6 +19,7 @@
 	"python.analysis.typeCheckingMode": "basic",
 	"python.testing.pytestArgs": ["--color=yes", "-vv"],
 	"python.testing.pytestEnabled": true,
+	"ruff.lint.preview": true,
 	"evenBetterToml.formatter.compactArrays": false,
 	"evenBetterToml.formatter.arrayAutoCollapse": false,
 }

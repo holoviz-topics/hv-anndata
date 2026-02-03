@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
-import bokeh
 import bokeh.palettes
 import colorcet as cc
 import datashader as ds
@@ -48,7 +47,7 @@ DEFAULT_CONT_CMAP = "viridis"
 
 def _is_categorical(arr: np.ndarray) -> bool:
     return (
-        arr.dtype.name in ["category", "categorical", "bool"]
+        arr.dtype.name in {"category", "categorical", "bool"}
         or np.issubdtype(arr.dtype, np.object_)
         or np.issubdtype(arr.dtype, np.str_)
     )
@@ -80,15 +79,15 @@ class ManifoldMapConfig(TypedDict, total=False):
     labeller_opts: dict[str, Any]
 
 
-def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
+def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     adata: ad.AnnData,
     dr_key: str,
-    x_dim: int,
-    y_dim: int,
+    x_dim: int = 0,
+    y_dim: int = 1,
+    *,
     color_by: str,
     xaxis_label: str,
     yaxis_label: str,
-    *,
     categorical: bool | None = None,
     **config: Unpack[ManifoldMapConfig],
 ) -> hv.Element:
@@ -225,7 +224,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0915
             else:
                 lplot_opts[k] = v
         lplot_opts = label_opts | lplot_opts
-        plot = plot * labeller(dataset, **lop_opts).opts(**lplot_opts)
+        plot *= labeller(dataset, **lop_opts).opts(**lplot_opts)
 
     if not responsive:
         plot = plot.opts(
@@ -259,8 +258,6 @@ def _apply_categorical_datashading(
     ----------
     plot
         The base plot to apply datashading to
-    color_data
-        Category data for coloring
     color_by
         Name of the color variable
     cmap
@@ -495,7 +492,8 @@ class ManifoldMap(pn.viewable.Viewer):
             var = self.color_by
         return var
 
-    def get_reduction_label(self, dr_key: str) -> str:
+    @staticmethod
+    def get_reduction_label(dr_key: str) -> str:
         """Get a display label for a dimension reduction key.
 
         Parameters
@@ -548,8 +546,6 @@ class ManifoldMap(pn.viewable.Viewer):
             X-axis dimension label
         y_value
             Y-axis dimension label
-        color_by_dim
-            Dimension to use for coloring
         color_by
             Variable to use for coloring
         datashade_value
@@ -600,9 +596,9 @@ class ManifoldMap(pn.viewable.Viewer):
             dr_key,
             x_dim,
             y_dim,
-            color_by if self.color_by_dim == "obs" else self._get_var(),
-            x_value,
-            y_value,
+            color_by=color_by if self.color_by_dim == "obs" else self._get_var(),
+            xaxis_label=x_value,
+            yaxis_label=y_value,
             categorical=self._categorical,
             **config,
         )

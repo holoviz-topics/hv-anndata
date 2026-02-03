@@ -61,7 +61,7 @@ DEFAULT_VALUES = {
 }
 
 
-def param_formatter(
+def param_formatter(  # noqa: PLR0917
     app: Sphinx,  # noqa: ARG001
     what: Literal["module", "class", "exception", "function", "method", "attribute"],
     name: str,  # noqa: ARG001
@@ -108,7 +108,7 @@ def param_formatter(
 def _format_child(
     child: str, obj: param.parameterized.ParameterizedMetaclass
 ) -> list[str]:
-    if child in ["print_level", "name"]:
+    if child in {"print_level", "name"}:
         return []
     pobj = obj.param[child]
     label = label_formatter(pobj.name)
@@ -139,7 +139,7 @@ def _format_child(
     ]
 
 
-def param_skip(
+def param_skip(  # noqa: PLR0917
     app: Sphinx,  # noqa: ARG001
     what: Literal["module", "class", "exception", "function", "method", "attribute"],
     name: str,  # noqa: ARG001
