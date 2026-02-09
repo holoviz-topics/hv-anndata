@@ -120,9 +120,9 @@ lint.pylint.max-positional-args = 4
 lint.pydoclint.ignore-one-line-docstrings = true
 
 [tool.pytest]
-ini_options.addopts = [ "--import-mode=importlib", "--strict-markers" ]
-ini_options.xfail_strict = true
-ini_options.filterwarnings = [
+strict = true
+addopts = [ "--import-mode=importlib", "--strict-markers" ]
+filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
 ]
