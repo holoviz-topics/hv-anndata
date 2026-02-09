@@ -69,7 +69,7 @@ def test_resolve(spec: str, expected: AdPath) -> None:
         pytest.param(lambda: A[:3, :], id="x-partslice"),
         pytest.param(lambda: A[:, b""], id="x-nostr"),
         pytest.param(lambda: A[["a"], ["b"]], id="x-twolists"),
-        pytest.param(lambda: A.layers[1], id="layer-nostr"),
+        pytest.param(lambda: A.layers[1], id="layers-nostr"),
         pytest.param(lambda: A.layers["a"][:3, :], id="layer-partslice"),
         pytest.param(lambda: A.layers["a"][:, b""], id="layer-nostr"),
         pytest.param(lambda: A.layers["a"][["a"], ["b"]], id="layer-twolists"),
