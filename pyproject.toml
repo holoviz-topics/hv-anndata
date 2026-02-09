@@ -60,6 +60,7 @@ envs.hatch-test.dependencies = [
   "nbformat-types",
   "scanpy",
 ]
+metadata.hooks.docstring-description = {}
 version.source = "vcs"
 
 [tool.ruff]
@@ -128,6 +129,10 @@ filterwarnings = [
 ]
 
 [tool.coverage]
+run.branch = true
+run.omit = []
+run.parallel = true
+run.source_pkgs = [ "hv_anndata", "tests" ]
 paths.session_info2 = [ "src/hv_anndata", "*/hv-anndata/src/hv_anndata" ]
 paths.tests = [ "tests", "*/hv-anndata/tests" ]
 report.exclude_also = [
@@ -135,7 +140,3 @@ report.exclude_also = [
   "if TYPE_CHECKING:",
   "pytest\\.fail(.*)",
 ]
-run.source_pkgs = [ "hv_anndata", "tests" ]
-run.branch = true
-run.parallel = true
-run.omit = []
