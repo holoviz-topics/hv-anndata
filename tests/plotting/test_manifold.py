@@ -13,8 +13,7 @@ import panel as pn
 import pytest
 from holoviews.operation.datashader import dynspread, rasterize
 
-from hv_anndata import ACCESSOR as A
-from hv_anndata import ManifoldMap, create_manifoldmap_plot
+from hv_anndata import A, ManifoldMap, create_manifoldmap_plot
 from hv_anndata.interface import register, unregister
 
 if TYPE_CHECKING:

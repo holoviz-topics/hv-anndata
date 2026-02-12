@@ -10,6 +10,7 @@ import holoviews as hv
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from anndata.acc import AdAcc
 from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
@@ -23,7 +24,7 @@ from holoviews.core.util import (
 )
 from holoviews.element.raster import SheetCoordinateSystem
 
-from .accessors import AdAc, AdPath
+from ._ref import AdDim
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -45,8 +46,6 @@ if TYPE_CHECKING:
     T = TypeVar("T")
     ValueType = np.ndarray | pd.api.extensions.ExtensionArray
 
-
-ACCESSOR = AdAc()
 
 MSG_1D = "AnnData Dataset key dimensions must map onto one axis: obs or var."
 
@@ -76,8 +75,8 @@ class AnnDataInterface(hv.core.Interface):
         if not isinstance(data, AnnData):
             msg = f"{cls.__name__} only supports AnnData."
             raise TypeError(msg)
-        key_dimensions = [AdAc.from_dimension(d) for d in kdims or []]
-        value_dimensions = [AdAc.from_dimension(d) for d in vdims or []]
+        key_dimensions = [AdAcc.from_dimension(d) for d in kdims or []]
+        value_dimensions = [AdAcc.from_dimension(d) for d in vdims or []]
         vdim = value_dimensions[0] if value_dimensions else None
         ndims = len(vdim.axes) if vdim else 1
         if not cls.gridded and ndims > 1:
@@ -133,11 +132,11 @@ class AnnDataInterface(hv.core.Interface):
         return axes
 
     @staticmethod
-    def _dim(dataset: Dataset, k: Dimension | str | int) -> AdPath:
+    def _dim(dataset: Dataset, k: Dimension | str | int) -> AdDim:
         if isinstance(k, int):
             k = cast("Dimension", dataset.get_dimension(k, strict=True))
-        return AdAc.from_dimension(
-            (dataset.get_dimension(k) or AdAc.resolve(k)) if isinstance(k, str) else k
+        return AdAcc.from_dimension(
+            (dataset.get_dimension(k) or AdAcc.resolve(k)) if isinstance(k, str) else k
         )
 
     @classmethod
@@ -147,7 +146,7 @@ class AnnDataInterface(hv.core.Interface):
         not_found = [
             d
             for d in cast("list[Dimension]", dataset.dimensions(dims, label=False))
-            if isinstance(d, AdPath) and not d.isin(dataset.data)
+            if isinstance(d, AdDim) and not d.isin(dataset.data)
         ]
         if not_found:
             msg = (
@@ -160,7 +159,7 @@ class AnnDataInterface(hv.core.Interface):
         del axes
 
     @classmethod
-    def validate_selection_dim(cls, dim: AdPath, action: str) -> Literal["obs", "var"]:
+    def validate_selection_dim(cls, dim: AdDim, action: str) -> Literal["obs", "var"]:
         """Validate dimension as valid axis to select on."""
         if len(dim.axes) > 1:
             raise DataError(MSG_1D)
@@ -346,7 +345,7 @@ class AnnDataInterface(hv.core.Interface):
     def groupby(
         cls,
         dataset: Dataset,
-        dimensions: Sequence[str | AdPath],
+        dimensions: Sequence[str | AdDim],
         container_type: type[T],
         group_type: type[Dataset | dict] | Literal["raw"],
         **kwargs: Any,  # noqa: ANN401

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import holoviews as hv
 
-from hv_anndata import ACCESSOR as A
+from hv_anndata import A
 from hv_anndata.plotting import utils
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ def highest_expr_genes(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -73,7 +73,7 @@ def highly_variable_genes(adata: AnnData) -> hv.Layout:
 
         import scanpy as sc
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -128,7 +128,7 @@ def scrublet_score_distribution(adata: AnnData) -> hv.Layout:
 
         import scanpy as sc
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 

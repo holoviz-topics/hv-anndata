@@ -19,7 +19,7 @@ from bokeh.models.tools import BoxSelectTool, LassoSelectTool
 from holoviews.selection import link_selections
 from panel.reactive import hold
 
-from hv_anndata import ACCESSOR as A
+from hv_anndata import A
 
 from .labeller import labeller
 
@@ -159,7 +159,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
         colorbar = True
 
     # Create basic plot
-    vdim = A.obs[color_by] if color_by in adata.obs else A[:, color_by]
+    vdim = A.obs[color_by] if color_by in adata.obs else A.X[:, color_by]
     dataset = hv.Dataset(
         adata,
         [A.obsm[dr_key][:, x_dim], A.obsm[dr_key][:, y_dim]],
