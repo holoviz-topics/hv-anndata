@@ -13,15 +13,14 @@ import pytest
 import scipy.sparse as sp
 from anndata import AnnData
 
-from hv_anndata.interface import ACCESSOR as A
+from hv_anndata import A
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from typing import TypeAlias
 
     from holoviews.plotting import Renderer
 
-    from hv_anndata.accessors import AdPath
+    from hv_anndata import AdDim
 
 
 @contextmanager
@@ -48,12 +47,12 @@ def mpl_renderer() -> Iterator[Renderer]:
         yield renderer
 
 
-AdPathExpected: TypeAlias = Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series]
+type AdDimExpected = Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series]
 
-PATHS: list[tuple[AdPath, AdPathExpected]] = [
-    (A[:, :], lambda ad: ad.X),
-    (A[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
-    (A["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
+PATHS: list[tuple[AdDim, AdDimExpected]] = [
+    (A.X[:, :], lambda ad: ad.X),
+    (A.X[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
+    (A.X["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
     (A.obs["type"], lambda ad: ad.obs["type"]),
     (A.obs.index, lambda ad: ad.obs.index.values),
     (A.layers["a"][:, :], lambda ad: ad.layers["a"].copy().toarray()),
@@ -75,15 +74,15 @@ PATHS: list[tuple[AdPath, AdPathExpected]] = [
 @pytest.fixture(scope="session", params=PATHS, ids=[str(p[0]) for p in PATHS])
 def path_and_expected_fn(
     request: pytest.FixtureRequest,
-) -> tuple[AdPath, AdPathExpected]:
+) -> tuple[AdDim, AdDimExpected]:
     return request.param
 
 
 @pytest.fixture(scope="session")
-def ad_path(path_and_expected_fn: tuple[AdPath, AdPathExpected]) -> AdPath:
+def ad_dim(path_and_expected_fn: tuple[AdDim, AdDimExpected]) -> AdDim:
     return path_and_expected_fn[0]
 
 
 @pytest.fixture(scope="session")
-def ad_expected(path_and_expected_fn: tuple[AdPath, AdPathExpected]) -> AdPathExpected:
+def ad_expected(path_and_expected_fn: tuple[AdDim, AdDimExpected]) -> AdDimExpected:
     return path_and_expected_fn[1]

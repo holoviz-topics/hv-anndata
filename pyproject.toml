@@ -7,10 +7,9 @@ name = "hv-anndata"
 readme = "README.md"
 license = "BSD-3-Clause"
 authors = [ { name = "Philipp A.", email = "flying-sheep@web.de" } ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
@@ -30,7 +29,10 @@ dependencies = [
 ]
 
 [tool.hatch]
-envs.default.dependencies = [ "ipykernel" ]
+envs.default.dependencies = [
+  "ipykernel",
+  "anndata @ git+https://github.com/scverse/anndata.git",
+]
 envs.default.installer = "uv"
 envs.default.python = "3.13"
 envs.docs.scripts.build = "sphinx-build -b html docs docs/_build/html -W {args}"
@@ -39,8 +41,7 @@ envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
 envs.docs.scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
 envs.docs.dependencies = [
   "furo",
-  # Needs https://github.com/holoviz/holoviews/pull/6669
-  "holoviews>=1.22a1",
+  "holoviews>=1.22",
   "ipykernel",
   "ipywidgets",
   "jupyter-bokeh",
@@ -56,7 +57,9 @@ envs.docs.dependencies = [
   "sphinx-issues",
 ]
 envs.hatch-test.dependencies = [
-  "pytest-cov",     # for VS Code’s coverage function (not needed for `hatch test -c`)
+  "anndata @ git+https://github.com/scverse/anndata.git",
+  # for VS Code’s coverage function (not needed for `hatch test -c`)
+  "pytest-cov",
   "nbformat-types",
   "scanpy",
 ]

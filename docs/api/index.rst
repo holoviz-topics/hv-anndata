@@ -8,7 +8,7 @@
 .. autosummary::
    :toctree: .
 
-   ACCESSOR
+   A
    AnnDataInterface
    Dims
    register
@@ -27,13 +27,11 @@ Submodules
 
 .. autosummary::
 
-   accessors
    plotting.scanpy
    plotting.utils
 
 .. toctree::
    :hidden:
 
-   hv_anndata.accessors
    hv_anndata.plotting.scanpy
    hv_anndata.plotting.utils

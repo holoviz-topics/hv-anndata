@@ -35,14 +35,14 @@ def highest_expr_genes(
 
     ..  holoviews::
 
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
         from hv_anndata.plotting import utils as hv_sc_utils
 
         register()
 
         adata = data.pbmc68k_processed()
         adata_hi_expr = hv_sc_utils.highest_expr_genes(adata)
-        hv.HeatMap(adata_hi_expr, [A.obs.index, A.var.index], A[:, :]).opts(
+        hv.HeatMap(adata_hi_expr, [A.obs.index, A.var.index], A.X[:, :]).opts(
             xrotation=30
         )
 

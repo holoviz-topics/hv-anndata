@@ -16,7 +16,7 @@ import scipy.sparse as sp
 from anndata import AnnData
 from holoviews.core.data.interface import DataError
 
-from hv_anndata import ACCESSOR as A
+from hv_anndata import A
 from hv_anndata.interface import (
     AnnDataGriddedInterface,
     AnnDataInterface,
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import ArrayLike
 
-    from hv_anndata.accessors import AdPath
+    from hv_anndata.ref import AdDim
 
 
 @pytest.fixture(autouse=True)
@@ -74,7 +74,7 @@ def adata() -> AnnData:
             id="scatter",
         ),
         pytest.param(
-            lambda ad: hv.HeatMap(ad, [A.obs.index, A.var.index], A[:, :]),
+            lambda ad: hv.HeatMap(ad, [A.obs.index, A.var.index], A.X[:, :]),
             ("obs", "var"),
             id="heatmap-X",
         ),
@@ -120,15 +120,15 @@ def test_interface_selection(
 def test_get_values_table(
     request: pytest.FixtureRequest,
     adata: AnnData,
-    ad_path: AdPath,
+    ad_dim: AdDim,
     ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    if ad_path.axes == {"obs", "var"}:
+    if ad_dim.axes == {"obs", "var"}:
         request.applymarker("xfail")
-    data = hv.Dataset(adata, [ad_path])
+    data = hv.Dataset(adata, [ad_dim])
 
     assert data.interface is AnnDataInterface
-    vals = data.interface.values(data, ad_path, keep_index=True)
+    vals = data.interface.values(data, ad_dim, keep_index=True)
 
     if not isinstance(vals, np.ndarray):  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
@@ -140,12 +140,12 @@ def test_get_values_table(
 def test_get_values_grid(
     *,
     adata: AnnData,
-    ad_path: AdPath,
+    ad_dim: AdDim,
     expanded: bool,
     flat: bool,
     ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    data = hv.Dataset(adata, [A.var.index, A.obs.index], [A[:, :], ad_path])
+    data = hv.Dataset(adata, [A.var.index, A.obs.index], [A.X[:, :], ad_dim])
     assert data.interface is AnnDataGriddedInterface
     # prepare expected array
     expected = ad_expected(adata)
@@ -154,23 +154,23 @@ def test_get_values_grid(
     if not isinstance(expected, np.ndarray):
         pytest.fail(f"Unexpected return type {type(expected)}")
     if expanded:
-        if ad_path.axes == {"var"}:
+        if ad_dim.axes == {"var"}:
             expected = np.broadcast_to(expected, (adata.n_obs, len(expected)))
-        elif ad_path.axes == {"obs"}:
+        elif ad_dim.axes == {"obs"}:
             expected = np.broadcast_to(expected, (adata.n_vars, len(expected))).T
         else:
-            assert ad_path.axes == {"var", "obs"}
+            assert ad_dim.axes == {"var", "obs"}
     if flat:  # see comment in AnnDataGriddedInterface.values()
         expected = expected.T.flatten()
 
     vals = None
     with (
         pytest.raises(ValueError, match=r"value dimension.*must cover")
-        if len(ad_path.axes) == 2 and not expanded
+        if len(ad_dim.axes) == 2 and not expanded
         else contextlib.nullcontext()
     ):
         vals = data.interface.values(
-            data, ad_path, expanded=expanded, flat=flat, keep_index=False
+            data, ad_dim, expanded=expanded, flat=flat, keep_index=False
         )
     if vals is not None:
         if not isinstance(vals, np.ndarray):
@@ -229,13 +229,13 @@ def test_select_var(adata: AnnData) -> None:
 @pytest.mark.parametrize(
     ("iface", "vdims", "err_msg_pat"),
     [
-        pytest.param("tab", [A[:, :]], r"cannot handle gridded", id="tab-x_2d"),
-        pytest.param("grid", [A[:, "3"]], r"cannot handle tabular", id="grid-x_1d"),
+        pytest.param("tab", [A.X[:, :]], r"cannot handle gridded", id="tab-x_2d"),
+        pytest.param("grid", [A.X[:, "3"]], r"cannot handle tabular", id="grid-x_1d"),
         pytest.param("grid", [A.obs["x"]], r"cannot handle tabular", id="grid-obs"),
     ],
 )
 def test_init_errors(
-    iface: Literal["tab", "grid"], vdims: list[AdPath], err_msg_pat: str
+    iface: Literal["tab", "grid"], vdims: list[AdDim], err_msg_pat: str
 ) -> None:
     cls = AnnDataInterface if iface == "tab" else AnnDataGriddedInterface
     adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
@@ -250,11 +250,13 @@ def test_init_errors(
             [A.obs["zzzzz"]], r"dimensions.*not found.*A.obs\['zzzzz'\]", id="missing"
         ),
         pytest.param(
-            [A[:, :]], r"AnnData Dataset key dimensions must map onto one axis", id="2d"
+            [A.X[:, :]],
+            r"AnnData Dataset key dimensions must map onto one axis",
+            id="2d",
         ),
     ],
 )
-def test_validate_errors(kdims: list[AdPath], err_msg_pat: str) -> None:
+def test_validate_errors(kdims: list[AdDim], err_msg_pat: str) -> None:
     adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
     with pytest.raises(DataError, match=err_msg_pat):
         hv.Dataset(adata, kdims)
@@ -271,16 +273,14 @@ def test_validate_errors(kdims: list[AdPath], err_msg_pat: str) -> None:
         ),
         pytest.param(
             [A.obs.index, A.var.index],
-            [A[:, "3"]],
+            [A.X[:, "3"]],
             r"either.*obs.*or.*var",
             id="grid_x_1d",
         ),
         # TODO: other errors  # noqa: TD003
     ],
 )
-def test_axes_errors(
-    kdims: list[AdPath], vdims: list[AdPath], err_msg_pat: str
-) -> None:
+def test_axes_errors(kdims: list[AdDim], vdims: list[AdDim], err_msg_pat: str) -> None:
     adata = AnnData(np.zeros((10, 10)), dict(x=range(10)))
     with (
         contextlib.nullcontext()
@@ -291,8 +291,8 @@ def test_axes_errors(
         hv.Dataset(adata, kdims, vdims)
 
 
-@pytest.mark.parametrize("vdim", [A[:, :], A.obsm["umap"][0]], ids=["2d", "1d"])
-def test_violin_2d(adata: AnnData, vdim: AdPath) -> None:
+@pytest.mark.parametrize("vdim", [A.X[:, :], A.obsm["umap"][0]], ids=["2d", "1d"])
+def test_violin_2d(adata: AnnData, vdim: AdDim) -> None:
     """Violin plots don’t have kdims and just do stats on flattened data,
     so they should accept both a 1D and 2D vdim."""
     hv.Violin(adata, [], [vdim])
@@ -304,12 +304,12 @@ def test_violin_2d(adata: AnnData, vdim: AdPath) -> None:
 @pytest.mark.parametrize(
     ("v", "dim", "expected"),
     [
-        pytest.param("p", A[:, :], np.arange(8).reshape((2, 4)), id="p-tabular"),
+        pytest.param("p", A.X[:, :], np.arange(8).reshape((2, 4)), id="p-tabular"),
         pytest.param("p", A.obs.index, [["0"] * 4, ["1"] * 4], id="p-obs_names"),
         pytest.param("p", A.obs["x"], [["a"] * 4, ["b"] * 4], id="p-obs[x]"),
         pytest.param("p", A.var.index, [list("0123")] * 2, id="p-var_names"),
         pytest.param("p", A.var["y"], [list("ABCD")] * 2, id="p-var[y]"),
-        pytest.param("l", A[:, :], np.arange(8).reshape((4, 2)), id="l-tabular"),
+        pytest.param("l", A.X[:, :], np.arange(8).reshape((4, 2)), id="l-tabular"),
         pytest.param("l", A.obs.index, [[c] * 2 for c in "0123"], id="l-obs_names"),
         pytest.param("l", A.obs["x"], [[c] * 2 for c in "abcd"], id="l-obs[x]"),
         pytest.param("l", A.var.index, [["0", "1"]] * 4, id="l-var_names"),
@@ -317,7 +317,7 @@ def test_violin_2d(adata: AnnData, vdim: AdPath) -> None:
     ],
 )
 def test_gridded_ax(
-    *, v: Literal["p", "l"], dim: AdPath, transposed: bool, expected: ArrayLike
+    *, v: Literal["p", "l"], dim: AdDim, transposed: bool, expected: ArrayLike
 ) -> None:
     adata = (
         AnnData(
@@ -333,7 +333,7 @@ def test_gridded_ax(
         )
     )
     kdims = [A.obs.index, A.var.index] if transposed else [A.var.index, A.obs.index]
-    ds = hv.Dataset(adata, kdims=kdims, vdims=[A[:, :], A.obs["x"], A.var["y"]])
+    ds = hv.Dataset(adata, kdims=kdims, vdims=[A.X[:, :], A.obs["x"], A.var["y"]])
     assert ds.interface is AnnDataGriddedInterface
 
     values = ds.dimension_values(dim, expanded=True, flat=False)
