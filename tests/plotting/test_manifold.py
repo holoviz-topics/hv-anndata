@@ -72,7 +72,7 @@ def test_create_manifoldmap_plot_no_datashading(
     style_opts = plot.opts.get("style").kwargs
     assert style_opts["color"] == A.obs[color_var]
     assert style_opts["size"] == 3
-    assert style_opts["alpha"] == 0.5
+    assert style_opts["alpha"] == pytest.approx(0.5)
     assert plot_opts["padding"] == 0
     assert len(plot_opts["tools"]) == 3
     assert "hover" in plot_opts["tools"]
@@ -114,14 +114,12 @@ def test_create_manifoldmap_plot_datashading(
     if color_kind == "categorical":
         assert rop.name.startswith("datashade")
         assert rop.aggregator.cat_column == f"A.obs['{color_var}']"
-        assert dop.name.startswith("dynspread")
-        assert dop.threshold == 0.5
     elif color_kind == "continuous":
         assert rop.name.startswith("rasterize")
         assert rop.aggregator.__class__.__name__ == "mean"
         assert rop.aggregator.column == f"A.obs['{color_var}']"
-        assert dop.name.startswith("dynspread")
-        assert dop.threshold == 0.5
+    assert dop.name.startswith("dynspread")
+    assert dop.threshold == pytest.approx(0.5)
 
 
 @pytest.mark.usefixtures("bokeh_renderer")
