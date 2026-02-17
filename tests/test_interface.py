@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import ArrayLike
 
-    from hv_anndata.ref import AdDim
+    from hv_anndata._ref import AdDim
 
 
 @pytest.fixture(autouse=True)
@@ -50,8 +50,8 @@ def adata() -> AnnData:
         dict(type=gen.integers(0, 3, size=100)),
         index="cell-" + pd.array(range(100)).astype(str),
     )
-    var_grp = pd.Categorical(
-        gen.integers(0, 6, size=50), categories=list(ascii_lowercase[:5])
+    var_grp = pd.Categorical.from_codes(
+        gen.integers(0, 4, size=50), categories=list(ascii_lowercase[:5])
     )
     var = pd.DataFrame(
         dict(grp=var_grp),
@@ -114,7 +114,7 @@ def test_interface_selection(
     dataset = hv_obj(adata)
     assert issubclass(dataset.interface, AnnDataInterface)
     assert dataset.interface is iface_expected
-    assert dataset.interface.axes(dataset) == axes_or_err
+    assert dataset.interface.dims(dataset) == axes_or_err
 
 
 def test_get_values_table(
@@ -123,7 +123,7 @@ def test_get_values_table(
     ad_dim: AdDim,
     ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    if ad_dim.axes == {"obs", "var"}:
+    if ad_dim.dims == {"obs", "var"}:
         request.applymarker("xfail")
     data = hv.Dataset(adata, [ad_dim])
 
@@ -154,19 +154,19 @@ def test_get_values_grid(
     if not isinstance(expected, np.ndarray):
         pytest.fail(f"Unexpected return type {type(expected)}")
     if expanded:
-        if ad_dim.axes == {"var"}:
+        if ad_dim.dims == {"var"}:
             expected = np.broadcast_to(expected, (adata.n_obs, len(expected)))
-        elif ad_dim.axes == {"obs"}:
+        elif ad_dim.dims == {"obs"}:
             expected = np.broadcast_to(expected, (adata.n_vars, len(expected))).T
         else:
-            assert ad_dim.axes == {"var", "obs"}
+            assert ad_dim.dims == {"var", "obs"}
     if flat:  # see comment in AnnDataGriddedInterface.values()
         expected = expected.T.flatten()
 
     vals = None
     with (
         pytest.raises(ValueError, match=r"value dimension.*must cover")
-        if len(ad_dim.axes) == 2 and not expanded
+        if len(ad_dim.dims) == 2 and not expanded
         else contextlib.nullcontext()
     ):
         vals = data.interface.values(
@@ -287,7 +287,7 @@ def test_axes_errors(kdims: list[AdDim], vdims: list[AdDim], err_msg_pat: str) -
         if err_msg_pat is None
         else pytest.raises(DataError, match=err_msg_pat)
     ):
-        # Dataset.__init__ calls self.interface.axes after initializing the interface
+        # Dataset.__init__ calls self.interface.dims after initializing the interface
         hv.Dataset(adata, kdims, vdims)
 
 

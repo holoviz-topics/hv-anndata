@@ -172,7 +172,7 @@ def heatmap(
 
     """
     kdims = (
-        [getattr(A, base.ax[:-1]).index] * 2
+        [getattr(A, base.dim).index] * 2
         if isinstance(base, GraphAcc)
         else [A.obs.index, A.var.index]
     )
@@ -232,7 +232,7 @@ def tracksplot(
 
     """
     if kdim is None:
-        [ax] = {ax for vdim in vdims for ax in vdim.axes}
+        [ax] = {ax for vdim in vdims for ax in vdim.dims}
         kdim = getattr(A, ax).index
     more_vdims = [] if color is None else [color]
     curves = {
@@ -405,13 +405,13 @@ def stacked_violin(adata: AnnData, /, xdim: AdDim, ydim: AdDim) -> hv.GridSpace:
     A :class:`~holoviews.GridSpace` containing :class:`~holoviews.Violin` objects.
 
     """
-    if len(xdim.axes) != 1 or len(ydim.axes) != 1:
+    if len(xdim.dims) != 1 or len(ydim.dims) != 1:
         msg = "xdim and ydim must map to the same axis."
         raise ValueError(msg)
-    xvals = xdim(adata)
-    yvals = ydim(adata)
+    xvals = adata[xdim]
+    yvals = adata[ydim]
 
-    match next(iter(xdim.axes)), next(iter(ydim.axes)):
+    match next(iter(xdim.dims)), next(iter(ydim.dims)):
         case "obs", "obs":
             idx = lambda x, y: adata[(xvals == x) & (yvals == y), :]  # noqa: E731
         case "var", "var":
@@ -496,9 +496,9 @@ def matrixplot(
             f"got {data!r}"
         )
         raise TypeError(msg)
-    elif data.ax == "obsm":
+    elif data.dim == "obs":
         obsm = data.k
-    elif data.ax == "varm":
+    elif data.dim == "var":
         varm = data.k
 
     agg = sc.get.aggregate(

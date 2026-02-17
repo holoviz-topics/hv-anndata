@@ -75,10 +75,10 @@ class AnnDataInterface(hv.core.Interface):
         if not isinstance(data, AnnData):
             msg = f"{cls.__name__} only supports AnnData."
             raise TypeError(msg)
-        key_dimensions = [AdAcc.from_dimension(d) for d in kdims or []]
-        value_dimensions = [AdAcc.from_dimension(d) for d in vdims or []]
+        key_dimensions = [AdDim.from_dimension(d) for d in kdims or []]
+        value_dimensions = [AdDim.from_dimension(d) for d in vdims or []]
         vdim = value_dimensions[0] if value_dimensions else None
-        ndims = len(vdim.axes) if vdim else 1
+        ndims = len(vdim.dims) if vdim else 1
         if not cls.gridded and ndims > 1:
             msg = f"{cls.__name__} cannot handle gridded data."
             raise ValueError(msg)
@@ -88,14 +88,14 @@ class AnnDataInterface(hv.core.Interface):
         return data, {"kdims": key_dimensions, "vdims": value_dimensions}, {}
 
     @classmethod
-    def axes(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
+    def dims(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
         """Detect if the data is gridded or columnar and along which axes it is indexed."""  # noqa: E501
         vdim = cls._dim(dataset, dataset.vdims[0]) if dataset.vdims else None
         if len(dataset.kdims) == 0 and vdim:
             # e.g. Violin plot doesn’t have kdims
-            return tuple(vdim.axes)
+            return tuple(vdim.dims)
 
-        ndims = len(vdim.axes) if vdim else 1
+        ndims = len(vdim.dims) if vdim else 1
         if ndims not in (allowed := {1, len(dataset.kdims)}):
             msg = (
                 "AnnData Dataset with multi-dimensional data must declare "
@@ -107,20 +107,20 @@ class AnnDataInterface(hv.core.Interface):
         kdims = [cls._dim(dataset, k) for k in dataset.dimensions()]
         if ndims != 1:
             kdims = kdims[:2]
-        if any(len(dim.axes) > 1 for dim in kdims):
+        if any(len(dim.dims) > 1 for dim in kdims):
             raise DataError(MSG_1D)
 
         # Determine spanned axes from key dimensions (order matters)
         axes: tuple[Literal["obs", "var"], ...] = tuple({
-            next(iter(dim.axes)): None for dim in kdims
+            next(iter(dim.dims)): None for dim in kdims
         })
 
         # If vdim is ("obs", "obs") | ("var", "var") use it directly
-        if vdim and vdim.axes in {("obs", "obs"), ("var", "var")}:
-            if next(iter(vdim.axes)) not in axes:
+        if vdim and vdim.dims in {("obs", "obs"), ("var", "var")}:
+            if next(iter(vdim.dims)) not in axes:
                 msg = "AnnData Dataset in gridded mode vdim axes must match kdims."
                 raise DataError(msg)
-            axes = tuple(vdim.axes)
+            axes = tuple(vdim.dims)
         # Check if vdim axes match key dimension axes
         elif ndims != len(axes):
             msg = (
@@ -135,7 +135,7 @@ class AnnDataInterface(hv.core.Interface):
     def _dim(dataset: Dataset, k: Dimension | str | int) -> AdDim:
         if isinstance(k, int):
             k = cast("Dimension", dataset.get_dimension(k, strict=True))
-        return AdAcc.from_dimension(
+        return AdDim.from_dimension(
             (dataset.get_dimension(k) or AdAcc.resolve(k)) if isinstance(k, str) else k
         )
 
@@ -146,7 +146,7 @@ class AnnDataInterface(hv.core.Interface):
         not_found = [
             d
             for d in cast("list[Dimension]", dataset.dimensions(dims, label=False))
-            if isinstance(d, AdDim) and not d.isin(dataset.data)
+            if isinstance(d, AdDim) and d not in dataset.data
         ]
         if not_found:
             msg = (
@@ -155,15 +155,15 @@ class AnnDataInterface(hv.core.Interface):
                 f"not found: {not_found!r}"
             )
             raise DataError(msg, cls)
-        axes = cls.axes(dataset)
+        axes = cls.dims(dataset)
         del axes
 
     @classmethod
     def validate_selection_dim(cls, dim: AdDim, action: str) -> Literal["obs", "var"]:
         """Validate dimension as valid axis to select on."""
-        if len(dim.axes) > 1:
+        if len(dim.dims) > 1:
             raise DataError(MSG_1D)
-        [ax] = dim.axes
+        [ax] = dim.dims
         # TODO: support ranges and sequences  # noqa: TD003
         if ax not in {"obs", "var"}:  # pragma: no cover
             msg = f"Cannot {action} along unknown axis: {ax}"
@@ -180,7 +180,7 @@ class AnnDataInterface(hv.core.Interface):
         for k, v in selection.items():
             dim = cls._dim(dataset, k)
             ax = cls.validate_selection_dim(dim, "select")
-            values = dim(adata)
+            values = adata[dim]
             mask = None
             sel = slice(*v) if isinstance(v, tuple) else v
             if isinstance(sel, slice):
@@ -220,7 +220,7 @@ class AnnDataInterface(hv.core.Interface):
         if selection_mask is None:
             obs, var = cls.selection_masks(dataset, selection)
         else:
-            axes = cls.axes(dataset)
+            axes = cls.dims(dataset)
             obs, var = (
                 (selection_mask, None) if axes == ("obs",) else (None, selection_mask)
             )
@@ -255,7 +255,7 @@ class AnnDataInterface(hv.core.Interface):
         """Retrieve values for a dimension."""
         dim = cls._dim(data, dim)
         adata = cast("AnnData", data.data)
-        values = dim(adata)
+        values = adata[dim]
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
         elif flat and values.ndim > 1:
@@ -270,7 +270,7 @@ class AnnDataInterface(hv.core.Interface):
         """Get the data type for a dimension."""
         dim = cls._dim(data, dim)
         adata = cast("AnnData", data.data)
-        return dim(adata).dtype
+        return adata[dim].dtype
 
     @classmethod
     def dimension_type(cls, dataset: Dataset, dim: Dimension | str) -> type:
@@ -283,7 +283,7 @@ class AnnDataInterface(hv.core.Interface):
     ) -> AnnData:
         """Implement `Dataset.iloc`."""
         rows, cols = index
-        axes = cls.axes(dataset)
+        axes = cls.dims(dataset)
         adata = cast("AnnData", dataset.data)
 
         if (idx := cls._iloc_2d(axes, rows, cols)) is not None:
@@ -356,7 +356,7 @@ class AnnDataInterface(hv.core.Interface):
         for k in dimensions:
             dim = cls._dim(dataset, k)
             cls.validate_selection_dim(dim, "group")
-            values[k] = unique_iterator(dim(adata))
+            values[k] = unique_iterator(adata[dim])
 
         # Get dimensions information
         dimensions = [dataset.get_dimension(d) for d in dimensions]
@@ -400,7 +400,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
     def shape(cls, dataset: Dataset, *, gridded: bool = False) -> tuple[int, int]:
         """Retrieve shape of 2D data."""
         del gridded
-        ax1, ax2 = cls.axes(dataset)
+        ax1, ax2 = cls.dims(dataset)
         return len(getattr(dataset.data, ax1)), len(getattr(dataset.data, ax2))
 
     @classmethod
@@ -485,25 +485,25 @@ class AnnDataGriddedInterface(AnnDataInterface):
         adata = cast("AnnData", data.data)
         if dim in data.kdims and isinstance(data, SheetCoordinateSystem):
             # On 2D datasets we generate synthetic coordinates
-            [ax] = dim.axes
+            [ax] = dim.dims
             return np.arange(len(getattr(adata, ax)))
 
         # Axes are transposed relative to the key-dimension order.
         # When flattened, this transpose is omitted so arrays follow
         # hierarchical (row-major) ordering.
-        transpose = [d.axes for d in data.kdims] == [{"obs"}, {"var"}]
-        match len(dim.axes), expanded:
+        transpose = [d.dims for d in data.kdims] == [{"obs"}, {"var"}]
+        match len(dim.dims), expanded:
             case 1, True:
                 obs, var = cls._expand_grid(data)
-                idx = var if dim.axes == {"var"} else obs
-                coords = dim(adata)
+                idx = var if dim.dims == {"var"} else obs
+                coords = adata[dim]
                 values = coords[idx]
                 if transpose != flat:
                     values = values.T
             case 1, False:
-                values = dim(adata)
+                values = adata[dim]
             case _, True:
-                values = dim(adata)
+                values = adata[dim]
                 if transpose != flat:
                     values = values.T
             case _:

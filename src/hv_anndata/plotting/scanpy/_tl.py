@@ -87,7 +87,7 @@ def draw_graph(
         msg = f"edge_vdim must be a string or `A.obsp[key]`, got {edge_vdim!r}."
         raise TypeError(msg)
 
-    edges = cast("csr_matrix", getattr(adata, edge_vdim.ax)[edge_vdim.k]).tocoo()
+    edges = cast("csr_matrix", getattr(adata, edge_vdim.dim)[edge_vdim.k]).tocoo()
     nodes = hv.Nodes(adata, [*kdims, A.obs["cell index"]], node_vdims)
     return hv.Graph(((*edges.coords, edges.data), nodes), vdims=edge_vdim[:, :]).opts(
         edge_color=edge_vdim[:, :]
@@ -139,12 +139,12 @@ def ranking(
         ]).opts(shared_axes=False)
 
     """  # noqa: E501
-    [ax] = dim.axes
+    [ax] = dim.dims
     if label_dim is None:
         label_dim = getattr(A, ax).index
     # full arrays
-    scores = dim(adata)
-    labels = label_dim(adata)
+    scores = adata[dim]
+    labels = adata[label_dim]
 
     # subset
     idx = np.argsort(scores)
