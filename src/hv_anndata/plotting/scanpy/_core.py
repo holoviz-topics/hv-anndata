@@ -355,7 +355,7 @@ def violin(
     """
     if not isinstance(vdims, AdDim):
         vdims = list(vdims)
-        if not all(isinstance(AdDim) for vdim in vdims):
+        if not all(isinstance(vdim, AdDim) for vdim in vdims):
             msg = f"vdims must be an AdDim or a collection of AdDims, got {vdims!r}."
             raise TypeError(msg)
         return hv.Layout([

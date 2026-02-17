@@ -53,8 +53,8 @@ PATHS: list[tuple[AdDim, AdDimExpected]] = [
     (A.X[:, :], lambda ad: ad.X),
     (A.X[:, "gene-3"], lambda ad: ad[:, "gene-3"].X.flatten()),
     (A.X["cell-5", :], lambda ad: ad["cell-5"].X.flatten()),
-    (A.obs["type"], lambda ad: ad.obs["type"]),
-    (A.obs.index, lambda ad: ad.obs.index.values),
+    (A.obs["type"], lambda ad: ad.obs["type"].array),
+    (A.obs.index, lambda ad: ad.obs.index.array),
     (A.layers["a"][:, :], lambda ad: ad.layers["a"].copy().toarray()),
     (
         A.layers["a"][:, "gene-18"],

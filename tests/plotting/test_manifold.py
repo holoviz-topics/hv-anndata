@@ -95,14 +95,12 @@ def test_create_manifoldmap_plot_no_datashading(
 def test_create_manifoldmap_plot_datashading(
     sadata: ad.AnnData, color_kind: str
 ) -> None:
-    if color_kind == "categorical":
-        color_var = "cell_type"
-    elif color_kind == "continuous":
-        color_var = "expression_level"
+    by = A.obs["cell_type" if color_kind == "categorical" else "expression_level"]
+
     plot = create_manifoldmap_plot(
         sadata,
         "X_umap",
-        color_by=color_var,
+        color_by=by,
         xaxis_label="UMAP1",
         yaxis_label="UMAP2",
         datashading=True,
@@ -113,11 +111,11 @@ def test_create_manifoldmap_plot_datashading(
     dop = el.pipeline.find(dynspread, skip_nonlinked=False)
     if color_kind == "categorical":
         assert rop.name.startswith("datashade")
-        assert rop.aggregator.cat_column == f"A.obs['{color_var}']"
+        assert rop.aggregator.cat_column == by
     elif color_kind == "continuous":
         assert rop.name.startswith("rasterize")
-        assert rop.aggregator.__class__.__name__ == "mean"
-        assert rop.aggregator.column == f"A.obs['{color_var}']"
+        assert type(rop.aggregator).__name__ == "mean"
+        assert rop.aggregator.column == by
     assert dop.name.startswith("dynspread")
     assert dop.threshold == pytest.approx(0.5)
 

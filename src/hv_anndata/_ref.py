@@ -8,6 +8,7 @@ from anndata.acc import AdAcc, AdRef, GraphAcc, LayerAcc, MetaAcc, MultiAcc
 from holoviews.core.dimension import Dimension
 
 if TYPE_CHECKING:
+    from types import NotImplementedType
     from typing import Literal, Self
 
     from anndata.acc import RefAcc
@@ -119,24 +120,13 @@ class AdDim[I](AdRef[I], Dimension):
     def __hash__(self) -> int:
         return hash((type(self), repr(self)))
 
-    def __eq__(self, dim: object) -> bool:
-        # shortcut if label, number, or so matches
-        if super().__eq__(dim):
-            return True
-        # try to resolve
-        if isinstance(dim, str) and (dim := A.resolve(dim, strict=False)) is None:
-            return False
-        # if dim is a non-matching dimension (e.g. from a string), convert
-        if isinstance(dim, Dimension):
-            if not isinstance(dim, AdRef):
-                if dim.name == self.name:
-                    return True
-                if (dim := type(self).from_dimension(dim, strict=False)) is None:
-                    return False
-            # dim is an AdRef, check equality
-            return hash(self) == hash(dim)
-        # some unknown type
-        return False
+    def __eq__(self, dim: object) -> bool | NotImplementedType:
+        if isinstance(dim, Dimension) and not isinstance(dim, AdRef):
+            if dim.name == self.name:
+                return True
+            if (dim := type(self).from_dimension(dim, strict=False)) is None:
+                return False
+        return super().__eq__(dim)
 
 
 A = AdAcc(ref_class=AdDim)

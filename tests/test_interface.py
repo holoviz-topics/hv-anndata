@@ -14,7 +14,9 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 from anndata import AnnData
+from anndata.compat import CSArray, CSMatrix
 from holoviews.core.data.interface import DataError
+from pandas.api.extensions import ExtensionArray
 
 from hv_anndata import A
 from hv_anndata.interface import (
@@ -130,7 +132,7 @@ def test_get_values_table(
     assert data.interface is AnnDataInterface
     vals = data.interface.values(data, ad_dim, keep_index=True)
 
-    if not isinstance(vals, np.ndarray):  # pragma: no cover
+    if not isinstance(vals, np.ndarray | ExtensionArray):  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
     np.testing.assert_array_equal(vals, ad_expected(adata), strict=True)
 
@@ -149,8 +151,8 @@ def test_get_values_grid(
     assert data.interface is AnnDataGriddedInterface
     # prepare expected array
     expected = ad_expected(adata)
-    if isinstance(expected, pd.Series):
-        expected = expected.values
+    if isinstance(expected, ExtensionArray):
+        expected = expected.to_numpy()
     if not isinstance(expected, np.ndarray):
         pytest.fail(f"Unexpected return type {type(expected)}")
     if expanded:
@@ -173,7 +175,9 @@ def test_get_values_grid(
             data, ad_dim, expanded=expanded, flat=flat, keep_index=False
         )
     if vals is not None:
-        if not isinstance(vals, np.ndarray):
+        if isinstance(vals, CSArray | CSMatrix):
+            vals = vals.toarray()
+        if not isinstance(vals, np.ndarray | ExtensionArray):
             pytest.fail(f"Unexpected return type {type(vals)}")
         np.testing.assert_array_equal(vals, expected, strict=True)
 

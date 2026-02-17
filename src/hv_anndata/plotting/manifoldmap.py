@@ -28,6 +28,9 @@ if TYPE_CHECKING:
     from typing import Any, Unpack
 
     from holoviews.streams import Stream
+    from pandas.api.extensions import ExtensionArray
+
+    from hv_anndata import AdDim
 
 
 DEFAULT_COLOR_BY = "cell_type"
@@ -45,12 +48,10 @@ DEFAULT_CAT_CMAP = cc.b_glasbey_category10
 DEFAULT_CONT_CMAP = "viridis"
 
 
-def _is_categorical(arr: np.ndarray) -> bool:
-    return (
-        arr.dtype.name in {"category", "categorical", "bool"}
-        or np.issubdtype(arr.dtype, np.object_)
-        or np.issubdtype(arr.dtype, np.str_)
-    )
+def _is_categorical(arr: np.ndarray | ExtensionArray) -> bool:
+    return isinstance(
+        arr.dtype, pd.CategoricalDtype | pd.StringDtype | pd.BooleanDtype
+    ) or arr.dtype.kind in {"U", "O", "b"}
 
 
 class ManifoldMapConfig(TypedDict, total=False):
@@ -85,7 +86,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     x_dim: int = 0,
     y_dim: int = 1,
     *,
-    color_by: str,
+    color_by: AdDim,
     xaxis_label: str,
     yaxis_label: str,
     categorical: bool | None = None,
@@ -131,10 +132,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     ls = config.get("ls")
     labeller_opts = config.get("labeller_opts")
 
-    if color_by in adata.obs:
-        color_data = adata.obs[color_by].values
-    else:
-        color_data = adata.obs_vector(color_by)
+    color_data = adata[color_by]
 
     # Determine if color data is categorical
     if categorical is None:
@@ -159,11 +157,10 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
         colorbar = True
 
     # Create basic plot
-    vdim = A.obs[color_by] if color_by in adata.obs else A.X[:, color_by]
     dataset = hv.Dataset(
         adata,
         [A.obsm[dr_key][:, x_dim], A.obsm[dr_key][:, y_dim]],
-        [vdim],
+        [color_by],
     )
     plot = dataset.to(hv.Points)
 
@@ -173,7 +170,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
 
     # Options for standard (non-datashaded) plot
     plot_opts = dict(
-        color=vdim,
+        color=color_by,
         cmap=cmap,
         size=3,
         alpha=0.5,
@@ -195,10 +192,10 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
 
     # Apply datashading with different approaches for categorical vs continuous
     elif categorical:
-        plot = _apply_categorical_datashading(plot, color_by=vdim.name, cmap=cmap)
+        plot = _apply_categorical_datashading(plot, color_by=color_by.name, cmap=cmap)
     else:
         # For continuous data, take the mean
-        aggregator = ds.mean(vdim.name)
+        aggregator = ds.mean(color_by.name)
         plot = hd.rasterize(plot, aggregator=aggregator)
         plot = hd.dynspread(plot, threshold=0.5, max_px=5)
         plot = plot.opts(
@@ -451,10 +448,7 @@ class ManifoldMap(pn.viewable.Viewer):
         if not self.color_by:
             return
         old_is_categorical = self._categorical
-        if self.color_by_dim == "obs":
-            color_data = self.adata.obs[self.color_by].values
-        elif self.color_by_dim == "cols":
-            color_data = self.adata.obs_vector(self._get_var())
+        color_data = self.adata[self._get_dim()]
         self._categorical = _is_categorical(color_data)
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
@@ -478,19 +472,19 @@ class ManifoldMap(pn.viewable.Viewer):
         self.param.y_axis.objects = new_dims
         self.param.update(vals)
 
-    def _get_var(self) -> str:
-        if self.var_reference:
-            var = self.adata.var.query(f'feature_name == "{self.color_by}"').index
-            if len(var) > 1:
-                msg = (
-                    f"More than one vars found in {self.var_reference!r} "
-                    f"for {self.color_by!r}."
-                )
-                raise RuntimeError(msg)
-            var = var.item()
-        else:
-            var = self.color_by
-        return var
+    def _get_dim(self) -> AdDim:
+        if self.color_by_dim == "obs":
+            return A.obs[self.color_by]
+        if not self.var_reference:
+            return A.var.index
+        var = self.adata.var.query(f'feature_name == "{self.color_by}"').index
+        if len(var) > 1:
+            msg = (
+                f"More than one vars found in {self.var_reference!r} "
+                f"for {self.color_by!r}."
+            )
+            raise RuntimeError(msg)
+        return A.var[self.color_by]
 
     @staticmethod
     def get_reduction_label(dr_key: str) -> str:
@@ -596,7 +590,7 @@ class ManifoldMap(pn.viewable.Viewer):
             dr_key,
             x_dim,
             y_dim,
-            color_by=color_by if self.color_by_dim == "obs" else self._get_var(),
+            color_by=self._get_dim(),
             xaxis_label=x_value,
             yaxis_label=y_value,
             categorical=self._categorical,

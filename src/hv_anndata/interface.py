@@ -10,7 +10,6 @@ import holoviews as hv
 import numpy as np
 import pandas as pd
 from anndata import AnnData
-from anndata.acc import AdAcc
 from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
 from holoviews.core.data.interface import DataError
@@ -23,8 +22,11 @@ from holoviews.core.util import (
     unique_iterator,
 )
 from holoviews.element.raster import SheetCoordinateSystem
+from pandas.api.extensions import ExtensionArray
+from pandas.arrays import NumpyExtensionArray
+from scipy.sparse import issparse
 
-from ._ref import AdDim
+from ._ref import A, AdDim
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -136,7 +138,7 @@ class AnnDataInterface(hv.core.Interface):
         if isinstance(k, int):
             k = cast("Dimension", dataset.get_dimension(k, strict=True))
         return AdDim.from_dimension(
-            (dataset.get_dimension(k) or AdAcc.resolve(k)) if isinstance(k, str) else k
+            (dataset.get_dimension(k) or A.resolve(k)) if isinstance(k, str) else k
         )
 
     @classmethod
@@ -181,6 +183,9 @@ class AnnDataInterface(hv.core.Interface):
             dim = cls._dim(dataset, k)
             ax = cls.validate_selection_dim(dim, "select")
             values = adata[dim]
+            if isinstance(values, NumpyExtensionArray):
+                # they don’t support “bitwise” operators like `&``
+                values = values.to_numpy()
             mask = None
             sel = slice(*v) if isinstance(v, tuple) else v
             if isinstance(sel, slice):
@@ -497,6 +502,9 @@ class AnnDataGriddedInterface(AnnDataInterface):
                 obs, var = cls._expand_grid(data)
                 idx = var if dim.dims == {"var"} else obs
                 coords = adata[dim]
+                if isinstance(coords, ExtensionArray):
+                    # can’t expand 1D ExtensionArrays
+                    coords = coords.to_numpy()
                 values = coords[idx]
                 if transpose != flat:
                     values = values.T
@@ -519,6 +527,8 @@ class AnnDataGriddedInterface(AnnDataInterface):
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
         if flat and values.ndim > 1:
+            if issparse(values):
+                values = values.toarray()
             if isinstance(values, pd.api.extensions.ExtensionArray):
                 values = values.to_numpy()
             values = values.flatten()
