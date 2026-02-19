@@ -191,11 +191,12 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
         plot = plot.opts(**plot_opts)
 
     # Apply datashading with different approaches for categorical vs continuous
+    # TODO: change once https://github.com/holoviz/holoviews/issues/6799 is fixed
     elif categorical:
-        plot = _apply_categorical_datashading(plot, color_by=color_by.label, cmap=cmap)
+        plot = _apply_categorical_datashading(plot, color_by=color_by.name, cmap=cmap)
     else:
         # For continuous data, take the mean
-        aggregator = ds.mean(color_by.label)
+        aggregator = ds.mean(color_by.name)
         plot = hd.rasterize(plot, aggregator=aggregator)
         plot = hd.dynspread(plot, threshold=0.5, max_px=5)
         plot = plot.opts(

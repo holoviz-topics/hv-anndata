@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, cast, overload
 
 from anndata.acc import AdAcc, AdRef, GraphAcc, LayerAcc, MetaAcc, MultiAcc
 from holoviews.core.dimension import Dimension
@@ -122,19 +122,11 @@ class AdDim[I](AdRef[I], Dimension):
         return hash((type(self), repr(self)))
 
     def __eq__(self, value: object, /) -> bool | NotImplementedType:
-        if (isinstance(value, str) and self.label == value) or (
-            isinstance(value, Dimension)
-            and not isinstance(value, AdRef)
-            and self.label == value.label
-        ):
+        if self._matches_str(value, attr="label"):
             return True
-        if (isinstance(value, str) and self.name == value) or (
-            isinstance(value, Dimension)
-            and not isinstance(value, AdRef)
-            and self.name == value.name
-        ):
+        if self._matches_str(value, attr="name"):
             msg = (  # some holoviews code stringifies dimensions
-                "A dimension was probably stringified. "
+                "Probably comparing to a dimension created from `Dimension.name`. "
                 "This will not be supported in the future, please report as an issue. "
             )
             warnings.warn(msg, FutureWarning, stacklevel=2)
@@ -143,6 +135,13 @@ class AdDim[I](AdRef[I], Dimension):
 
     def __ne__(self, value: object, /) -> bool:
         return not self == value
+
+    def _matches_str(self, value: object, /, *, attr: Literal["label", "name"]) -> bool:
+        if isinstance(value, Dimension) and not isinstance(value, AdRef):
+            value = cast("str", getattr(value, attr))
+        elif not isinstance(value, str):
+            return False
+        return getattr(self, attr) == value
 
 
 A = AdAcc(ref_class=AdDim)
