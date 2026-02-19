@@ -96,7 +96,8 @@ def draw_graph(
 
 def ranking(
     adata: AnnData,
-    dim: AdDim,
+    ref: AdDim,
+    /,
     n_points: int = 10,
     *,
     include_lowest: bool = True,
@@ -108,7 +109,7 @@ def ranking(
     ----------
     adata
         Annotated data matrix.
-    dim
+    ref
         Dimension containing scores to rank.
     n_points
         Number of points to plot.
@@ -139,11 +140,11 @@ def ranking(
         ]).opts(shared_axes=False)
 
     """  # noqa: E501
-    [ax] = dim.dims
+    [dim] = ref.dims
     if label_dim is None:
-        label_dim = getattr(A, ax).index
+        label_dim = getattr(A, dim).index
     # full arrays
-    scores = adata[dim]
+    scores = adata[ref]
     labels = adata[label_dim]
 
     # subset

@@ -97,7 +97,10 @@ def adata() -> AnnData:
         ),
         pytest.param(
             lambda ad: hv.HeatMap(ad, [A.obs.index, A.obs.index], A.varp["cons"][:, :]),
-            DataError("AnnData Dataset in gridded mode vdim axes must match kdims."),
+            DataError(
+                "AnnData Dataset in gridded mode must have vdim and kdims "
+                "spanning the same anndata dims."
+            ),
             id="error-heatmap-2D",
         ),
     ],

@@ -129,7 +129,7 @@ def heatmap(
     >>> hv.HeatMap(adata, [A.obs.index, A.var.index], [base[:, :], *vdims]).opts(...)
 
     Set ``base`` to e.g. ``A`` or ``A.layers[key]``,
-    and ``transpose=True`` to switch the order of the axes.
+    and ``transpose=True`` to switch the order of the dims.
 
     If ``add_dendrogram`` is True, the dendrogram is added.
     Call it directly to customize the dendrogram:
@@ -145,7 +145,7 @@ def heatmap(
     vdims
         The value dimensions.
     transpose
-        Whether to transpose the axes.
+        Whether to transpose the dims.
     add_dendrogram
         Where to add dendrograms to the heatmap: ``True`` for both,
         ``"obs"``/``"var"`` for one, and ``False`` for none.
@@ -232,8 +232,8 @@ def tracksplot(
 
     """
     if kdim is None:
-        [ax] = {ax for vdim in vdims for ax in vdim.dims}
-        kdim = getattr(A, ax).index
+        [dim] = {dim for vdim in vdims for dim in vdim.dims}
+        kdim = getattr(A, dim).index
     more_vdims = [] if color is None else [color]
     curves = {
         vdim: hv.Curve(adata, [kdim], [vdim, *more_vdims]).opts(
