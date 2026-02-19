@@ -129,7 +129,6 @@ addopts = [ "--import-mode=importlib", "--strict-markers" ]
 filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
-  "default:Probably comparing to a dimension created from `Dimension.name`:FutureWarning",
 ]
 
 [tool.coverage]
