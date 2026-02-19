@@ -526,9 +526,10 @@ class AnnDataGriddedInterface(AnnDataInterface):
 
         if not keep_index and isinstance(values, pd.Series):
             values = values.values
+        # TODO: move into `flat` branch when this is fixed: https://github.com/holoviz/holoviews/issues/6686
+        if issparse(values):
+            values = values.toarray()
         if flat and values.ndim > 1:
-            if issparse(values):
-                values = values.toarray()
             if isinstance(values, pd.api.extensions.ExtensionArray):
                 values = values.to_numpy()
             values = values.flatten()

@@ -120,13 +120,16 @@ class AdDim[I](AdRef[I], Dimension):
     def __hash__(self) -> int:
         return hash((type(self), repr(self)))
 
-    def __eq__(self, dim: object) -> bool | NotImplementedType:
-        if isinstance(dim, Dimension) and not isinstance(dim, AdRef):
-            if dim.name == self.name:
+    def __eq__(self, value: object) -> bool | NotImplementedType:
+        if isinstance(value, Dimension) and not isinstance(value, AdRef):
+            if value.name == self.name:
                 return True
-            if (dim := type(self).from_dimension(dim, strict=False)) is None:
+            if (value := type(self).from_dimension(value, strict=False)) is None:
                 return False
-        return super().__eq__(dim)
+        return super().__eq__(value)
+
+    def __ne__(self, value: object) -> bool:
+        return not self == value
 
 
 A = AdAcc(ref_class=AdDim)

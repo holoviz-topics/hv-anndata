@@ -54,23 +54,20 @@ def sadata() -> Iterator[ad.AnnData]:
 def test_create_manifoldmap_plot_no_datashading(
     sadata: ad.AnnData, color_kind: str
 ) -> None:
-    if color_kind == "categorical":
-        color_var = "cell_type"
-    elif color_kind == "continuous":
-        color_var = "expression_level"
+    by = A.obs["cell_type" if color_kind == "categorical" else "expression_level"]
     plot = create_manifoldmap_plot(
         sadata,
         "X_umap",
-        color_by=color_var,
+        color_by=by,
         xaxis_label="UMAP1",
         yaxis_label="UMAP2",
         datashading=False,
     )
     assert plot.kdims == [A.obsm["X_umap"][:, 0], A.obsm["X_umap"][:, 1]]
-    assert plot.vdims == [A.obs[color_var]]
+    assert plot.vdims == [by]
     plot_opts = plot.opts.get("plot").kwargs
     style_opts = plot.opts.get("style").kwargs
-    assert style_opts["color"] == A.obs[color_var]
+    assert style_opts["color"] == by
     assert style_opts["size"] == 3
     assert style_opts["alpha"] == pytest.approx(0.5)
     assert plot_opts["padding"] == 0
@@ -96,7 +93,6 @@ def test_create_manifoldmap_plot_datashading(
     sadata: ad.AnnData, color_kind: str
 ) -> None:
     by = A.obs["cell_type" if color_kind == "categorical" else "expression_level"]
-
     plot = create_manifoldmap_plot(
         sadata,
         "X_umap",
@@ -176,7 +172,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
     )
     mock_cmp.assert_called_once_with(
         *(sadata, "X_pca", 0, 1),
-        color_by="cell_type",
+        color_by=A.obs["cell_type"],
         xaxis_label="PCA1",
         yaxis_label="PCA2",
         categorical=True,
