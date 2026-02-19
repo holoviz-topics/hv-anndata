@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, overload
 
 from anndata.acc import AdAcc, AdRef, GraphAcc, LayerAcc, MetaAcc, MultiAcc
@@ -120,15 +121,21 @@ class AdDim[I](AdRef[I], Dimension):
     def __hash__(self) -> int:
         return hash((type(self), repr(self)))
 
-    def __eq__(self, value: object) -> bool | NotImplementedType:
-        if isinstance(value, Dimension) and not isinstance(value, AdRef):
-            if value.name == self.name:
-                return True
-            if (value := type(self).from_dimension(value, strict=False)) is None:
-                return False
+    def __eq__(self, value: object, /) -> bool | NotImplementedType:
+        if (isinstance(value, str) and self.name == value) or (
+            isinstance(value, Dimension)
+            and not isinstance(value, AdRef)
+            and self.name == value.name
+        ):
+            msg = (  # some holoviews code stringifies dimensions
+                "A dimension was probably stringified. "
+                "This will not be supported in the future, please report as an issue. "
+            )
+            warnings.warn(msg, FutureWarning, stacklevel=2)
+            return True
         return super().__eq__(value)
 
-    def __ne__(self, value: object) -> bool:
+    def __ne__(self, value: object, /) -> bool:
         return not self == value
 
 

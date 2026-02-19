@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, TypedDict, cast
 
 import holoviews as hv
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
@@ -33,8 +32,10 @@ if TYPE_CHECKING:
     from numbers import Number
     from typing import Any, Literal, TypeVar
 
+    import pandas as pd
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray
+    from pandas.api.extensions import ExtensionDtype
 
     # https://github.com/holoviz/holoviews/blob/5653e2804f1ab44a8f655a5fea6fa5842e234120/holoviews/core/data/__init__.py#L594-L607
     SelectionValues = (
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
     SelectionSpec = type | Callable | str
 
     T = TypeVar("T")
-    ValueType = np.ndarray | pd.api.extensions.ExtensionArray
+    ValueType = np.ndarray | ExtensionArray
 
 
 MSG_1D = "AnnData Dataset key dimensions must map onto one axis: obs or var."
@@ -183,35 +184,44 @@ class AnnDataInterface(hv.core.Interface):
             dim = cls._dim(dataset, k)
             ax = cls.validate_selection_dim(dim, "select")
             values = adata[dim]
-            if isinstance(values, NumpyExtensionArray):
-                # they don’t support “bitwise” operators like `&``
-                values = values.to_numpy()
-            mask = None
-            sel = slice(*v) if isinstance(v, tuple) else v
-            if isinstance(sel, slice):
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", r"invalid value encountered")
-                    if sel.start is not None:
-                        mask = sel.start <= values
-                    if sel.stop is not None:
-                        stop_mask = values < sel.stop
-                        mask = stop_mask if mask is None else (mask & stop_mask)
-            elif isinstance(sel, set | list):
-                iter_slcs = []
-                for ik in sel:
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings("ignore", r"invalid value encountered")
-                        iter_slcs.append(values == ik)
-                mask = np.logical_or.reduce(iter_slcs)
-            elif callable(sel):
-                mask = sel(values)
-            else:
-                mask = values == sel
+            mask = cls._get_mask(values, slice(*v) if isinstance(v, tuple) else v)
             if ax == "obs":
                 obs = mask if obs is None else (obs & mask)
             elif ax == "var":
                 var = mask if var is None else (var & mask)
         return obs, var
+
+    @classmethod
+    def _get_mask(
+        cls,
+        values: np.ndarray | ExtensionArray,
+        sel: slice | Sequence[Number] | [[NDArray], NDArray[np.bool_]],
+    ) -> np.ndarray:
+        if isinstance(values, NumpyExtensionArray):
+            # they don’t support “bitwise” operators like `&``
+            values = values.to_numpy()
+        if isinstance(sel, slice):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", r"invalid value encountered")
+                match sel.start, sel.stop:
+                    case int(start), int(stop):
+                        return (values >= start) & (values < stop)
+                    case int(start), None:
+                        return values >= start
+                    case None, int(stop):
+                        return values < stop
+                    case _:
+                        raise AssertionError
+        if isinstance(sel, set | list):
+            iter_slcs = []
+            for ik in sel:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", r"invalid value encountered")
+                    iter_slcs.append(values == ik)
+            return np.logical_or.reduce(iter_slcs)
+        if callable(sel):
+            return sel(values)
+        return values == sel
 
     @classmethod
     def select(
@@ -255,23 +265,21 @@ class AnnDataInterface(hv.core.Interface):
         flat: bool = True,  # noqa: FBT001, FBT002
         *,
         compute: bool = True,  # noqa: ARG003
-        keep_index: bool = False,
+        keep_index: bool = False,  # noqa: ARG003
     ) -> ValueType:
         """Retrieve values for a dimension."""
         dim = cls._dim(data, dim)
         adata = cast("AnnData", data.data)
         values = adata[dim]
-        if not keep_index and isinstance(values, pd.Series):
-            values = values.values
-        elif flat and values.ndim > 1:
-            assert not isinstance(values, pd.api.extensions.ExtensionArray)  # noqa: S101
+        if flat and values.ndim > 1:
+            assert not isinstance(values, ExtensionArray)  # noqa: S101
             values = values.flatten()
         return values
 
     @classmethod
     def dtype(
         cls, data: Dataset, dim: Dimension | str | int
-    ) -> np.dtype | pd.api.extensions.ExtensionDtype:
+    ) -> np.dtype | ExtensionDtype:
         """Get the data type for a dimension."""
         dim = cls._dim(data, dim)
         adata = cast("AnnData", data.data)
@@ -483,7 +491,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         flat: bool = True,  # noqa: FBT001, FBT002
         *,
         compute: bool = True,  # noqa: ARG003
-        keep_index: bool = False,
+        keep_index: bool = False,  # noqa: ARG003
     ) -> ValueType:
         """Retrieve values for a dimension."""
         dim = cls._dim(data, dim)
@@ -524,14 +532,10 @@ class AnnDataGriddedInterface(AnnDataInterface):
                 )
                 raise ValueError(error)
 
-        if not keep_index and isinstance(values, pd.Series):
-            values = values.values
         # TODO: move into `flat` branch when this is fixed: https://github.com/holoviz/holoviews/issues/6686
         if issparse(values):
             values = values.toarray()
         if flat and values.ndim > 1:
-            if isinstance(values, pd.api.extensions.ExtensionArray):
-                values = values.to_numpy()
             values = values.flatten()
         return values
 
