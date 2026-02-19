@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from functools import partial
-from typing import TYPE_CHECKING, TypeVar, cast, overload
+from typing import TYPE_CHECKING, overload
 
 import holoviews as hv
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from anndata.acc import GraphAcc, LayerAcc, MetaAcc, MultiAcc
 from fast_array_utils import stats
 
-from hv_anndata import ACCESSOR as A
-from hv_anndata.accessors import AdPath, GraphVecAcc, LayerVecAcc, MultiVecAcc
+from hv_anndata import A, AdDim
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -40,10 +39,10 @@ __all__ = [
 def scatter(
     adata: AnnData,
     /,
-    kdims: Collection[AdPath],
-    vdims: Collection[AdPath] = (),
+    kdims: Collection[AdDim],
+    vdims: Collection[AdDim] = (),
     *,
-    color: AdPath | None = None,
+    color: AdDim | None = None,
 ) -> hv.Scatter:
     """Shortcut for a scatter plot.
 
@@ -70,12 +69,12 @@ def scatter(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
         adata = data.pbmc68k_processed()
-        hv_sc.scatter(adata, A[:, ["PSAP", "C1QA"]], color=A.obs["bulk_labels"]).opts(
+        hv_sc.scatter(adata, A.X[:, ["PSAP", "C1QA"]], color=A.obs["bulk_labels"]).opts(
             cmap="tab10", show_legend=False
         )
 
@@ -100,25 +99,49 @@ def scatter(
 
 
 def _scatter(
-    kdims: Collection[AdPath],
+    kdims: Collection[AdDim],
     adata: AnnData,
     /,
-    vdims: Collection[AdPath] = (),
+    vdims: Collection[AdDim] = (),
     *,
-    color: AdPath | None = None,
+    color: AdDim | None = None,
 ) -> hv.Scatter:
     __tracebackhide__ = True
     return scatter(adata, kdims, vdims, color=color)
 
 
 umap = partial(_scatter, A.obsm["X_umap"][:, [0, 1]])
+umap.__doc__ = """\
+Shortcut for a UMAP scatter plot.
+
+See :func:`~hv_anndata.plotting.scanpy.scatter`.
+
+Examples
+--------
+
+..  holoviews::
+
+    import hv_anndata.plotting.scanpy as hv_sc
+    from hv_anndata import data, register, A
+
+    register()
+
+    adata = data.pbmc68k_processed()
+    hv_sc.umap(adata, color=A.obs["bulk_labels"]).opts(
+        cmap="tab10", show_legend=False
+    )
+
+Returns
+-------
+A scatter plot object
+"""
 
 
 def heatmap(
     adata: AnnData,
-    base: LayerVecAcc | GraphVecAcc = A,
+    base: LayerAcc | GraphAcc = A.X,
     /,
-    vdims: Collection[AdPath] = (),
+    vdims: Collection[AdDim] = (),
     *,
     transpose: bool = False,
     add_dendrogram: bool | Literal["obs", "var"] = False,
@@ -130,7 +153,7 @@ def heatmap(
     >>> hv.HeatMap(adata, [A.obs.index, A.var.index], [base[:, :], *vdims]).opts(...)
 
     Set ``base`` to e.g. ``A`` or ``A.layers[key]``,
-    and ``transpose=True`` to switch the order of the axes.
+    and ``transpose=True`` to switch the order of the dims.
 
     If ``add_dendrogram`` is True, the dendrogram is added.
     Call it directly to customize the dendrogram:
@@ -146,7 +169,7 @@ def heatmap(
     vdims
         The value dimensions.
     transpose
-        Whether to transpose the axes.
+        Whether to transpose the dims.
     add_dendrogram
         Where to add dendrograms to the heatmap: ``True`` for both,
         ``"obs"``/``"var"`` for one, and ``False`` for none.
@@ -157,14 +180,14 @@ def heatmap(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
         adata = data.pbmc68k_processed()
         markers = ["C1QA", "PSAP", "CD79A", "CD79B", "CST3", "LYZ"]
         hv_sc.heatmap(
-            adata[:, markers], A, [A.obs["n_counts"]], add_dendrogram="obs"
+            adata[:, markers], A.X, [A.obs["n_counts"]], add_dendrogram="obs"
         ).opts(hv.opts.HeatMap(xticks=0, aspect=2))
 
     Returns
@@ -173,14 +196,14 @@ def heatmap(
 
     """
     kdims = (
-        [getattr(A, base.ax[:-1]).index] * 2
-        if isinstance(base, GraphVecAcc)
+        [getattr(A, base.dim).index] * 2
+        if isinstance(base, GraphAcc)
         else [A.obs.index, A.var.index]
     )
     if transpose:
         kdims.reverse()
     hm = hv.HeatMap(adata, kdims, [base[:, :], *vdims])
-    if isinstance(base, GraphVecAcc):
+    if isinstance(base, GraphAcc):
         hm = hm.opts(aspect="square")
     if add_dendrogram:
         dims = kdims
@@ -193,10 +216,10 @@ def heatmap(
 def tracksplot(
     adata: AnnData,
     /,
-    vdims: Collection[AdPath],
+    vdims: Collection[AdDim],
     *,
-    kdim: AdPath | None = None,
-    color: AdPath | None = None,
+    kdim: AdDim | None = None,
+    color: AdDim | None = None,
 ) -> hv.NdLayout:
     """Tracksplot.
 
@@ -217,14 +240,14 @@ def tracksplot(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
         adata = data.pbmc68k_processed()
         markers = ["C1QA", "PSAP", "CD79A", "CD79B", "CST3", "LYZ"]
         hv_sc.tracksplot(
-            adata, A[:, markers], color=A.obs["bulk_labels"]
+            adata, A.X[:, markers], color=A.obs["bulk_labels"]
         ).opts(hv.opts.Curve(aspect=20))
 
     Returns
@@ -233,8 +256,8 @@ def tracksplot(
 
     """
     if kdim is None:
-        [ax] = {ax for vdim in vdims for ax in vdim.axes}
-        kdim = getattr(A, ax).index
+        [dim] = {dim for vdim in vdims for dim in vdim.dims}
+        kdim = getattr(A, dim).index
     more_vdims = [] if color is None else [color]
     curves = {
         vdim: hv.Curve(adata, [kdim], [vdim, *more_vdims]).opts(
@@ -253,7 +276,7 @@ def tracksplot(
 
 
 def _tracksplot2(
-    adata: AnnData, markers: Collection[str], color: AdPath | None = None
+    adata: AnnData, markers: Collection[str], color: AdDim | None = None
 ) -> hv.GridSpace:
     """Tracksplot variant. Faster but Gridspace is generally buggy.
 
@@ -263,7 +286,7 @@ def _tracksplot2(
     return hv.GridSpace(
         {
             (0, m): hv
-            .Curve(adata, [A.obs.index], [A[:, m], color])
+            .Curve(adata, [A.obs.index], [A.X[:, m], color])
             .opts(aspect=2 * len(markers))
             .groupby(A.obs["bulk_labels"], hv.NdOverlay)
             for m in markers
@@ -276,31 +299,31 @@ def _tracksplot2(
 def violin(
     adata: AnnData,
     /,
-    vdims: AdPath,
+    vdims: AdDim,
     *,
-    kdims: Collection[AdPath] = (),
-    color: AdPath | None = None,
+    kdims: Collection[AdDim] = (),
+    color: AdDim | None = None,
 ) -> hv.Violin: ...
 @overload
 def violin(
     adata: AnnData,
     /,
-    vdims: Collection[AdPath],
+    vdims: Collection[AdDim],
     *,
-    kdims: Collection[AdPath] = (),
-    color: AdPath | None = None,
+    kdims: Collection[AdDim] = (),
+    color: AdDim | None = None,
 ) -> hv.Layout: ...
 def violin(
     adata: AnnData,
     /,
-    vdims: Collection[AdPath] | AdPath,
+    vdims: Collection[AdDim] | AdDim,
     *,
-    kdims: Collection[AdPath] = (),
-    color: AdPath | None = None,
+    kdims: Collection[AdDim] = (),
+    color: AdDim | None = None,
 ) -> hv.Violin | hv.Layout:
     """Shortcut for a violin plot.
 
-    If ``vdims`` is an ``AdPath``, a single violin is returned:
+    If ``vdims`` is an ``AdDim``, a single violin is returned:
 
     >>> hv.Violin(adata, kdims, [vdims, color]).opts(violin_fill_color=color, ...)
 
@@ -325,7 +348,7 @@ def violin(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -337,7 +360,7 @@ def violin(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -348,16 +371,16 @@ def violin(
 
     Returns
     -------
-    ``if isinstance(vdims, AdPath):``
+    ``if isinstance(vdims, AdDim):``
         A :class:`~holoviews.Violin` plot.
     ``else:``
         A :class:`~holoviews.Layout` containing :class:`~holoviews.Violin` plots.
 
     """
-    if not isinstance(vdims, AdPath):
+    if not isinstance(vdims, AdDim):
         vdims = list(vdims)
-        if not all(isinstance(vdim, AdPath) for vdim in vdims):
-            msg = f"vdims must be an AdPath or a collection of AdPaths, got {vdims!r}."
+        if not all(isinstance(vdim, AdDim) for vdim in vdims):
+            msg = f"vdims must be an AdDim or a collection of AdDims, got {vdims!r}."
             raise TypeError(msg)
         return hv.Layout([
             violin(adata, vdim, color=color).opts(title=vdim.label, ylabel="")
@@ -371,7 +394,7 @@ def violin(
     return hv.Violin(adata, kdims, vdims).opts(**opts, ylabel=vdims.label)
 
 
-def stacked_violin(adata: AnnData, /, xdim: AdPath, ydim: AdPath) -> hv.GridSpace:
+def stacked_violin(adata: AnnData, /, xdim: AdDim, ydim: AdDim) -> hv.GridSpace:
     """Stacked violin plot.
 
     Groups data by `xdim` and `ydim` and then plots a single violin for each group.
@@ -391,7 +414,7 @@ def stacked_violin(adata: AnnData, /, xdim: AdPath, ydim: AdPath) -> hv.GridSpac
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -406,13 +429,13 @@ def stacked_violin(adata: AnnData, /, xdim: AdPath, ydim: AdPath) -> hv.GridSpac
     A :class:`~holoviews.GridSpace` containing :class:`~holoviews.Violin` objects.
 
     """
-    if len(xdim.axes) != 1 or len(ydim.axes) != 1:
+    if len(xdim.dims) != 1 or len(ydim.dims) != 1:
         msg = "xdim and ydim must map to the same axis."
         raise ValueError(msg)
-    xvals = xdim(adata)
-    yvals = ydim(adata)
+    xvals = adata[xdim]
+    yvals = adata[ydim]
 
-    match next(iter(xdim.axes)), next(iter(ydim.axes)):
+    match next(iter(xdim.dims)), next(iter(ydim.dims)):
         case "obs", "obs":
             idx = lambda x, y: adata[(xvals == x) & (yvals == y), :]  # noqa: E731
         case "var", "var":
@@ -427,7 +450,7 @@ def stacked_violin(adata: AnnData, /, xdim: AdPath, ydim: AdPath) -> hv.GridSpac
     return hv.GridSpace(
         {
             # TODO: should Violin vdim be able to be 2D?  # noqa: TD003
-            (x, y): hv.Violin(idx(x, y), vdims=[A[:, :]]).opts(inner=None)
+            (x, y): hv.Violin(idx(x, y), vdims=[A.X[:, :]]).opts(inner=None)
             for x in _get_categories(xvals)
             for y in _get_categories(yvals)
         },
@@ -438,10 +461,10 @@ def stacked_violin(adata: AnnData, /, xdim: AdPath, ydim: AdPath) -> hv.GridSpac
 def matrixplot(
     adata: AnnData,
     /,
-    group_by: AdPath,
+    group_by: AdDim,
     *,
     func: AggType = "mean",
-    data: LayerVecAcc | MultiVecAcc = A,
+    data: LayerAcc | MultiAcc = A.X,
     add_totals: bool = False,
 ) -> hv.HeatMap | hv.AdjointLayout:
     """Heatmap with totals per column.
@@ -465,7 +488,7 @@ def matrixplot(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -483,29 +506,33 @@ def matrixplot(
     containing the heatmap and a :class:`~holoviews.Bars` object.
 
     """
-    # TODO: make AdPath inspectable: https://github.com/holoviz-topics/hv-anndata/pull/87
-    if match := re.fullmatch(r"A\.(obs|var)\['(\w+)'\]", str(group_by)):
-        axis, by = cast("tuple[Literal['obs', 'var'], str]", match.groups())
-    else:
+    # TODO: make AdDim inspectable: https://github.com/holoviz-topics/hv-anndata/pull/87
+    if not isinstance(group_by.acc, MetaAcc):
         msg = f"`by` needs to be `A.obs['…']` or `A.var['…']`, got {group_by!r}"
         raise TypeError(msg)
 
     layer = obsm = varm = None
-    if isinstance(data, LayerVecAcc):
+    if isinstance(data, LayerAcc):
         layer = data.k
-    elif not isinstance(data, MultiVecAcc):
+    elif not isinstance(data, MultiAcc):
         msg = (
-            "`data` needs to be `A[:, :]` or `A.{layers,obsm,varm}['…'][:, :]`, "
+            "`data` needs to be `A.X[:, :]` or `A.{layers,obsm,varm}['…'][:, :]`, "
             f"got {data!r}"
         )
         raise TypeError(msg)
-    elif data.ax == "obsm":
+    elif data.dim == "obs":
         obsm = data.k
-    elif data.ax == "varm":
+    elif data.dim == "var":
         varm = data.k
 
     agg = sc.get.aggregate(
-        adata, by, func, axis=axis, layer=layer, obsm=obsm, varm=varm
+        adata,
+        group_by.idx,
+        func,
+        axis=group_by.acc.dim,
+        layer=layer,
+        obsm=obsm,
+        varm=varm,
     )
     agg.var["totals"] = stats.sum(agg.layers[func], axis=0)
     heatmap = hv.HeatMap(
@@ -532,10 +559,7 @@ def _get_categories(
     return vals.unique()
 
 
-_D = TypeVar("_D", bound=hv.core.dimension.Dimensioned)
-
-
-def _add_hover(obj: _D) -> _D:
+def _add_hover[D: hv.core.dimension.Dimensioned](obj: D) -> D:
     if hv.Store.current_backend == "bokeh":
         return obj.opts(tools=["hover"])
     return obj

@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, cast
 import holoviews as hv
 import numpy as np
 import pandas as pd
+from anndata.acc import GraphAcc, MultiAcc
 
-from hv_anndata.accessors import GraphVecAcc, MultiVecAcc
-from hv_anndata.interface import ACCESSOR as A
+from hv_anndata import A
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -15,14 +15,14 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from scipy.sparse import csr_matrix
 
-    from hv_anndata.accessors import AdPath
+    from hv_anndata import AdDim
 
 
 def draw_graph(
     adata: AnnData,
-    kdims: list[AdPath] | MultiVecAcc,
-    edge_vdim: Literal["distances", "connectivities"] | GraphVecAcc = "connectivities",
-    node_vdims: AdPath | list[AdPath] | None = None,
+    kdims: list[AdDim] | MultiAcc,
+    edge_vdim: Literal["distances", "connectivities"] | GraphAcc = "connectivities",
+    node_vdims: AdDim | list[AdDim] | None = None,
     *,
     neighbors_key: str = "neighbors",
 ) -> hv.Graph:
@@ -55,7 +55,7 @@ def draw_graph(
 
         import scanpy as sc
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -79,15 +79,15 @@ def draw_graph(
     """
     adata = adata.copy()
     adata.obs["cell index"] = range(adata.n_obs)
-    if isinstance(kdims, MultiVecAcc):
+    if isinstance(kdims, MultiAcc):
         kdims = [kdims[0], kdims[1]]
     if isinstance(edge_vdim, str):
         edge_vdim = A.obsp[adata.uns[neighbors_key][f"{edge_vdim}_key"]]
-    elif not isinstance(edge_vdim, GraphVecAcc):
+    elif not isinstance(edge_vdim, GraphAcc):
         msg = f"edge_vdim must be a string or `A.obsp[key]`, got {edge_vdim!r}."
         raise TypeError(msg)
 
-    edges = cast("csr_matrix", getattr(adata, edge_vdim.ax)[edge_vdim.k]).tocoo()
+    edges = cast("csr_matrix", getattr(adata, f"{edge_vdim.dim}p")[edge_vdim.k]).tocoo()
     nodes = hv.Nodes(adata, [*kdims, A.obs["cell index"]], node_vdims)
     return hv.Graph(((*edges.coords, edges.data), nodes), vdims=edge_vdim[:, :]).opts(
         edge_color=edge_vdim[:, :]
@@ -96,11 +96,12 @@ def draw_graph(
 
 def ranking(
     adata: AnnData,
-    dim: AdPath,
+    ref: AdDim,
+    /,
     n_points: int = 10,
     *,
     include_lowest: bool = True,
-    label_dim: AdPath | None = None,
+    label_dim: AdDim | None = None,
 ) -> hv.Labels:
     """Plot (e.g. PCA) score ranking.
 
@@ -108,7 +109,7 @@ def ranking(
     ----------
     adata
         Annotated data matrix.
-    dim
+    ref
         Dimension containing scores to rank.
     n_points
         Number of points to plot.
@@ -128,7 +129,7 @@ def ranking(
     ..  holoviews::
 
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 
@@ -139,12 +140,12 @@ def ranking(
         ]).opts(shared_axes=False)
 
     """  # noqa: E501
-    [ax] = dim.axes
+    [dim] = ref.dims
     if label_dim is None:
-        label_dim = getattr(A, ax).index
+        label_dim = getattr(A, dim).index
     # full arrays
-    scores = dim(adata)
-    labels = label_dim(adata)
+    scores = adata[ref]
+    labels = adata[label_dim]
 
     # subset
     idx = np.argsort(scores)
@@ -175,7 +176,7 @@ def ranking(
 
 def embedding_density(
     adata: AnnData,
-    basis: MultiVecAcc,
+    basis: MultiAcc,
     *,
     groupby: str | None = None,
     key: str | None = None,
@@ -200,7 +201,7 @@ def embedding_density(
 
         import scanpy as sc
         import hv_anndata.plotting.scanpy as hv_sc
-        from hv_anndata import data, register, ACCESSOR as A
+        from hv_anndata import data, register, A
 
         register()
 

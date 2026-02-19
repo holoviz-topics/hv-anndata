@@ -7,25 +7,24 @@ name = "hv-anndata"
 readme = "README.md"
 license = "BSD-3-Clause"
 authors = [ { name = "Philipp A.", email = "flying-sheep@web.de" } ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
 dynamic = [ "description", "version" ]
 dependencies = [
-  "anndata",
+  "anndata>=0.13.0.dev0",
   "bokeh",
   "datashader",
   "fast-array-utils",
-  "holoviews>=1.21rc0",
+  "holoviews>=1.21",
   "numpy",
   "pandas",
   "panel",
-  "panel-material-ui>=0.4rc1",
+  "panel-material-ui>=0.4",
   "param",
 ]
 
@@ -39,8 +38,7 @@ envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
 envs.docs.scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
 envs.docs.dependencies = [
   "furo",
-  # Needs https://github.com/holoviz/holoviews/pull/6669
-  "holoviews>=1.22a1",
+  "holoviews>=1.22",
   "ipykernel",
   "ipywidgets",
   "jupyter-bokeh",
@@ -56,12 +54,17 @@ envs.docs.dependencies = [
   "sphinx-issues",
 ]
 envs.hatch-test.dependencies = [
-  "pytest-cov",     # for VS Code’s coverage function (not needed for `hatch test -c`)
+  # for VS Code’s coverage function (not needed for `hatch test -c`)
+  "pytest-cov",
   "nbformat-types",
   "scanpy",
 ]
 metadata.hooks.docstring-description = {}
 version.source = "vcs"
+
+[tool.uv]
+# needs anndata >=0.13.dev0 which has no releases yet
+sources.anndata = { git = "https://github.com/scverse/anndata.git" }
 
 [tool.ruff]
 format.preview = true
@@ -126,6 +129,7 @@ addopts = [ "--import-mode=importlib", "--strict-markers" ]
 filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
+  "default:Probably comparing to a dimension created from `Dimension.name`:FutureWarning",
 ]
 
 [tool.coverage]

@@ -11,6 +11,7 @@ Basic
     :toctree: .
 
     scatter
+    umap
     heatmap
     tracksplot
     violin

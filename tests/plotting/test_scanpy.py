@@ -10,7 +10,7 @@ import scipy.sparse as sps
 from anndata import AnnData
 from holoviews.plotting.renderer import Renderer
 
-from hv_anndata import ACCESSOR as A
+from hv_anndata import A
 from hv_anndata.interface import register, unregister
 from hv_anndata.plotting import scanpy as pl
 

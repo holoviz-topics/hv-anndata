@@ -1,4 +1,3 @@
 /hv_anndata.*.rst
-!/hv_anndata.accessors.rst
 !/hv_anndata.plotting.scanpy.rst
 !/hv_anndata.plotting.utils.rst
