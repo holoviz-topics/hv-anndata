@@ -111,6 +111,30 @@ def _scatter(
 
 
 umap = partial(_scatter, A.obsm["X_umap"][:, [0, 1]])
+umap.__doc__ = """\
+Shortcut for a UMAP scatter plot.
+
+See :func:`~hv_anndata.plotting.scanpy.scatter`.
+
+Examples
+--------
+
+..  holoviews::
+
+    import hv_anndata.plotting.scanpy as hv_sc
+    from hv_anndata import data, register, A
+
+    register()
+
+    adata = data.pbmc68k_processed()
+    hv_sc.umap(adata, color=A.obs["bulk_labels"]).opts(
+        cmap="tab10", show_legend=False
+    )
+
+Returns
+-------
+A scatter plot object
+"""
 
 
 def heatmap(

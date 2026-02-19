@@ -14,7 +14,6 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 from anndata import AnnData
-from anndata.compat import CSArray, CSMatrix
 from holoviews.core.data.interface import DataError
 from pandas.api.extensions import ExtensionArray
 
@@ -178,8 +177,6 @@ def test_get_values_grid(
             data, ad_dim, expanded=expanded, flat=flat, keep_index=False
         )
     if vals is not None:
-        if isinstance(vals, CSArray | CSMatrix):
-            vals = vals.toarray()
         if not isinstance(vals, np.ndarray | ExtensionArray):
             pytest.fail(f"Unexpected return type {type(vals)}")
         np.testing.assert_array_equal(vals, expected, strict=True)
