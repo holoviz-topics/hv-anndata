@@ -122,6 +122,12 @@ class AdDim[I](AdRef[I], Dimension):
         return hash((type(self), repr(self)))
 
     def __eq__(self, value: object, /) -> bool | NotImplementedType:
+        if (isinstance(value, str) and self.label == value) or (
+            isinstance(value, Dimension)
+            and not isinstance(value, AdRef)
+            and self.label == value.label
+        ):
+            return True
         if (isinstance(value, str) and self.name == value) or (
             isinstance(value, Dimension)
             and not isinstance(value, AdRef)

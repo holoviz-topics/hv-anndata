@@ -192,10 +192,10 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
 
     # Apply datashading with different approaches for categorical vs continuous
     elif categorical:
-        plot = _apply_categorical_datashading(plot, color_by=color_by.name, cmap=cmap)
+        plot = _apply_categorical_datashading(plot, color_by=color_by.label, cmap=cmap)
     else:
         # For continuous data, take the mean
-        aggregator = ds.mean(color_by.name)
+        aggregator = ds.mean(color_by.label)
         plot = hd.rasterize(plot, aggregator=aggregator)
         plot = hd.dynspread(plot, threshold=0.5, max_px=5)
         plot = plot.opts(

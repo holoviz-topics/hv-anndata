@@ -87,7 +87,7 @@ def draw_graph(
         msg = f"edge_vdim must be a string or `A.obsp[key]`, got {edge_vdim!r}."
         raise TypeError(msg)
 
-    edges = cast("csr_matrix", getattr(adata, edge_vdim.dim)[edge_vdim.k]).tocoo()
+    edges = cast("csr_matrix", getattr(adata, f"{edge_vdim.dim}p")[edge_vdim.k]).tocoo()
     nodes = hv.Nodes(adata, [*kdims, A.obs["cell index"]], node_vdims)
     return hv.Graph(((*edges.coords, edges.data), nodes), vdims=edge_vdim[:, :]).opts(
         edge_color=edge_vdim[:, :]
