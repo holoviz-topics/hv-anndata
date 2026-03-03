@@ -47,6 +47,10 @@ def draw_graph(
         Key in ``adata.uns`` where neighbors are stored.
         Used only if ``edge_vdim`` is ``"distances"``/``"connectivities"``.
 
+    Returns
+    -------
+    Graph with colored edges.
+
     Examples
     --------
 
@@ -71,10 +75,6 @@ def draw_graph(
             show_legend=True,
             legend_position="right",
         )
-
-    Returns
-    -------
-    Graph with colored edges.
 
     """
     adata = adata.copy()
@@ -194,6 +194,10 @@ def embedding_density(
     key
         ``key_added`` as specified in :func:`scanpy.tl.embedding_density`.
 
+    Returns
+    -------
+    Scatter plot if ``groupby is None``, else a layout of scatter plots.
+
     Examples
     --------
 
@@ -208,10 +212,6 @@ def embedding_density(
         adata = data.pbmc68k_processed()
         sc.tl.embedding_density(adata, basis="umap", groupby="phase")
         hv_sc.embedding_density(adata, A.obsm["X_umap"], groupby="phase")
-
-    Returns
-    -------
-    Scatter plot if ``groupby is None``, else a layout of scatter plots.
 
     """
     basis_name = basis.k.removeprefix("X_")

@@ -33,6 +33,10 @@ def highest_expr_genes(
     gene_symbols
         The column name containing gene symbols.
 
+    Returns
+    -------
+    A box-and-whisker plot.
+
     Examples
     --------
 
@@ -45,10 +49,6 @@ def highest_expr_genes(
 
         adata = data.pbmc68k_processed()
         hv_sc.highest_expr_genes(adata, layer="counts")
-
-    Returns
-    -------
-    A box-and-whisker plot.
 
     """
     hxg = utils.highest_expr_genes(adata, n_top, layer=layer, gene_symbols=gene_symbols)
@@ -66,6 +66,10 @@ def highly_variable_genes(adata: AnnData) -> hv.Layout:
     adata
         The AnnData object.
 
+    Returns
+    -------
+    A layout containing two :class:`~holoviews.Scatter` plots,
+
     Examples
     --------
 
@@ -81,10 +85,6 @@ def highly_variable_genes(adata: AnnData) -> hv.Layout:
         sc.pp.highly_variable_genes(adata)
 
         hv_sc.highly_variable_genes(adata)
-
-    Returns
-    -------
-    A layout containing two :class:`~holoviews.Scatter` plots,
     one normalized and one not.
 
     """
@@ -121,6 +121,10 @@ def scrublet_score_distribution(adata: AnnData) -> hv.Layout:
     adata
         The AnnData object.
 
+    Returns
+    -------
+    Layout containing two histograms.
+
     Examples
     --------
 
@@ -137,10 +141,6 @@ def scrublet_score_distribution(adata: AnnData) -> hv.Layout:
         sc.pp.scrublet(adata, adata_sim)
 
         hv_sc.scrublet_score_distribution(adata)
-
-    Returns
-    -------
-    Layout containing two histograms.
 
     """
     labels = dict(

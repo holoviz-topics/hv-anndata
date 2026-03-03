@@ -63,6 +63,10 @@ def scatter(
     color
         The color dimension.
 
+    Returns
+    -------
+    A scatter plot object
+
     Examples
     --------
 
@@ -77,10 +81,6 @@ def scatter(
         hv_sc.scatter(adata, A.X[:, ["PSAP", "C1QA"]], color=A.obs["bulk_labels"]).opts(
             cmap="tab10", show_legend=False
         )
-
-    Returns
-    -------
-    A scatter plot object
 
     """
     try:
@@ -174,6 +174,10 @@ def heatmap(
         Where to add dendrograms to the heatmap: ``True`` for both,
         ``"obs"``/``"var"`` for one, and ``False`` for none.
 
+    Returns
+    -------
+    A heatmap object
+
     Examples
     --------
 
@@ -189,10 +193,6 @@ def heatmap(
         hv_sc.heatmap(
             adata[:, markers], A.X, [A.obs["n_counts"]], add_dendrogram="obs"
         ).opts(hv.opts.HeatMap(xticks=0, aspect=2))
-
-    Returns
-    -------
-    A heatmap object
 
     """
     kdims = (
@@ -234,6 +234,10 @@ def tracksplot(
     color
         The color dimension.
 
+    Returns
+    -------
+    A :class:`~holoviews.NdLayout` containing :class:`~holoviews.Curve` objects.
+
     Examples
     --------
 
@@ -249,10 +253,6 @@ def tracksplot(
         hv_sc.tracksplot(
             adata, A.X[:, markers], color=A.obs["bulk_labels"]
         ).opts(hv.opts.Curve(aspect=20))
-
-    Returns
-    -------
-    A :class:`~holoviews.NdLayout` containing :class:`~holoviews.Curve` objects.
 
     """
     if kdim is None:
@@ -342,6 +342,13 @@ def violin(
     color
         The color dimension.
 
+    Returns
+    -------
+    ``if isinstance(vdims, AdDim):``
+        A :class:`~holoviews.Violin` plot.
+    ``else:``
+        A :class:`~holoviews.Layout` containing :class:`~holoviews.Violin` plots.
+
     Examples
     --------
 
@@ -368,13 +375,6 @@ def violin(
         hv_sc.violin(adata, A.obs["S_score"], color=A.obs["bulk_labels"]).opts(
             width=500, xrotation=30
         )
-
-    Returns
-    -------
-    ``if isinstance(vdims, AdDim):``
-        A :class:`~holoviews.Violin` plot.
-    ``else:``
-        A :class:`~holoviews.Layout` containing :class:`~holoviews.Violin` plots.
 
     """
     if not isinstance(vdims, AdDim):
@@ -408,6 +408,10 @@ def stacked_violin(adata: AnnData, /, xdim: AdDim, ydim: AdDim) -> hv.GridSpace:
     ydim
         The y dimension.
 
+    Returns
+    -------
+    A :class:`~holoviews.GridSpace` containing :class:`~holoviews.Violin` objects.
+
     Examples
     --------
 
@@ -423,10 +427,6 @@ def stacked_violin(adata: AnnData, /, xdim: AdDim, ydim: AdDim) -> hv.GridSpace:
         hv_sc.stacked_violin(
             adata[:, markers], A.var.index, A.obs["bulk_labels"]
         ).opts(hv.opts.Violin(aspect="square"))
-
-    Returns
-    -------
-    A :class:`~holoviews.GridSpace` containing :class:`~holoviews.Violin` objects.
 
     """
     if len(xdim.dims) != 1 or len(ydim.dims) != 1:
@@ -482,6 +482,12 @@ def matrixplot(
     add_totals
         Whether to add totals per group.
 
+    Returns
+    -------
+    A heatmap.
+    If ``add_totals`` is True, a :class:`~holoviews.AdjointLayout` is returned
+    containing the heatmap and a :class:`~holoviews.Bars` object.
+
     Examples
     --------
 
@@ -498,12 +504,6 @@ def matrixplot(
             adata[:, markers], A.obs["bulk_labels"], data=A.layers["counts"],
             add_totals=True
         )
-
-    Returns
-    -------
-    A heatmap.
-    If ``add_totals`` is True, a :class:`~holoviews.AdjointLayout` is returned
-    containing the heatmap and a :class:`~holoviews.Bars` object.
 
     """
     # TODO: make AdDim inspectable: https://github.com/holoviz-topics/hv-anndata/pull/87

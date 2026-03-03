@@ -30,6 +30,11 @@ def highest_expr_genes(
     gene_symbols
         The ``.var`` column name containing gene symbols.
 
+    Returns
+    -------
+    A :class:`~anndata.AnnData` object containing normalized expressions
+    for the top ``n_top`` genes.
+
     Examples
     --------
 
@@ -45,11 +50,6 @@ def highest_expr_genes(
         hv.HeatMap(adata_hi_expr, [A.obs.index, A.var.index], A.X[:, :]).opts(
             xrotation=30
         )
-
-    Returns
-    -------
-    A :class:`~anndata.AnnData` object containing normalized expressions
-    for the top ``n_top`` genes.
 
     """
     norm_expr = sc.pp.normalize_total(
