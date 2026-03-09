@@ -69,6 +69,7 @@ def highly_variable_genes(adata: AnnData) -> hv.Layout:
     Returns
     -------
     A layout containing two :class:`~holoviews.Scatter` plots,
+    one normalized and one not.
 
     Examples
     --------
@@ -85,7 +86,6 @@ def highly_variable_genes(adata: AnnData) -> hv.Layout:
         sc.pp.highly_variable_genes(adata)
 
         hv_sc.highly_variable_genes(adata)
-    one normalized and one not.
 
     """
     d1, d2 = (
