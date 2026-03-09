@@ -182,16 +182,29 @@ def test_get_values_grid(
         np.testing.assert_array_equal(vals, expected, strict=True)
 
 
+def _nm(o: object) -> str:
+    if isinstance(o, slice):
+        return f"slice[{_nm(o.start)}, {_nm(o.stop)}]"
+    return type(o).__name__
+
+
 @pytest.mark.parametrize(
     ("sel_args", "sel_kw"),
     [
         *(
-            pytest.param(*mk_sel(zero), id=f"{sel_name}-{type(zero).__name__}")
+            pytest.param(*mk_sel(zero), id=f"{sel_name}-{_nm(zero)}")
             for sel_name, mk_sel in dict(
                 dict=lambda i: (({A.obs["type"]: i},), {}),
                 kwargs=lambda i: ((), {"obs.type": i}),
             ).items()
-            for zero in [0, slice(0, 1), {0}, [0], lambda vs: vs == 0]
+            for zero in [
+                0,
+                slice(0, 1),
+                slice(0.0, np.int64(1)),
+                {0},
+                [0],
+                lambda vs: vs == 0,
+            ]
         ),
         # TODO: https://github.com/holoviz-topics/hv-anndata/issues/109
         # 1. pytest.param(hv.dim(A.obs["type"]) == 0, {}, id="expression-eq"),

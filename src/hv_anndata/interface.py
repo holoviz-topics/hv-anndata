@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import warnings
 from itertools import product
+from numbers import Number
 from typing import TYPE_CHECKING, TypedDict, cast
 
 import holoviews as hv
@@ -29,7 +30,6 @@ from ._ref import A, AdDim
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
-    from numbers import Number
     from typing import Any, Literal, TypeVar
 
     import pandas as pd
@@ -209,14 +209,15 @@ class AnnDataInterface(hv.core.Interface):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", r"invalid value encountered")
                 match sel.start, sel.stop:
-                    case int(start), int(stop):
+                    case Number() as start, Number() as stop:
                         return (values >= start) & (values < stop)
-                    case int(start), None:
+                    case Number() as start, None:
                         return values >= start
-                    case None, int(stop):
+                    case None, Number() as stop:
                         return values < stop
                     case _:
-                        raise AssertionError
+                        msg = f"Unsupported slice: {sel!r}"
+                        raise AssertionError(msg)
         if isinstance(sel, set | list):
             iter_slcs = []
             for ik in sel:
