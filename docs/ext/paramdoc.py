@@ -167,7 +167,7 @@ def param_skip(  # noqa: PLR0917
         and isinstance(obj, type)
         and issubclass(obj, param.Parameterized)
     ):
-        # HACK: Sphinx incorrectly labels this as a module level discovery  # noqa: E501, FIX004
+        # HACK: Sphinx incorrectly labels this as a module level discovery  # noqa: FIX004
         #       We abuse this skip callback to exclude parameters and
         #       include all methods
         members = [
