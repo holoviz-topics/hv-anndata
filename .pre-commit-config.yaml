@@ -5,17 +5,17 @@ repos:
   - id: trailing-whitespace
   - id: end-of-file-fixer
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.15.10
+  rev: v0.15.11
   hooks:
   - id: ruff-check
     args: [--fix, --preview]
   - id: ruff-format
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: v2.21.0
+  rev: v2.21.1
   hooks:
     - id: pyproject-fmt
 - repo: https://github.com/biomejs/pre-commit
-  rev: v2.4.11
+  rev: v2.4.12
   hooks:
   - id: biome-format
 - repo: https://github.com/kynan/nbstripout
