@@ -73,7 +73,7 @@ def test_create_manifoldmap_plot_no_datashading(
     assert plot_opts["padding"] == 0
     assert len(plot_opts["tools"]) == 3
     assert "hover" in plot_opts["tools"]
-    assert plot_opts["legend_position"] == "right"
+    assert plot_opts["legend_position"] == "bottom_right"
     assert plot_opts["min_width"] == 300
     assert plot_opts["min_height"] == 300
     assert plot_opts["responsive"]
@@ -186,6 +186,10 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         responsive=True,
         ls=None,
         labeller_opts={},
+        legend_position="bottom_right",
+        legend_alpha=0.6,
+        legend_font_size=8,
+        legend_ncols=1,
     )
 
 
