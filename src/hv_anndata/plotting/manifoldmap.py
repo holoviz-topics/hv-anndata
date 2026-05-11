@@ -182,7 +182,8 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
             LassoSelectTool(persistent=True),
         ],
         show_legend=show_legend,
-        legend_position="right",
+        legend_position="bottom_right",
+        legend_opts={"background_fill_alpha": 0.6},
     )
 
     # Apply different rendering based on configuration
@@ -288,7 +289,8 @@ def _apply_categorical_datashading(
         # Don't include the selector heading
         selector_in_hovertool=False,
         show_legend=True,
-        legend_position="right",
+        legend_position="bottom_right",
+        legend_opts={"background_fill_alpha": 0.6},
     )
 
 
