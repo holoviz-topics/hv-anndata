@@ -78,6 +78,8 @@ class ManifoldMapConfig(TypedDict, total=False):
     ls: link_selections | None
     """Operation and plot options for the labeller"""
     labeller_opts: dict[str, Any]
+    legend_position: str
+    """Bokeh legend position (default: "bottom_right")"""
 
 
 def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
@@ -131,6 +133,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     streams = config.get("streams", [])
     ls = config.get("ls")
     labeller_opts = config.get("labeller_opts")
+    legend_position = config.get("legend_position", "bottom_right")
 
     color_data = adata[color_by]
 
@@ -182,7 +185,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
             LassoSelectTool(persistent=True),
         ],
         show_legend=show_legend,
-        legend_position="bottom_right",
+        legend_position=legend_position,
         legend_opts={"background_fill_alpha": 0.6},
     )
 
@@ -194,7 +197,12 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     # Apply datashading with different approaches for categorical vs continuous
     # TODO: change once https://github.com/holoviz/holoviews/issues/6799 is fixed
     elif categorical:
-        plot = _apply_categorical_datashading(plot, color_by=color_by.name, cmap=cmap)
+        plot = _apply_categorical_datashading(
+            plot,
+            color_by=color_by.name,
+            cmap=cmap,
+            legend_position=legend_position,
+        )
     else:
         # For continuous data, take the mean
         aggregator = ds.mean(color_by.name)
@@ -249,7 +257,11 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
 
 
 def _apply_categorical_datashading(
-    plot: hv.Element, *, color_by: str, cmap: Sequence[str]
+    plot: hv.Element,
+    *,
+    color_by: str,
+    cmap: Sequence[str],
+    legend_position: str = "bottom_right",
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -261,6 +273,8 @@ def _apply_categorical_datashading(
         Name of the color variable
     cmap
         Colormap to use
+    legend_position
+        Position for the legend
 
     Returns
     -------
@@ -289,7 +303,7 @@ def _apply_categorical_datashading(
         # Don't include the selector heading
         selector_in_hovertool=False,
         show_legend=True,
-        legend_position="bottom_right",
+        legend_position=legend_position,
         legend_opts={"background_fill_alpha": 0.6},
     )
 
@@ -393,6 +407,9 @@ class ManifoldMap(pn.viewable.Viewer):
     )
     plot_opts: dict = param.Dict(  # type: ignore[assignment]
         default={}, doc="HoloViews plot options for the manifoldmap plot"
+    )
+    legend_position: str = param.String(  # type: ignore[assignment]
+        default="bottom_right", doc="Bokeh legend position"
     )
     labeller_opts: dict = param.Dict(  # type: ignore[assignment]
         default={}, doc="Operation and plot options for the labeller"
@@ -586,6 +603,7 @@ class ManifoldMap(pn.viewable.Viewer):
             streams=self.streams,
             ls=self.ls,
             labeller_opts=self.labeller_opts,
+            legend_position=self.legend_position,
         )
 
         self.plot = create_manifoldmap_plot(
