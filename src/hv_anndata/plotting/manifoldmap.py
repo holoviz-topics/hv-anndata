@@ -78,6 +78,14 @@ class ManifoldMapConfig(TypedDict, total=False):
     ls: link_selections | None
     """Operation and plot options for the labeller"""
     labeller_opts: dict[str, Any]
+    legend_position: str
+    """Bokeh legend position (default: "bottom_right")"""
+    legend_alpha: float
+    """Legend background opacity (default: 0.6)"""
+    legend_font_size: str
+    """Legend label font size (default: "8pt")"""
+    legend_ncols: int
+    """Number of legend columns (default: 1)"""
 
 
 def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
@@ -131,6 +139,10 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     streams = config.get("streams", [])
     ls = config.get("ls")
     labeller_opts = config.get("labeller_opts")
+    legend_position = config.get("legend_position", "bottom_right")
+    legend_alpha = config.get("legend_alpha", 0.6)
+    legend_font_size = config.get("legend_font_size", 8)
+    legend_ncols = config.get("legend_ncols", 1)
 
     color_data = adata[color_by]
 
@@ -182,7 +194,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
             LassoSelectTool(persistent=True),
         ],
         show_legend=show_legend,
-        legend_position="right",
+        legend_position=legend_position,
     )
 
     # Apply different rendering based on configuration
@@ -193,7 +205,12 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     # Apply datashading with different approaches for categorical vs continuous
     # TODO: change once https://github.com/holoviz/holoviews/issues/6799 is fixed
     elif categorical:
-        plot = _apply_categorical_datashading(plot, color_by=color_by.name, cmap=cmap)
+        plot = _apply_categorical_datashading(
+            plot,
+            color_by=color_by.name,
+            cmap=cmap,
+            legend_position=legend_position,
+        )
     else:
         # For continuous data, take the mean
         aggregator = ds.mean(color_by.name)
@@ -244,11 +261,23 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
         final_kwargs["ylabel"] = yaxis_label
 
     # Apply final options to the plot
-    return plot.opts(title=title, show_legend=show_legend, **final_kwargs)
+    final_opts = dict(title=title, show_legend=show_legend, **final_kwargs)
+    if show_legend:
+        final_opts["legend_cols"] = legend_ncols
+        final_opts["legend_opts"] = {
+            "background_fill_alpha": legend_alpha,
+            "border_line_alpha": legend_alpha,
+            "label_text_font_size": f"{legend_font_size}pt",
+        }
+    return plot.opts(**final_opts)
 
 
 def _apply_categorical_datashading(
-    plot: hv.Element, *, color_by: str, cmap: Sequence[str]
+    plot: hv.Element,
+    *,
+    color_by: str,
+    cmap: Sequence[str],
+    legend_position: str = "bottom_right",
 ) -> hv.Element:
     """Apply datashading to categorical data.
 
@@ -260,6 +289,8 @@ def _apply_categorical_datashading(
         Name of the color variable
     cmap
         Colormap to use
+    legend_position
+        Position for the legend
 
     Returns
     -------
@@ -288,7 +319,7 @@ def _apply_categorical_datashading(
         # Don't include the selector heading
         selector_in_hovertool=False,
         show_legend=True,
-        legend_position="right",
+        legend_position=legend_position,
     )
 
 
@@ -391,6 +422,39 @@ class ManifoldMap(pn.viewable.Viewer):
     )
     plot_opts: dict = param.Dict(  # type: ignore[assignment]
         default={}, doc="HoloViews plot options for the manifoldmap plot"
+    )
+    legend_position: str = param.Selector(  # type: ignore[assignment]
+        default="bottom_right",
+        objects=[
+            "top_left",
+            "top_center",
+            "top_right",
+            "center_left",
+            "center",
+            "center_right",
+            "bottom_left",
+            "bottom_center",
+            "bottom_right",
+            "right",
+            "left",
+        ],
+        doc="Bokeh legend position",
+    )
+    legend_alpha: float = param.Number(  # type: ignore[assignment]
+        default=0.6,
+        bounds=(0, 1),
+        step=0.1,
+        doc="Legend background opacity",
+    )
+    legend_font_size: int = param.Integer(  # type: ignore[assignment]
+        default=8,
+        bounds=(5, 14),
+        doc="Legend label font size in pt",
+    )
+    legend_ncols: int = param.Integer(  # type: ignore[assignment]
+        default=1,
+        bounds=(1, 4),
+        doc="Number of legend columns",
     )
     labeller_opts: dict = param.Dict(  # type: ignore[assignment]
         default={}, doc="Operation and plot options for the labeller"
@@ -584,6 +648,10 @@ class ManifoldMap(pn.viewable.Viewer):
             streams=self.streams,
             ls=self.ls,
             labeller_opts=self.labeller_opts,
+            legend_position=self.legend_position,
+            legend_alpha=self.legend_alpha,
+            legend_font_size=self.legend_font_size,
+            legend_ncols=self.legend_ncols,
         )
 
         self.plot = create_manifoldmap_plot(
@@ -613,6 +681,10 @@ class ManifoldMap(pn.viewable.Viewer):
         "_replot",
         "plot_opts",
         "color_by",
+        "legend_position",
+        "legend_alpha",
+        "legend_font_size",
+        "legend_ncols",
     )
     def _plot_view(self) -> hv.Element:
         plot = self.create_plot(
@@ -691,6 +763,32 @@ class ManifoldMap(pn.viewable.Viewer):
             pmui.widgets.Checkbox.from_param(
                 self.param.show_labels,
                 description="Overlay labels for categorical coloring",
+                sizing_mode="stretch_width",
+                visible=self.param._categorical,  # noqa: SLF001
+            ),
+            pmui.Details(
+                pmui.widgets.Select.from_param(
+                    self.param.legend_position,
+                    sizing_mode="stretch_width",
+                ),
+                pn.widgets.FloatSlider.from_param(
+                    self.param.legend_alpha,
+                    name="Legend Opacity",
+                    sizing_mode="stretch_width",
+                    value_throttled=self.param.legend_alpha,
+                ),
+                pmui.widgets.IntSlider.from_param(
+                    self.param.legend_font_size,
+                    name="Font Size (pt)",
+                    sizing_mode="stretch_width",
+                    value_throttled=self.param.legend_font_size,
+                ),
+                pmui.widgets.IntSlider.from_param(
+                    self.param.legend_ncols,
+                    sizing_mode="stretch_width",
+                    value_throttled=self.param.legend_ncols,
+                ),
+                title="Legend Options",
                 sizing_mode="stretch_width",
                 visible=self.param._categorical,  # noqa: SLF001
             ),
