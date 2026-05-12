@@ -261,17 +261,15 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
         final_kwargs["ylabel"] = yaxis_label
 
     # Apply final options to the plot
-    return plot.opts(
-        title=title,
-        show_legend=show_legend,
-        legend_cols=legend_ncols,
-        legend_opts={
+    final_opts = dict(title=title, show_legend=show_legend, **final_kwargs)
+    if show_legend:
+        final_opts["legend_cols"] = legend_ncols
+        final_opts["legend_opts"] = {
             "background_fill_alpha": legend_alpha,
             "border_line_alpha": legend_alpha,
             "label_text_font_size": f"{legend_font_size}pt",
-        },
-        **final_kwargs,
-    )
+        }
+    return plot.opts(**final_opts)
 
 
 def _apply_categorical_datashading(

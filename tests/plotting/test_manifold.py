@@ -189,7 +189,7 @@ def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
         legend_position="bottom_right",
         legend_alpha=0.6,
         legend_font_size=8,
-        legend_cols=1,
+        legend_ncols=1,
     )
 
 
