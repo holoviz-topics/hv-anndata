@@ -264,7 +264,7 @@ def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
     return plot.opts(
         title=title,
         show_legend=show_legend,
-        legend_ncols=legend_ncols,
+        legend_cols=legend_ncols,
         legend_opts={
             "background_fill_alpha": legend_alpha,
             "border_line_alpha": legend_alpha,
