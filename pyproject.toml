@@ -28,6 +28,32 @@ dependencies = [
   "param",
 ]
 
+[dependency-groups]
+dev = [ { include-group = "test" } ]
+test = [
+  "nbformat-types",
+  # for VS Code’s coverage function (not needed for `hatch test -c`)
+  "pytest-cov",
+  "scanpy",
+]
+docs = [
+  "furo",
+  "holoviews>=1.22",
+  "ipykernel",
+  "ipywidgets",
+  "jupyter-bokeh",
+  "myst-nb",
+  "plotly",
+  "pooch",
+  "scanpy[scrublet]",
+  "scanpydoc",
+  "sphinx",
+  "sphinx-autodoc-typehints",
+  "sphinx-design",
+  "sphinx-exec-jupyter[holoviews] @ git+https://github.com/flying-sheep/sphinx-exec-jupyter.git",
+  "sphinx-issues",
+]
+
 [tool.hatch]
 envs.default.dependencies = [ "ipykernel" ]
 envs.default.installer = "uv"
@@ -36,29 +62,8 @@ envs.docs.scripts.build = "sphinx-build -b html docs docs/_build/html -W {args}"
 envs.docs.scripts.open = "python -m webbrowser {args:docs/_build/html/index.html}"
 envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
 envs.docs.scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
-envs.docs.dependencies = [
-  "furo",
-  "holoviews>=1.22",
-  "ipykernel",
-  "ipywidgets",
-  "jupyter-bokeh",
-  "myst-nb",
-  "pooch",
-  "plotly",
-  "scanpy[scrublet]",
-  "scanpydoc",
-  "sphinx",
-  "sphinx-autodoc-typehints",
-  "sphinx-exec-jupyter[holoviews] @ git+https://github.com/flying-sheep/sphinx-exec-jupyter.git",
-  "sphinx-design",
-  "sphinx-issues",
-]
-envs.hatch-test.dependencies = [
-  # for VS Code’s coverage function (not needed for `hatch test -c`)
-  "pytest-cov",
-  "nbformat-types",
-  "scanpy",
-]
+envs.docs.dependency-groups = [ "docs" ]
+envs.hatch-test.dependency-groups = [ "test" ]
 metadata.hooks.docstring-description = {}
 version.source = "vcs"
 
