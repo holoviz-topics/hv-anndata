@@ -58,7 +58,7 @@ envs.hatch-test.dependencies = [
   "pytest-cov",
   "nbformat-types",
   "scanpy",
-  "holoviews>=1.23.0rc0",  # Can be removed from final release
+  "holoviews>=1.23.0rc0", # Can be removed from final release
 ]
 metadata.hooks.docstring-description = {}
 version.source = "vcs"
