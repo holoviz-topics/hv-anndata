@@ -10,6 +10,8 @@ env:
   FORCE_COLOR: "1"
   UV_CONSTRAINT: "${{ github.workspace }}/.github/constraints.txt"
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
@@ -24,15 +26,18 @@ jobs:
         python-version: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v6
-        with: { fetch-depth: 0, filter: blob:none }
-      - uses: astral-sh/setup-uv@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv tool install hatch
       - run: hatch -v env create hatch-test.py${{ matrix.python-version }}
       - run: hatch test --cover --python=${{ matrix.python-version }}
       - run: hatch env run --env hatch-test.py${{ matrix.python-version }} -- coverage xml
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
           use_oidc: true
