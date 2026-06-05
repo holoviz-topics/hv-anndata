@@ -35,6 +35,7 @@ test = [
   # for VS Code’s coverage function (not needed for `hatch test -c`)
   "pytest-cov",
   "scanpy",
+  "holoviews>=1.23.0rc0", # Can be removed from final release
 ]
 docs = [
   "furo",
@@ -134,7 +135,6 @@ addopts = [ "--import-mode=importlib", "--strict-markers" ]
 filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
-  "default:Probably comparing to a dimension created from `Dimension.name`:FutureWarning",
 ]
 
 [tool.coverage]
