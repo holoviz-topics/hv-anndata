@@ -376,7 +376,7 @@ class AnnDataInterface(hv.core.Interface):
         for k in dimensions:
             dim = cls._dim(dataset, k)
             cls.validate_selection_dim(dim, "group")
-            values[k] = unique_iterator(adata[dim])
+            values[dim] = unique_iterator(adata[dim])
 
         # Get dimensions information
         dimensions = [dataset.get_dimension(d) for d in dimensions]

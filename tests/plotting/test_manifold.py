@@ -107,11 +107,11 @@ def test_create_manifoldmap_plot_datashading(
     dop = el.pipeline.find(dynspread, skip_nonlinked=False)
     if color_kind == "categorical":
         assert rop.name.startswith("datashade")
-        assert rop.aggregator.cat_column == by
+        assert rop.aggregator.cat_column == by.name
     elif color_kind == "continuous":
         assert rop.name.startswith("rasterize")
         assert type(rop.aggregator).__name__ == "mean"
-        assert rop.aggregator.column == by
+        assert rop.aggregator.column == by.name
     assert dop.name.startswith("dynspread")
     assert dop.threshold == pytest.approx(0.5)
 
