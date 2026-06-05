@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from functools import partial
 from importlib.metadata import metadata
 from pathlib import Path
 from subprocess import run
@@ -64,31 +63,12 @@ nb_execution_show_tb = True
 nb_execution_timeout = 30  # seconds
 
 holoviews_backends = ["bokeh", "matplotlib", "plotly"]
+exec_jupyter_code = "import hv_anndata"
+exec_jupyter_kernel = "hv-anndata"
+
+run(["hatch", "-v", "run", "docs:install-kernel"], check=True)
 
 # autodoc/autosummary
 autodoc_default_options = {
     "members": False,
 }
-
-
-# https://github.com/executablebooks/MyST-NB/issues/574
-def _patch_myst_nb() -> None:
-    from jupyter_cache.executors import (  # type: ignore[import-not-found]  # noqa: PLC0415
-        utils,
-    )
-    from myst_nb.core.execute import (  # type: ignore[import-not-found]  # noqa: PLC0415
-        cache,
-        direct,
-    )
-
-    run(
-        ["hatch", "-v", "run", "docs:install-kernel"],
-        check=True,
-    )
-
-    cache.single_nb_execution = direct.single_nb_execution = partial(
-        utils.single_nb_execution, kernel_name="hv-anndata"
-    )
-
-
-_patch_myst_nb()
