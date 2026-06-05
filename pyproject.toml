@@ -31,11 +31,11 @@ dependencies = [
 [dependency-groups]
 dev = [ { include-group = "test" } ]
 test = [
+  "holoviews>=1.23.0rc0", # Can be removed from final release
   "nbformat-types",
   # for VS Code’s coverage function (not needed for `hatch test -c`)
   "pytest-cov",
   "scanpy",
-  "holoviews>=1.23.0rc0", # Can be removed from final release
 ]
 docs = [
   "furo",
