@@ -13,7 +13,7 @@
    .. autosummary::
       :toctree: .
    {% for item in attributes %}
-      {% if has_member(fullname, item) %}
+      {% if has_member(fullname, item) and not is_inherited(fullname, item) %}
       ~{{ name }}.{{ item }}
       {% endif %}
    {%- endfor %}
