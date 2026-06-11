@@ -56,17 +56,17 @@ docs = [
 ]
 
 [tool.hatch]
-envs.default.dependencies = [ "ipykernel" ]
-envs.default.installer = "uv"
+version.source = "vcs"
+metadata.hooks.docstring-description = {}
 envs.default.python = "3.13"
+envs.default.installer = "uv"
+envs.default.dependencies = [ "ipykernel" ]
 envs.docs.scripts.build = "sphinx-build -b html docs docs/_build/html -W {args}"
-envs.docs.scripts.open = "python -m webbrowser {args:docs/_build/html/index.html}"
 envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
 envs.docs.scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
+envs.docs.scripts.open = "python -m webbrowser {args:docs/_build/html/index.html}"
 envs.docs.dependency-groups = [ "docs" ]
 envs.hatch-test.dependency-groups = [ "test" ]
-metadata.hooks.docstring-description = {}
-version.source = "vcs"
 
 [tool.uv]
 # needs anndata >=0.13.dev0 which has no releases yet
@@ -130,12 +130,12 @@ lint.pylint.max-positional-args = 4
 lint.pydoclint.ignore-one-line-docstrings = true
 
 [tool.pytest]
-strict = true
 addopts = [ "--import-mode=importlib", "--strict-markers" ]
 filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
 ]
+strict = true
 
 [tool.coverage]
 run.branch = true

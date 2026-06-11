@@ -31,8 +31,10 @@ def _renderer(backend: str) -> Iterator[Renderer]:
     renderer = hv.renderer(backend)
     old_backend = hv.Store.current_backend
     hv.Store.set_current_backend(backend)
-    yield renderer
-    hv.Store.set_current_backend(old_backend)
+    try:
+        yield renderer
+    finally:
+        hv.Store.set_current_backend(old_backend)
 
 
 @pytest.fixture
