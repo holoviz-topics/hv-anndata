@@ -60,7 +60,7 @@ napoleon_use_param = True
 # myst_nb settings
 nb_execution_mode = "cache"
 nb_execution_show_tb = True
-nb_execution_timeout = 30  # seconds
+nb_execution_timeout = 60  # seconds
 
 holoviews_backends = ["bokeh", "matplotlib", "plotly"]
 exec_jupyter_code = "import hv_anndata"
