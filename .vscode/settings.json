@@ -22,4 +22,6 @@
 	"ruff.lint.preview": true,
 	"evenBetterToml.formatter.compactArrays": false,
 	"evenBetterToml.formatter.arrayAutoCollapse": false,
+	"python-envs.defaultEnvManager": "pypa.hatch:hatch",
+	"python-envs.defaultPackageManager": "pypa.hatch:hatch",
 }
