@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 __all__ = ["A", "AdDim"]
 
 
-def mk_label[I](p: AdRef[I], /) -> str | None:
+def mk_label[I, D](p: AdRef[I, D], /) -> str | None:
     match p.acc:
         case MultiAcc():
             return f"{p.acc.k} {p.idx}"
@@ -40,10 +40,10 @@ def mk_label[I](p: AdRef[I], /) -> str | None:
             raise AssertionError(msg)
 
 
-class AdDim[I](AdRef[I], Dimension):
+class AdDim[I, D](AdRef[I, D], Dimension):
     """An AnnData reference that can be used as a dimension."""
 
-    def __init__(self, acc: RefAcc[Self, I], idx: I, /, **params: object) -> None:
+    def __init__(self, acc: RefAcc[Self, I, D], idx: I, /, **params: object) -> None:
         AdRef.__init__(self, acc, idx)
         spec = params.pop("spec", repr(self))
         if "label" not in params and (label := mk_label(self)):
