@@ -51,7 +51,7 @@ docs = [
   "sphinx",
   "sphinx-autodoc-typehints",
   "sphinx-design",
-  "sphinx-exec-jupyter[holoviews] @ git+https://github.com/flying-sheep/sphinx-exec-jupyter.git@fork",
+  "sphinx-exec-jupyter[holoviews] @ git+https://github.com/flying-sheep/sphinx-exec-jupyter.git",
   "sphinx-issues",
 ]
 
