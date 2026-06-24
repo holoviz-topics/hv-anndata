@@ -337,7 +337,7 @@ class AnnDataInterface(hv.core.Interface):
         cls,
         dataset: Dataset,
         kdims: list[Dimension | str],
-        function: Callable[ValueType, ValueType],
+        function: Callable[[ValueType], ValueType],
         **kwargs: Any,  # noqa: ANN401
     ) -> tuple[pd.DataFrame, list[Dimension]]:
         """Aggregate the current view."""
