@@ -506,7 +506,6 @@ def matrixplot(
         )
 
     """
-    # TODO: make AdDim inspectable: https://github.com/holoviz-topics/hv-anndata/pull/87
     if not isinstance(group_by.acc, MetaAcc):
         msg = f"`by` needs to be `A.obs['…']` or `A.var['…']`, got {group_by!r}"
         raise TypeError(msg)
