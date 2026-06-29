@@ -40,7 +40,7 @@ test = [
 ]
 docs = [
   "furo",
-  "holoviews>=1.22",
+  "hv-anndata[panel]",
   "ipykernel",
   "ipywidgets",
   "jupyter-bokeh",
