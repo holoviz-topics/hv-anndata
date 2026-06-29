@@ -16,13 +16,15 @@ classifiers = [
 ]
 dynamic = [ "description", "version" ]
 dependencies = [
-  "anndata>=0.13.0.dev0",
-  "bokeh",
-  "datashader",
-  "fast-array-utils",
-  "holoviews>=1.21",
+  "anndata>=0.13rc3",
+  "fast-array-utils[accel]",
+  "holoviews>=1.23",
   "numpy",
   "pandas",
+]
+optional-dependencies.panel = [
+  "bokeh",
+  "datashader",
   "panel",
   "panel-material-ui>=0.4",
   "param",
@@ -31,7 +33,6 @@ dependencies = [
 [dependency-groups]
 dev = [ { include-group = "test" } ]
 test = [
-  "holoviews>=1.23.0rc0", # Can be removed from final release
   "nbformat-types",
   # for VS Code’s coverage function (not needed for `hatch test -c`)
   "pytest-cov",
@@ -39,7 +40,7 @@ test = [
 ]
 docs = [
   "furo",
-  "holoviews>=1.22",
+  "hv-anndata[panel]",
   "ipykernel",
   "ipywidgets",
   "jupyter-bokeh",
@@ -57,7 +58,7 @@ docs = [
 
 [tool.hatch]
 version.source = "vcs"
-metadata.hooks.docstring-description = {}
+# metadata.hooks.docstring-description = {}  # https://github.com/pypa/hatch/issues/2252
 envs.default.python = "3.13"
 envs.default.installer = "uv"
 envs.default.dependencies = [ "ipykernel" ]
@@ -66,11 +67,14 @@ envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
 envs.docs.scripts.install-kernel = "python -m ipykernel install --user --name=hv-anndata --display-name=hv-anndata"
 envs.docs.scripts.open = "python -m webbrowser {args:docs/_build/html/index.html}"
 envs.docs.dependency-groups = [ "docs" ]
+envs.hatch-test.matrix = [
+  { python = [ "3.14", "3.12" ], feature-set = [ "full" ] },
+  { python = [ "3.14" ], feature-set = [ "min", "full" ] },
+]
+envs.hatch-test.overrides.matrix.feature-set.features = [
+  { value = "panel", if = [ "full" ] },
+]
 envs.hatch-test.dependency-groups = [ "test" ]
-
-[tool.uv]
-# needs anndata >=0.13.dev0 which has no releases yet
-sources.anndata = { git = "https://github.com/scverse/anndata.git" }
 
 [tool.ruff]
 format.preview = true
@@ -130,10 +134,11 @@ lint.pylint.max-positional-args = 4
 lint.pydoclint.ignore-one-line-docstrings = true
 
 [tool.pytest]
-addopts = [ "--import-mode=importlib", "--strict-markers" ]
+addopts = [ "--import-mode=importlib" ]
 filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
+  "ignore:FNV hashing is not implemented in Numba:UserWarning",
 ]
 strict = true
 

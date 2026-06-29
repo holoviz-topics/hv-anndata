@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 from itertools import product
 from numbers import Number
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import holoviews as hv
 import numpy as np
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal, TypeVar
 
     import pandas as pd
+    from anndata.typing import AxisStorable
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray
     from pandas.api.extensions import ExtensionDtype
@@ -202,9 +203,7 @@ class AnnDataInterface(hv.core.Interface):
         values: np.ndarray | ExtensionArray,
         sel: slice | Sequence[Number] | [[NDArray], NDArray[np.bool_]],
     ) -> np.ndarray:
-        if isinstance(values, NumpyExtensionArray):
-            # they don’t support “bitwise” operators like `&``
-            values = values.to_numpy()
+        values = _simplify_numpy(values)
         if isinstance(sel, slice):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", r"invalid value encountered")
@@ -281,7 +280,7 @@ class AnnDataInterface(hv.core.Interface):
         if flat and values.ndim > 1:
             assert not isinstance(values, ExtensionArray)  # noqa: S101
             values = values.flatten()
-        return values
+        return _simplify_numpy(values)
 
     @classmethod
     def dtype(
@@ -297,14 +296,28 @@ class AnnDataInterface(hv.core.Interface):
         """Get the scalar type for a dimension (e.g. `np.int64`)."""
         return cls.dtype(dataset, ref).type
 
+    @overload
     @classmethod
     def iloc(
         cls, dataset: Dataset, index: tuple[slice[int | None], slice[None]]
-    ) -> AnnData:
+    ) -> AnnData: ...
+    @overload
+    @classmethod
+    def iloc(
+        cls, dataset: Dataset, index: tuple[slice[int | None], int]
+    ) -> ValueType: ...
+
+    @classmethod
+    def iloc(
+        cls, dataset: Dataset, index: tuple[slice[int | None], slice[None] | int]
+    ) -> AnnData | ValueType:
         """Implement `Dataset.iloc`."""
         rows, cols = index
         dims = cls.dims(dataset)
         adata = cast("AnnData", dataset.data)
+
+        if isinstance(cols, int):
+            return cls.values(dataset, cls._dim(dataset, cols))[rows]
 
         if (idx := cls._iloc_2d(dims, rows, cols)) is not None:
             return adata[idx]
@@ -540,12 +553,16 @@ class AnnDataGriddedInterface(AnnDataInterface):
                 )
                 raise ValueError(error)
 
+        return cls._simplify(values, flat=flat)
+
+    @classmethod
+    def _simplify(cls, values: AxisStorable, *, flat: bool = True) -> ValueType:
         # TODO: move into `flat` branch when this is fixed: https://github.com/holoviz/holoviews/issues/6686
         if issparse(values):
             values = values.toarray()
         if flat and values.ndim > 1:
             values = values.flatten()
-        return values
+        return _simplify_numpy(values)
 
     @classmethod
     def _expand_grid(cls, data: Dataset) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
@@ -561,6 +578,14 @@ class AnnDataGriddedInterface(AnnDataInterface):
         del dim
         del dataset
         return False
+
+
+def _simplify_numpy(values: ValueType) -> ValueType:
+    if isinstance(values, np.ndarray) and type(values) is not np.ndarray:
+        return values.view(np.ndarray)
+    if isinstance(values, NumpyExtensionArray):
+        return values.to_numpy()
+    return values
 
 
 def register() -> None:

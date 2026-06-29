@@ -63,7 +63,10 @@ nb_execution_show_tb = True
 nb_execution_timeout = 60  # seconds
 
 holoviews_backends = ["bokeh", "matplotlib", "plotly"]
-exec_jupyter_code = "import hv_anndata"
+exec_jupyter_code = """
+import hv_anndata, matplotlib
+matplotlib.use('module://matplotlib_inline.backend_inline')
+"""
 exec_jupyter_kernel = "hv-anndata"
 
 run(["hatch", "-v", "run", "docs:install-kernel"], check=True)
