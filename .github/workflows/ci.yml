@@ -23,21 +23,24 @@ jobs:
       id-token: write  # for codecov oidc
     strategy:
       matrix:
-        python-version: ["3.12", "3.14"]
+        include:
+        - { python: "3.12", feats: full }
+        - { python: "3.14", feats: min }
+        - { python: "3.14", feats: full }
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@v8.2.0
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python }}
       - run: uv tool install hatch
-      - run: hatch -v env create hatch-test.py${{ matrix.python-version }}
-      - run: hatch test --cover --python=${{ matrix.python-version }}
-      - run: hatch env run --env hatch-test.py${{ matrix.python-version }} -- coverage xml
-      - uses: codecov/codecov-action@v6
+      - run: hatch -v env create hatch-test.py${{ matrix.python }}-${{ matrix.feats }}
+      - run: hatch test --cover --python=${{ matrix.python }} -i feature-set=${{ matrix.feats }}
+      - run: hatch env run --env hatch-test.py${{ matrix.python }}-${{ matrix.feats }} -- coverage xml
+      - uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           use_oidc: true
