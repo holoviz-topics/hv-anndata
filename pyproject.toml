@@ -58,7 +58,7 @@ docs = [
 
 [tool.hatch]
 version.source = "vcs"
-metadata.hooks.docstring-description = {}
+# metadata.hooks.docstring-description = {}  # https://github.com/pypa/hatch/issues/2252
 envs.default.python = "3.13"
 envs.default.installer = "uv"
 envs.default.dependencies = [ "ipykernel" ]
@@ -134,7 +134,7 @@ lint.pylint.max-positional-args = 4
 lint.pydoclint.ignore-one-line-docstrings = true
 
 [tool.pytest]
-addopts = [ "--import-mode=importlib", "--strict-markers" ]
+addopts = [ "--import-mode=importlib" ]
 filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
