@@ -540,11 +540,18 @@ class AnnDataGriddedInterface(AnnDataInterface):
                 )
                 raise ValueError(error)
 
+        return cls._simplify(values, flat=flat)
+
+    @classmethod
+    def _simplify(cls, values: ValueType, *, flat: bool = True) -> ValueType:
         # TODO: move into `flat` branch when this is fixed: https://github.com/holoviz/holoviews/issues/6686
         if issparse(values):
             values = values.toarray()
         if flat and values.ndim > 1:
             values = values.flatten()
+        # Strip ndarray subclasses so `numpy` functions return scalars as expected
+        if isinstance(values, np.ndarray) and type(values) is not np.ndarray:
+            values = values.view(np.ndarray)
         return values
 
     @classmethod
