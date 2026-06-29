@@ -2,27 +2,15 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 from . import data
 from ._ref import A, AdDim
-from .components import GeneSelector
 from .interface import (
     AnnDataGriddedInterface,
     AnnDataInterface,
     Dims,
     register,
-)
-from .plotting import (
-    ClusterMap,
-    ClusterMapConfig,
-    Dotmap,
-    DotmapParams,
-    ManifoldMap,
-    ManifoldMapConfig,
-    create_clustermap_plot,
-    create_manifoldmap_plot,
-    dotmap_from_manifoldmap,
-    labeller,
-    scanpy,
 )
 
 A = A  # noqa: PLW0127, RUF067
@@ -38,19 +26,38 @@ __all__ = [
     "AdDim",
     "AnnDataGriddedInterface",
     "AnnDataInterface",
-    "ClusterMap",
-    "ClusterMapConfig",
     "Dims",
-    "Dotmap",
-    "DotmapParams",
-    "GeneSelector",
-    "ManifoldMap",
-    "ManifoldMapConfig",
-    "create_clustermap_plot",
-    "create_manifoldmap_plot",
     "data",
-    "dotmap_from_manifoldmap",
-    "labeller",
     "register",
-    "scanpy",
 ]
+
+with suppress(ImportError):  # noqa: RUF067
+    from .components import GeneSelector
+    from .plotting import (
+        ClusterMap,
+        ClusterMapConfig,
+        Dotmap,
+        DotmapParams,
+        ManifoldMap,
+        ManifoldMapConfig,
+        create_clustermap_plot,
+        create_manifoldmap_plot,
+        dotmap_from_manifoldmap,
+        labeller,
+        scanpy,
+    )
+
+    __all__ += [
+        "ClusterMap",
+        "ClusterMapConfig",
+        "Dotmap",
+        "DotmapParams",
+        "GeneSelector",
+        "ManifoldMap",
+        "ManifoldMapConfig",
+        "create_clustermap_plot",
+        "create_manifoldmap_plot",
+        "dotmap_from_manifoldmap",
+        "labeller",
+        "scanpy",
+    ]
