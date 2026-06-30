@@ -11,6 +11,8 @@ on:
   schedule:
     - cron: '0 15 * * SUN'
 
+permissions: {}
+
 env:
   PYTHON_VERSION: "3.14"
 
