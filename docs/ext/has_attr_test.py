@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from jinja2.defaults import DEFAULT_NAMESPACE
 from jinja2.utils import import_string
+from sphinx.util.typing import ExtensionMetadata
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -32,8 +33,9 @@ def is_inherited(obj_path: str, attr: str) -> bool:
     )
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> ExtensionMetadata:
     """App setup hook."""
     del app
     DEFAULT_NAMESPACE["has_member"] = has_member
     DEFAULT_NAMESPACE["is_inherited"] = is_inherited
+    return ExtensionMetadata(parallel_read_safe=True)

@@ -9,6 +9,7 @@
    :toctree: .
 
    A
+   AdDim
    AnnDataInterface
    Dims
    register

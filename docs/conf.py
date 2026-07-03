@@ -32,17 +32,17 @@ extensions = [
     "myst_nb",
     "paramdoc",
     "has_attr_test",
+    "napoleon_attrdoc_fix",
 ]
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 nitpicky = True
 suppress_warnings = [
     "mystnb.unknown_mime_type",
-    "ref.class",  # auto-generated docs
 ]
 
 intersphinx_mapping = dict(
-    anndata=("https://anndata.readthedocs.io/en/stable/", None),
+    anndata=("https://anndata.readthedocs.io/en/latest/", None),
     holoviews=("https://holoviews.org/", None),
     numpy=("https://numpy.org/doc/stable/", None),
     pandas=("https://pandas.pydata.org/pandas-docs/stable/", None),

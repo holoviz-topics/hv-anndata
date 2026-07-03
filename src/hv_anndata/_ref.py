@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, cast, overload
 from anndata.acc import AdAcc, AdRef, GraphAcc, LayerAcc, MetaAcc, MultiAcc
 from holoviews.core.dimension import Dimension
 
+from ._api_utils import set_module
+
 if TYPE_CHECKING:
     from types import NotImplementedType
     from typing import Literal, Self
@@ -40,6 +42,7 @@ def mk_label[I, D](p: AdRef[I, D], /) -> str | None:
             raise AssertionError(msg)
 
 
+@set_module("hv_anndata")
 class AdDim[I, D](AdRef[I, D], Dimension):
     """An AnnData reference that can be used as a dimension."""
 
