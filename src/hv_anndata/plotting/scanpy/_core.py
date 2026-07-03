@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
 from typing import TYPE_CHECKING, overload
 
 import holoviews as hv
@@ -98,43 +97,38 @@ def scatter(
     return sc.opts(aspect="square", legend_position="right")
 
 
-def _scatter(
-    kdims: Collection[AdDim],
+def umap(
     adata: AnnData,
     /,
     vdims: Collection[AdDim] = (),
     *,
     color: AdDim | None = None,
 ) -> hv.Scatter:
-    __tracebackhide__ = True
-    return scatter(adata, kdims, vdims, color=color)
+    """Shortcut for a UMAP scatter plot.
 
+    See :func:`~hv_anndata.plotting.scanpy.scatter`.
 
-umap = partial(_scatter, A.obsm["X_umap"][:, [0, 1]])
-umap.__doc__ = """\
-Shortcut for a UMAP scatter plot.
+    Returns
+    -------
+    A scatter plot object
 
-See :func:`~hv_anndata.plotting.scanpy.scatter`.
+    Examples
+    --------
 
-Examples
---------
+    ..  holoviews::
 
-..  holoviews::
+        import hv_anndata.plotting.scanpy as hv_sc
+        from hv_anndata import data, register, A
 
-    import hv_anndata.plotting.scanpy as hv_sc
-    from hv_anndata import data, register, A
+        register()
 
-    register()
+        adata = data.pbmc68k_processed()
+        hv_sc.umap(adata, color=A.obs["bulk_labels"]).opts(
+            cmap="tab10", show_legend=False
+        )
 
-    adata = data.pbmc68k_processed()
-    hv_sc.umap(adata, color=A.obs["bulk_labels"]).opts(
-        cmap="tab10", show_legend=False
-    )
-
-Returns
--------
-A scatter plot object
-"""
+    """
+    return scatter(adata, A.obsm["X_umap"][:, [0, 1]], vdims, color=color)
 
 
 def heatmap(

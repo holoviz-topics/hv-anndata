@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import param
 from param.parameterized import label_formatter
+from sphinx.util.typing import ExtensionMetadata
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -184,7 +185,8 @@ def param_skip(  # noqa: PLR0917
     return None
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Set extension up for sphinx."""
     app.connect("autodoc-process-docstring", param_formatter)
     app.connect("autodoc-skip-member", param_skip)
+    return ExtensionMetadata(parallel_read_safe=True)
