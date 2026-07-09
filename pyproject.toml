@@ -16,7 +16,7 @@ classifiers = [
 ]
 dynamic = [ "description", "version" ]
 dependencies = [
-  "anndata>=0.13rc3",
+  "anndata>=0.13",
   "fast-array-utils[accel]",
   "holoviews>=1.23",
   "numpy",
