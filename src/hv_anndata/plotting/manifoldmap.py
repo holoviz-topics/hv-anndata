@@ -558,7 +558,7 @@ class ManifoldMap(pn.viewable.Viewer):
                 f"for {self.color_by!r}."
             )
             raise RuntimeError(msg)
-        return A.X[:, var[0]]
+        return A.var[self.color_by]
 
     @staticmethod
     def get_reduction_label(dr_key: str) -> str:
