@@ -593,6 +593,31 @@ class ManifoldMap(pn.viewable.Viewer):
         num_dims = self.adata.obsm[dr_key].shape[1]
         return [f"{dr_label}{i + 1}" for i in range(num_dims)]
 
+    @staticmethod
+    def _dim_index(dr_label: str, value: str) -> int:
+        """Parse the 0-based column index from an axis label (``"UMAP2"`` -> 1)."""
+        return int(value.replace(dr_label, "")) - 1
+
+    def current_kdims(self) -> list[AdDim]:
+        """Key dimensions for the active reduction and axes.
+
+        Downstream code should build its :class:`holoviews.Dataset` from these
+        so a selection expression emitted by the plot resolves against it,
+        rather than assuming a fixed reduction or axis order.
+
+        Returns
+        -------
+        List of key dimensions for the current reduction and axes
+
+        """
+        dr_label = self.get_reduction_label(self.reduction)
+        x_dim = self._dim_index(dr_label, self.x_axis)
+        y_dim = self._dim_index(dr_label, self.y_axis)
+        return [
+            A.obsm[self.reduction][:, x_dim],
+            A.obsm[self.reduction][:, y_dim],
+        ]
+
     def create_plot(
         self,
         *,
@@ -640,8 +665,8 @@ class ManifoldMap(pn.viewable.Viewer):
 
         # Extract indices from dimension labels
         try:
-            x_dim = int(x_value.replace(dr_label, "")) - 1
-            y_dim = int(y_value.replace(dr_label, "")) - 1
+            x_dim = self._dim_index(dr_label, x_value)
+            y_dim = self._dim_index(dr_label, y_value)
         except (ValueError, AttributeError):
             return pmui.pane.Typography(
                 f"Error parsing dimensions. "
