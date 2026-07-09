@@ -518,10 +518,16 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            if self.colormap is None or self.colormap not in cmaps:
-                self.colormap = next(iter(cmaps.values()))
-            else:
-                self.colormap = cmaps[self.colormap]
+            # colormap holds a palette (list) once selected, or a name (str)
+            # initially; membership must test values, not (unhashable) keys.
+            current = (
+                cmaps.get(self.colormap)
+                if isinstance(self.colormap, str)
+                else self.colormap
+            )
+            if current not in cmaps.values():
+                current = next(iter(cmaps.values()))
+            self.colormap = current
         self._replot = True
 
     @hold()
@@ -621,6 +627,11 @@ class ManifoldMap(pn.viewable.Viewer):
         """
         dr_label = self.get_reduction_label(dr_key)
 
+        if not color_by:
+            return pmui.pane.Typography(
+                "Please select a variable to color by."
+            )
+
         if x_value == y_value:
             return pmui.pane.Typography(
                 "Please select different dimensions for X and Y axes."
@@ -696,6 +707,11 @@ class ManifoldMap(pn.viewable.Viewer):
             show_labels=self.show_labels,
             cmap=self.colormap,
         )
+        # create_plot returns a Typography pane (not a HoloViews element) for
+        # invalid axis selections, e.g. the transient x == y state while
+        # switching reductions; only apply opts to real hv elements.
+        if not isinstance(plot, hv.core.Dimensioned):
+            return plot
         return plot.opts(**self.plot_opts)
 
     def __panel__(self) -> pn.viewable.Viewable:
@@ -737,8 +753,11 @@ class ManifoldMap(pn.viewable.Viewer):
             stylesheets=[stylesheet],
             sizing_mode="stretch_width",
         )
-        # Create widget box
-        widgets = pmui.Column(
+        # Create widget box. Use a Bokeh-managed pn.Column (not pmui.Column) so
+        # the Bokeh ColorMap widget isn't a child of a React subtree -- React's
+        # reconciler was tearing out the ColorMap's DOM on mount. pmui widgets
+        # render fine as children of a pn.Column (React islands in a Bokeh layout).
+        widgets = pn.Column(
             pmui.widgets.Select.from_param(
                 self.param.reduction,
                 description="",
@@ -793,7 +812,7 @@ class ManifoldMap(pn.viewable.Viewer):
                 visible=self.param._categorical,  # noqa: SLF001
             ),
             visible=self.param.show_widgets,
-            sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
+            styles={"border": "1px solid #e3e3e3", "border-radius": "4px"},
             sizing_mode="stretch_width",
             max_width=280,
             min_height=590,
