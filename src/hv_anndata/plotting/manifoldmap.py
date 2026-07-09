@@ -546,8 +546,11 @@ class ManifoldMap(pn.viewable.Viewer):
     def _get_dim(self) -> AdDim:
         if self.color_by_dim == "obs":
             return A.obs[self.color_by]
+        # Color each observation by the gene's expression (a column of X, i.e. an
+        # obs-axis vector) so it matches the obsm-based x/y coordinates.
+        # Referencing the var axis here raises a DataError (obs vs var mismatch).
         if not self.var_reference:
-            return A.var.index
+            return A.X[:, self.color_by]
         var = self.adata.var.query(f'feature_name == "{self.color_by}"').index
         if len(var) > 1:
             msg = (
@@ -555,7 +558,7 @@ class ManifoldMap(pn.viewable.Viewer):
                 f"for {self.color_by!r}."
             )
             raise RuntimeError(msg)
-        return A.var[self.color_by]
+        return A.X[:, var[0]]
 
     @staticmethod
     def get_reduction_label(dr_key: str) -> str:
@@ -628,9 +631,7 @@ class ManifoldMap(pn.viewable.Viewer):
         dr_label = self.get_reduction_label(dr_key)
 
         if not color_by:
-            return pmui.pane.Typography(
-                "Please select a variable to color by."
-            )
+            return pmui.pane.Typography("Please select a variable to color by.")
 
         if x_value == y_value:
             return pmui.pane.Typography(
@@ -753,24 +754,24 @@ class ManifoldMap(pn.viewable.Viewer):
             stylesheets=[stylesheet],
             sizing_mode="stretch_width",
         )
-        # Create widget box. Use a Bokeh-managed pn.Column (not pmui.Column) so
-        # the Bokeh ColorMap widget isn't a child of a React subtree -- React's
-        # reconciler was tearing out the ColorMap's DOM on mount. pmui widgets
-        # render fine as children of a pn.Column (React islands in a Bokeh layout).
+        # Create widget box in a Bokeh pn.Column so the Bokeh ColorMap isn't a
+        # child of a React subtree (React tears out its DOM on mount). The
+        # selectors use AutocompleteInput rather than Select: pmui's Select
+        # renders its dropdown in an MUI portal that mis-anchors to the top-left
+        # inside a Bokeh layout, whereas AutocompleteInput anchors correctly.
+        select_kw = dict(
+            min_characters=0,
+            search_strategy="includes",
+            case_sensitive=False,
+            description="",
+            sizing_mode="stretch_width",
+        )
         widgets = pn.Column(
-            pmui.widgets.Select.from_param(
-                self.param.reduction,
-                description="",
-                sizing_mode="stretch_width",
+            pmui.widgets.AutocompleteInput.from_param(
+                self.param.reduction, **select_kw
             ),
-            pmui.widgets.Select.from_param(
-                self.param.x_axis,
-                sizing_mode="stretch_width",
-            ),
-            pmui.widgets.Select.from_param(
-                self.param.y_axis,
-                sizing_mode="stretch_width",
-            ),
+            pmui.widgets.AutocompleteInput.from_param(self.param.x_axis, **select_kw),
+            pmui.widgets.AutocompleteInput.from_param(self.param.y_axis, **select_kw),
             color_by_dim,
             color,
             colormap,
@@ -786,9 +787,8 @@ class ManifoldMap(pn.viewable.Viewer):
                 visible=self.param._categorical,  # noqa: SLF001
             ),
             pmui.Details(
-                pmui.widgets.Select.from_param(
-                    self.param.legend_position,
-                    sizing_mode="stretch_width",
+                pmui.widgets.AutocompleteInput.from_param(
+                    self.param.legend_position, **select_kw
                 ),
                 pn.widgets.FloatSlider.from_param(
                     self.param.legend_alpha,
