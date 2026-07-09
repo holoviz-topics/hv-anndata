@@ -49,8 +49,8 @@ class _DotmapPlotParams(_CreateDotmapPlotParams):
 
 
 _DEFAULT_GROUPBY = "cell_type"
-_DEFAULT_KDIMS = ["marker_line", "cluster"]
-_DEFAULT_VDIMS = [
+_DEFAULT_KDIMS: list[str | hv.Dimension] = ["marker_line", "cluster"]
+_DEFAULT_VDIMS: list[str | hv.Dimension] = [
     "gene_id",
     "mean_expression",
     "percentage",
@@ -78,8 +78,7 @@ def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0914, PLR0915
     if marker_genes is None:
         marker_genes = {}
     # Flatten the marker_genes preserving order
-    is_mapping_marker_genes = isinstance(marker_genes, Mapping)
-    if is_mapping_marker_genes:
+    if isinstance(marker_genes, Mapping):
         all_marker_genes = list(
             dict.fromkeys(chain.from_iterable(marker_genes.values()))
         )
@@ -154,7 +153,7 @@ def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0914, PLR0915
     grouped = joined_df.groupby(groupby, observed=True)
     expression_stats = grouped.apply(compute_expression, include_groups=False)
 
-    if is_mapping_marker_genes:
+    if isinstance(marker_genes, Mapping):
         data = [  # Likely faster way to do this, but harder to read
             expression_stats
             .xs(gene, level=1)
@@ -216,7 +215,7 @@ def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0914, PLR0915
     # Create marker_line column
     if df.empty:
         df["marker_line"] = None
-    elif is_mapping_marker_genes:
+    elif isinstance(marker_genes, Mapping):
         df["marker_line"] = df["marker_cluster_name"] + ", " + df["gene_id"]
     else:
         df["marker_line"] = df["gene_id"]
@@ -267,31 +266,22 @@ def _get_opts(
                 # Saw layout issues with the dendrogram
                 # "min_height": 300,  # noqa: ERA001
                 # "responsive": True,  # noqa: ERA001
+                "radius": radius_dim / 100 / 2,
+                "sizebar": True,
+                "sizebar_location": "left",
+                "sizebar_orientation": "vertical",
+                "sizebar_opts": {
+                    "title": "Fraction of\ncells (%)",
+                    "title_standoff": 15,
+                    "formatter": CustomJSTickFormatter(
+                        code="return Math.round(tick * 2 * 100, 2) + '%'"
+                    ),
+                },
             }
-            if _HOLOVIEWS_VERSION >= (1, 21, 0):
-                backend_opts |= {"radius": radius_dim / 100 / 2}
-                if _HOLOVIEWS_VERSION >= (1, 22, 0):
-                    sb_formatter = CustomJSTickFormatter(
-                        code="""
-                        return Math.round(tick * 2 * 100, 2) + "%";
-                        """
-                    )
-                    backend_opts |= {
-                        "sizebar": True,
-                        "sizebar_location": "left",
-                        "sizebar_orientation": "vertical",
-                        "sizebar_opts": {
-                            "title": "Fraction of\ncells (%)",
-                            "title_standoff": 15,
-                            "formatter": sb_formatter,
-                        },
-                    }
-            else:
-                backend_opts |= {"size": radius_dim.norm() * max_dot_size}
         case _:
             backend_opts = {}
 
-    return opts | backend_opts | plot_opts
+    return opts | backend_opts | dict(plot_opts)
 
 
 def _get_cat_obs(adata: ad.AnnData) -> list[str]:
