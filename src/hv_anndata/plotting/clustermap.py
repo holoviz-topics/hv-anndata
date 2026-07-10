@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, TypedDict
 
 import anndata as ad
@@ -61,8 +62,12 @@ def create_clustermap_plot(
     if hasattr(x, "toarray"):
         x = x.toarray()
 
+    # Take var_names from the same space as x: adata.raw has a different
+    # (usually larger) gene set than adata.var, so mixing them makes the
+    # variance-ranked indices overrun adata.var_names.
+    var_names = adata.raw.var_names if use_raw else adata.var_names
+
     # Filter genes if max_genes is specified
-    var_names = adata.var_names
     if max_genes is not None and len(var_names) > max_genes:
         gene_vars = np.var(x, axis=0)
         top_gene_indices = np.argsort(gene_vars)[-max_genes:]
@@ -97,10 +102,12 @@ def create_clustermap_plot(
         "show_grid": False,
         "tools": ["hover"],
         "colorbar": True,
+        "responsive": True,
     }
 
     return clustered_plot.opts(
-        hv.opts.HeatMap(**main_plot_opts), hv.opts.Dendrogram(xaxis=None, yaxis=None)
+        hv.opts.HeatMap(**main_plot_opts),
+        hv.opts.Dendrogram(xaxis=None, yaxis=None, responsive=True),
     )
 
 
@@ -148,10 +155,12 @@ class ClusterMap(pn.viewable.Viewer):
             params["adata"] = adata
         super().__init__(**params)
 
-        # Check if raw data exists
         has_raw = self.adata.raw is not None
-        if self.use_raw is None:
-            self.use_raw = has_raw
+
+        # Shown immediately, including during the initial (slow) build and while
+        # later recomputes run; the _update_plot watcher swaps in the finished
+        # plot or an error message.
+        self._plot_placeholder = pn.pane.Placeholder(width=300, height=300)
 
         use_raw_widget = pmui.widgets.Checkbox.from_param(
             self.param.use_raw,
@@ -175,29 +184,49 @@ class ClusterMap(pn.viewable.Viewer):
             visible=self.param.show_widgets,
             sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
             sizing_mode="stretch_width",
-            max_width=400,
+            max_width=300,
         )
 
-    @param.depends("use_raw", "cmap", "max_genes", "plot_opts")
-    def _plot_view(self) -> pn.viewable.Viewable:
-        """Create the plot view with parameter dependencies."""
+        # Kick off the initial render (fires _update_plot).
+        if self.use_raw is None:
+            self.use_raw = has_raw
+        else:
+            self.param.trigger("use_raw")
+
+    @param.depends("use_raw", "cmap", "max_genes", "plot_opts", watch=True)
+    async def _update_plot(self) -> None:
+        """Recompute the clustermap and swap it into the placeholder."""
         config = ClusterMapConfig(
             cmap=self.cmap,
         )
 
-        plot = create_clustermap_plot(
-            self.adata,
-            use_raw=self.use_raw,
-            max_genes=self.max_genes,
-            **config,
-        )
-
-        # Apply user-provided plot options to the HeatMap only
-        if self.plot_opts:
-            plot = plot.opts(hv.opts.HeatMap(**self.plot_opts))
-
-        return plot
+        # Hold the loading overlay across the whole update, including the object
+        # assignment, so it doesn't vanish while the plot is still being built
+        # and serialized. Yield first so it paints, and run the slow clustering
+        # off the event loop.
+        with self._plot_placeholder.param.update(loading=True):
+            await asyncio.sleep(0.01)
+            try:
+                plot = await asyncio.to_thread(
+                    create_clustermap_plot,
+                    self.adata,
+                    use_raw=self.use_raw,
+                    max_genes=self.max_genes,
+                    **config,
+                )
+                if self.plot_opts:
+                    plot = plot.opts(hv.opts.HeatMap(**self.plot_opts))
+                self._plot_placeholder.object = pn.pane.HoloViews(
+                    plot, sizing_mode="stretch_both", min_height=550, min_width=450
+                )
+            except Exception as e:  # noqa: BLE001
+                msg = f"Could not render clustermap: {e}"
+                if pn.state.notifications is not None:
+                    pn.state.notifications.error(msg)
+                self._plot_placeholder.object = pn.pane.Alert(
+                    msg, alert_type="danger", sizing_mode="stretch_width"
+                )
 
     def __panel__(self) -> pn.viewable.Viewable:
         """Create the Panel application layout."""
-        return pmui.Row(self._widgets, self._plot_view)
+        return pmui.Row(self._widgets, self._plot_placeholder)
