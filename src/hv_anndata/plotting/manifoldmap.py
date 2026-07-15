@@ -518,10 +518,16 @@ class ManifoldMap(pn.viewable.Viewer):
         if old_is_categorical != self._categorical or not self.colormap:
             cmaps = CAT_CMAPS if self._categorical else CONT_CMAPS
             self.param.colormap.objects = cmaps
-            if self.colormap is None or self.colormap not in cmaps:
-                self.colormap = next(iter(cmaps.values()))
-            else:
-                self.colormap = cmaps[self.colormap]
+            # colormap holds a palette (list) once selected, or a name (str)
+            # initially; membership must test values, not (unhashable) keys.
+            current = (
+                cmaps.get(self.colormap)
+                if isinstance(self.colormap, str)
+                else self.colormap
+            )
+            if current not in cmaps.values():
+                current = next(iter(cmaps.values()))
+            self.colormap = current
         self._replot = True
 
     @hold()
@@ -540,8 +546,11 @@ class ManifoldMap(pn.viewable.Viewer):
     def _get_dim(self) -> AdDim:
         if self.color_by_dim == "obs":
             return A.obs[self.color_by]
+        # Color each observation by the gene's expression (a column of X, i.e. an
+        # obs-axis vector) so it matches the obsm-based x/y coordinates.
+        # Referencing the var axis here raises a DataError (obs vs var mismatch).
         if not self.var_reference:
-            return A.var.index
+            return A.X[:, self.color_by]
         var = self.adata.var.query(f'feature_name == "{self.color_by}"').index
         if len(var) > 1:
             msg = (
@@ -621,6 +630,9 @@ class ManifoldMap(pn.viewable.Viewer):
         """
         dr_label = self.get_reduction_label(dr_key)
 
+        if not color_by:
+            return pmui.pane.Typography("Please select a variable to color by.")
+
         if x_value == y_value:
             return pmui.pane.Typography(
                 "Please select different dimensions for X and Y axes."
@@ -696,6 +708,11 @@ class ManifoldMap(pn.viewable.Viewer):
             show_labels=self.show_labels,
             cmap=self.colormap,
         )
+        # create_plot returns a Typography pane (not a HoloViews element) for
+        # invalid axis selections, e.g. the transient x == y state while
+        # switching reductions; only apply opts to real hv elements.
+        if not isinstance(plot, hv.core.Dimensioned):
+            return plot
         return plot.opts(**self.plot_opts)
 
     def __panel__(self) -> pn.viewable.Viewable:
@@ -737,21 +754,24 @@ class ManifoldMap(pn.viewable.Viewer):
             stylesheets=[stylesheet],
             sizing_mode="stretch_width",
         )
-        # Create widget box
-        widgets = pmui.Column(
-            pmui.widgets.Select.from_param(
-                self.param.reduction,
-                description="",
-                sizing_mode="stretch_width",
+        # Create widget box in a Bokeh pn.Column so the Bokeh ColorMap isn't a
+        # child of a React subtree (React tears out its DOM on mount). The
+        # selectors use AutocompleteInput rather than Select: pmui's Select
+        # renders its dropdown in an MUI portal that mis-anchors to the top-left
+        # inside a Bokeh layout, whereas AutocompleteInput anchors correctly.
+        select_kw = dict(
+            min_characters=0,
+            search_strategy="includes",
+            case_sensitive=False,
+            description="",
+            sizing_mode="stretch_width",
+        )
+        widgets = pn.Column(
+            pmui.widgets.AutocompleteInput.from_param(
+                self.param.reduction, **select_kw
             ),
-            pmui.widgets.Select.from_param(
-                self.param.x_axis,
-                sizing_mode="stretch_width",
-            ),
-            pmui.widgets.Select.from_param(
-                self.param.y_axis,
-                sizing_mode="stretch_width",
-            ),
+            pmui.widgets.AutocompleteInput.from_param(self.param.x_axis, **select_kw),
+            pmui.widgets.AutocompleteInput.from_param(self.param.y_axis, **select_kw),
             color_by_dim,
             color,
             colormap,
@@ -767,9 +787,8 @@ class ManifoldMap(pn.viewable.Viewer):
                 visible=self.param._categorical,  # noqa: SLF001
             ),
             pmui.Details(
-                pmui.widgets.Select.from_param(
-                    self.param.legend_position,
-                    sizing_mode="stretch_width",
+                pmui.widgets.AutocompleteInput.from_param(
+                    self.param.legend_position, **select_kw
                 ),
                 pn.widgets.FloatSlider.from_param(
                     self.param.legend_alpha,
@@ -793,7 +812,7 @@ class ManifoldMap(pn.viewable.Viewer):
                 visible=self.param._categorical,  # noqa: SLF001
             ),
             visible=self.param.show_widgets,
-            sx={"border": 1, "borderColor": "#e3e3e3", "borderRadius": 1},
+            styles={"border": "1px solid #e3e3e3", "border-radius": "4px"},
             sizing_mode="stretch_width",
             max_width=280,
             min_height=590,
