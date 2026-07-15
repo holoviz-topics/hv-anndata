@@ -153,14 +153,19 @@ class ClusterMap(pn.viewable.Viewer):
         """Initialize the ClusterMap with the given parameters."""
         if adata is not None:
             params["adata"] = adata
+
+        # Resolve use_raw's default (if not given, or given as None) before
+        # calling super().__init__ so it's set as part of construction rather
+        # than as a later attribute assignment. A later assignment would fire
+        # the async _update_plot watcher below, which relies on a running
+        # event loop to schedule -- not guaranteed outside of a live Panel
+        # session (e.g. plain scripts and tests), where it has been observed
+        # to leak an event loop/socket.
+        has_raw = adata is not None and adata.raw is not None
+        if params.get("use_raw") is None:
+            params["use_raw"] = has_raw
+
         super().__init__(**params)
-
-        has_raw = self.adata.raw is not None
-
-        # Shown immediately, including during the initial (slow) build and while
-        # later recomputes run; the _update_plot watcher swaps in the finished
-        # plot or an error message.
-        self._plot_placeholder = pn.pane.Placeholder(width=300, height=300)
 
         use_raw_widget = pmui.widgets.Checkbox.from_param(
             self.param.use_raw,
@@ -168,6 +173,12 @@ class ClusterMap(pn.viewable.Viewer):
             sizing_mode="stretch_width",
             disabled=not has_raw,  # Disable if no raw data
         )
+
+        # Shown immediately; later recomputes (triggered by widget changes,
+        # which only ever happen inside a running Panel session) go through
+        # the async _update_plot watcher, which swaps in the finished plot or
+        # an error message behind a loading indicator.
+        self._plot_placeholder = pn.pane.Placeholder(width=300, height=300)
 
         self._widgets = pmui.Column(
             pmui.widgets.Select.from_param(
@@ -187,45 +198,45 @@ class ClusterMap(pn.viewable.Viewer):
             max_width=300,
         )
 
-        # Kick off the initial render (fires _update_plot).
-        if self.use_raw is None:
-            self.use_raw = has_raw
-        else:
-            self.param.trigger("use_raw")
+        # Build the first plot directly and synchronously; see the use_raw
+        # comment above for why this doesn't go through _update_plot.
+        self._plot_placeholder.object = self._build_plot_or_error()
+
+    def _build_plot_or_error(self) -> pn.viewable.Viewable:
+        """Build the clustermap pane, or an Alert describing why it failed."""
+        config = ClusterMapConfig(
+            cmap=self.cmap,
+        )
+        try:
+            plot = create_clustermap_plot(
+                self.adata,
+                use_raw=self.use_raw,
+                max_genes=self.max_genes,
+                **config,
+            )
+            if self.plot_opts:
+                plot = plot.opts(hv.opts.HeatMap(**self.plot_opts))
+            return pn.pane.HoloViews(
+                plot, sizing_mode="stretch_both", min_height=550, min_width=450
+            )
+        except Exception as e:  # noqa: BLE001
+            msg = f"Could not render clustermap: {e}"
+            if pn.state.notifications is not None:
+                pn.state.notifications.error(msg)
+            return pn.pane.Alert(msg, alert_type="danger", sizing_mode="stretch_width")
 
     @param.depends("use_raw", "cmap", "max_genes", "plot_opts", watch=True)
     async def _update_plot(self) -> None:
         """Recompute the clustermap and swap it into the placeholder."""
-        config = ClusterMapConfig(
-            cmap=self.cmap,
-        )
-
         # Hold the loading overlay across the whole update, including the object
         # assignment, so it doesn't vanish while the plot is still being built
         # and serialized. Yield first so it paints, and run the slow clustering
         # off the event loop.
         with self._plot_placeholder.param.update(loading=True):
             await asyncio.sleep(0.01)
-            try:
-                plot = await asyncio.to_thread(
-                    create_clustermap_plot,
-                    self.adata,
-                    use_raw=self.use_raw,
-                    max_genes=self.max_genes,
-                    **config,
-                )
-                if self.plot_opts:
-                    plot = plot.opts(hv.opts.HeatMap(**self.plot_opts))
-                self._plot_placeholder.object = pn.pane.HoloViews(
-                    plot, sizing_mode="stretch_both", min_height=550, min_width=450
-                )
-            except Exception as e:  # noqa: BLE001
-                msg = f"Could not render clustermap: {e}"
-                if pn.state.notifications is not None:
-                    pn.state.notifications.error(msg)
-                self._plot_placeholder.object = pn.pane.Alert(
-                    msg, alert_type="danger", sizing_mode="stretch_width"
-                )
+            self._plot_placeholder.object = await asyncio.to_thread(
+                self._build_plot_or_error
+            )
 
     def __panel__(self) -> pn.viewable.Viewable:
         """Create the Panel application layout."""
