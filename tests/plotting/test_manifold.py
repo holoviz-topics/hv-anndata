@@ -10,11 +10,13 @@ import holoviews as hv
 import numpy as np
 import pandas as pd
 import panel as pn
+import panel_material_ui as pmui
 import pytest
 from holoviews.operation.datashader import dynspread, rasterize
 
 from hv_anndata import A, ManifoldMap, create_manifoldmap_plot
 from hv_anndata.interface import register, unregister
+from hv_anndata.plotting.manifoldmap import CAT_CMAPS, CONT_CMAPS
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -211,3 +213,92 @@ def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
     assert bounds_xy.source is None
     mm.__panel__()
     assert bounds_xy.source is not None
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_get_dim_cols_uses_x_column(sadata: ad.AnnData) -> None:
+    """color_by_dim="cols" without var_reference must read expression from X.
+
+    A.var.index has no per-observation values and mismatches the obsm-based
+    x/y coordinates on the obs axis; see #161.
+    """
+    mm = ManifoldMap(adata=sadata, color_by_dim="cols", color_by="gene_1")
+
+    assert mm._get_dim() == A.X[:, "gene_1"]
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_color_by_cols_plot_view_no_var_reference(
+    sadata: ad.AnnData,
+) -> None:
+    """Coloring by a variable (no var_reference) renders instead of raising.
+
+    Previously raised a HoloViews DataError mixing the obs and var axes; see
+    #161.
+    """
+    mm = ManifoldMap(adata=sadata, color_by_dim="cols", color_by="gene_1")
+
+    plot = mm._plot_view()
+
+    assert isinstance(plot, hv.core.Dimensioned)
+    assert mm._categorical is False
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_colormap_survives_categorical_round_trip(
+    sadata: ad.AnnData,
+) -> None:
+    """colormap must round-trip through a categorical/continuous/categorical cycle.
+
+    Once selected, colormap holds an unhashable palette list rather than its
+    name, so membership must be tested against dict values, not keys, or this
+    raises `TypeError: unhashable type: 'list'`; see #161.
+    """
+    mm = ManifoldMap(adata=sadata, color_by="cell_type")
+    assert mm.colormap in CAT_CMAPS.values()
+
+    mm.color_by = "expression_level"
+    assert mm._categorical is False
+    assert mm.colormap in CONT_CMAPS.values()
+
+    mm.color_by = "cell_type"
+    assert mm._categorical is True
+    assert mm.colormap in CAT_CMAPS.values()
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+@pytest.mark.parametrize("color_by", [None, ""], ids=["none", "empty_string"])
+def test_manifoldmap_create_plot_no_color_by(
+    sadata: ad.AnnData, color_by: str | None
+) -> None:
+    """create_plot shows a prompt instead of erroring when color_by is unset."""
+    mm = ManifoldMap(adata=sadata)
+
+    result = mm.create_plot(
+        dr_key="X_umap",
+        x_value="UMAP1",
+        y_value="UMAP2",
+        color_by=color_by,
+        datashade_value=False,
+        show_labels=False,
+        cmap=None,
+    )
+
+    assert isinstance(result, pmui.pane.Typography)
+    assert "select a variable to color by" in result.object
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_plot_view_skips_opts_for_error_pane(sadata: ad.AnnData) -> None:
+    """_plot_view must not call .opts() on a Typography error pane from create_plot.
+
+    Typography has no `.opts()`, so calling it unconditionally would raise;
+    see #161.
+    """
+    mm = ManifoldMap(adata=sadata)
+    error_pane = pmui.pane.Typography("boom")
+    mm.create_plot = lambda **_: error_pane
+
+    plot = mm._plot_view()
+
+    assert plot is error_pane
