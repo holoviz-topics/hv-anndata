@@ -755,7 +755,7 @@ class ManifoldMap(pn.viewable.Viewer):
         )
         color = pmui.widgets.AutocompleteInput.from_param(
             self.param.color_by,
-            name="",
+            label="",
             min_characters=0,
             search_strategy="includes",
             case_sensitive=False,

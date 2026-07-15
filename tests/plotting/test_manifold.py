@@ -159,6 +159,77 @@ def test_manifoldmap_get_dim_labels(sadata: ad.AnnData) -> None:
 
 
 @pytest.mark.usefixtures("bokeh_renderer")
+@pytest.mark.parametrize(
+    ("dr_label", "value", "expected"),
+    [
+        pytest.param("UMAP", "UMAP1", 0, id="first_dim"),
+        pytest.param("UMAP", "UMAP2", 1, id="second_dim"),
+        pytest.param("PCA", "PCA10", 9, id="multi_digit_dim"),
+    ],
+)
+def test_manifoldmap_dim_index(dr_label: str, value: str, expected: int) -> None:
+    assert ManifoldMap._dim_index(dr_label, value) == expected
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_create_plot_invalid_dimension_label(sadata: ad.AnnData) -> None:
+    """create_plot must still surface a parse-error pane via the shared _dim_index.
+
+    Matches its pre-refactor behavior.
+    """
+    mm = ManifoldMap(adata=sadata)
+
+    result = mm.create_plot(
+        dr_key="X_umap",
+        x_value="not_a_dim",
+        y_value="UMAP2",
+        color_by="cell_type",
+        datashade_value=False,
+        show_labels=False,
+        cmap=None,
+    )
+
+    assert isinstance(result, pmui.pane.Typography)
+    assert "Error parsing dimensions" in result.object
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_current_kdims_matches_active_axes(sadata: ad.AnnData) -> None:
+    mm = ManifoldMap(adata=sadata)
+
+    assert mm.current_kdims() == [
+        A.obsm["X_umap"][:, 0],
+        A.obsm["X_umap"][:, 1],
+    ]
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_current_kdims_tracks_swapped_axes(sadata: ad.AnnData) -> None:
+    """Swapping x_axis/y_axis must be reflected in kdim order, not just presence."""
+    mm = ManifoldMap(adata=sadata)
+
+    mm.x_axis, mm.y_axis = mm.y_axis, mm.x_axis
+
+    assert mm.current_kdims() == [
+        A.obsm["X_umap"][:, 1],
+        A.obsm["X_umap"][:, 0],
+    ]
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
+def test_manifoldmap_current_kdims_tracks_reduction_change(sadata: ad.AnnData) -> None:
+    """current_kdims must follow the active reduction, not the one at init."""
+    mm = ManifoldMap(adata=sadata)
+
+    mm.reduction = "X_pca"
+
+    assert mm.current_kdims() == [
+        A.obsm["X_pca"][:, 0],
+        A.obsm["X_pca"][:, 1],
+    ]
+
+
+@pytest.mark.usefixtures("bokeh_renderer")
 @patch("hv_anndata.plotting.manifoldmap.create_manifoldmap_plot")
 def test_manifoldmap_create_plot(mock_cmp: Mock, sadata: ad.AnnData) -> None:
     mm = ManifoldMap(adata=sadata)
