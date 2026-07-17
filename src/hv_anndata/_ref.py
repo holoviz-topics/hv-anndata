@@ -132,7 +132,7 @@ class AdDim[I, D](AdRef[I, D], Dimension):
                 "Probably comparing to a dimension created from `Dimension.name`. "
                 "This will not be supported in the future, please report as an issue. "
             )
-            warnings.warn(msg, FutureWarning, stacklevel=2)
+            warnings.warn(msg, DeprecationWarning, stacklevel=2)
             return True
         return super().__eq__(value)
 

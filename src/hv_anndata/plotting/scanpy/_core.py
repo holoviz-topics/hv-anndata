@@ -185,6 +185,14 @@ def heatmap(
         adata = data.pbmc68k_processed()
         markers = ["C1QA", "PSAP", "CD79A", "CD79B", "CST3", "LYZ"]
         hv_sc.heatmap(
+            adata[:, markers], A.X, [A.obs["n_counts"]]
+        ).opts(hv.opts.HeatMap(xticks=0, aspect=2))
+
+    With dendrogram:
+
+    ..  holoviews::
+
+        hv_sc.heatmap(
             adata[:, markers], A.X, [A.obs["n_counts"]], add_dendrogram="obs"
         ).opts(hv.opts.HeatMap(xticks=0, aspect=2))
 
