@@ -71,7 +71,7 @@ class GeneSelector(WidgetBase, PyComponent):
         super().__init__(**params)
 
         self.w_key_input = pmui.AutocompleteInput.from_param(
-            self.param._input_key,  # noqa: SLF001
+            self.param._input_key,  # ruff:ignore[private-member-access]
             name="Active Group",
             placeholder="Enter/select group name",
             restrict=False,
@@ -87,12 +87,12 @@ class GeneSelector(WidgetBase, PyComponent):
             )
 
         self.w_value_input = pmui.TextInput.from_param(
-            self.param._input_value,  # noqa: SLF001
+            self.param._input_value,  # ruff:ignore[private-member-access]
             name="New Marker Gene",
             disabled=param.bind(
                 w_value_input_disabled,
                 self.param.value,
-                self.param._input_key,  # noqa: SLF001
+                self.param._input_key,  # ruff:ignore[private-member-access]
             ),
             description="",
             sizing_mode="stretch_width",
@@ -101,7 +101,7 @@ class GeneSelector(WidgetBase, PyComponent):
         pre = "Selected Group " if isinstance(self.value, dict) else ""
         mc_name = f"{pre}Marker Genes"
         self.w_multi_choice = pmui.MultiChoice.from_param(
-            self.param._current_selection,  # noqa: SLF001
+            self.param._current_selection,  # ruff:ignore[private-member-access]
             options=self.param.options,
             name=mc_name,
             searchable=True,
@@ -127,7 +127,7 @@ class GeneSelector(WidgetBase, PyComponent):
         if self.value:
             if isinstance(self.value, dict):
                 keys = list(self.value)
-                self.param._input_key.objects = keys  # noqa: SLF001
+                self.param._input_key.objects = keys  # ruff:ignore[private-member-access]
                 self._input_key = keys[0]
                 if not self.options:
                     self.options = list(

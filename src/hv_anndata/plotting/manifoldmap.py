@@ -1,4 +1,4 @@
-"""Interactive vizualization of AnnData dimension reductions with HoloViews and Panel."""  # noqa: E501
+"""Interactive vizualization of AnnData dimension reductions with HoloViews and Panel."""  # ruff:ignore[line-too-long]
 
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ class ManifoldMapConfig(TypedDict, total=False):
     """Number of legend columns (default: 1)"""
 
 
-def create_manifoldmap_plot(  # noqa: C901, PLR0912, PLR0914, PLR0915
+def create_manifoldmap_plot(  # ruff:ignore[complex-structure, too-many-branches, too-many-locals, too-many-statements]
     adata: ad.AnnData,
     dr_key: str,
     x_dim: int = 0,
@@ -784,7 +784,7 @@ class ManifoldMap(pn.viewable.Viewer):
                 self.param.show_labels,
                 description="Overlay labels for categorical coloring",
                 sizing_mode="stretch_width",
-                visible=self.param._categorical,  # noqa: SLF001
+                visible=self.param._categorical,  # ruff:ignore[private-member-access]
             ),
             pmui.Details(
                 pmui.widgets.AutocompleteInput.from_param(
@@ -809,7 +809,7 @@ class ManifoldMap(pn.viewable.Viewer):
                 ),
                 title="Legend Options",
                 sizing_mode="stretch_width",
-                visible=self.param._categorical,  # noqa: SLF001
+                visible=self.param._categorical,  # ruff:ignore[private-member-access]
             ),
             visible=self.param.show_widgets,
             styles={"border": "1px solid #e3e3e3", "border-radius": "4px"},

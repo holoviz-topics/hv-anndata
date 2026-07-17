@@ -9,7 +9,7 @@ from holoviews.operation import Operation
 __all__ = ["labeller"]
 
 
-class labeller(Operation):  # noqa: N801
+class labeller(Operation):  # ruff:ignore[invalid-class-name]
     """Add a Label element centered over categorical points."""
 
     column = param.String()
@@ -36,7 +36,7 @@ class labeller(Operation):  # noqa: N801
        if set to None.""",
     )
 
-    def _process(self, el: hv.Dataset, key=None) -> hv.Labels:  # noqa: ARG002, ANN001
+    def _process(self, el: hv.Dataset, key=None) -> hv.Labels:  # ruff:ignore[unused-method-argument, missing-type-function-argument]
         if self.p.x_range and self.p.y_range:
             el = el[slice(*self.p.x_range), slice(*self.p.y_range)]
 

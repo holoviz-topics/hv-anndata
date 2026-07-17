@@ -62,12 +62,12 @@ DEFAULT_VALUES = {
 }
 
 
-def param_formatter(  # noqa: PLR0917
-    app: Sphinx,  # noqa: ARG001
+def param_formatter(  # ruff:ignore[too-many-positional-arguments]
+    app: Sphinx,  # ruff:ignore[unused-function-argument]
     what: Literal["module", "class", "exception", "function", "method", "attribute"],
-    name: str,  # noqa: ARG001
+    name: str,  # ruff:ignore[unused-function-argument]
     obj: object,
-    options: _Options,  # noqa: ARG001
+    options: _Options,  # ruff:ignore[unused-function-argument]
     lines: list[str],
 ) -> None:
     """Format parameter documentation."""
@@ -140,12 +140,12 @@ def _format_child(
     ]
 
 
-def param_skip(  # noqa: PLR0917
-    app: Sphinx,  # noqa: ARG001
+def param_skip(  # ruff:ignore[too-many-positional-arguments]
+    app: Sphinx,  # ruff:ignore[unused-function-argument]
     what: Literal["module", "class", "exception", "function", "method", "attribute"],
-    name: str,  # noqa: ARG001
+    name: str,  # ruff:ignore[unused-function-argument]
     obj: object,
-    skip: bool,  # noqa: FBT001
+    skip: bool,  # ruff:ignore[boolean-type-hint-positional-argument]
     options: _Options,
 ) -> bool | None:
     """Skip undocumentable parameters."""
@@ -168,7 +168,7 @@ def param_skip(  # noqa: PLR0917
         and isinstance(obj, type)
         and issubclass(obj, param.Parameterized)
     ):
-        # HACK: Sphinx incorrectly labels this as a module level discovery  # noqa: FIX004
+        # HACK: Sphinx incorrectly labels this as a module level discovery  # ruff:ignore[line-contains-hack]
         #       We abuse this skip callback to exclude parameters and
         #       include all methods
         members = [

@@ -51,7 +51,7 @@ def renderer(request: pytest.FixtureRequest) -> Renderer:
             id="scatter-obsp",
         ),
         pytest.param(pl.heatmap, id="heatmap-obsm"),
-        # TODO: pytest.param(lambda ad: pl.heatmap(ad, A.obsp["distances"]), id="heatmap-obsp"),  # noqa: E501
+        # TODO: pytest.param(lambda ad: pl.heatmap(ad, A.obsp["distances"]), id="heatmap-obsp"),  # ruff:ignore[line-too-long]
         # https://github.com/holoviz-topics/hv-anndata/issues/111
         pytest.param(
             lambda ad: pl.violin(ad, A.obsm["umap"][0], color=A.obs.index),

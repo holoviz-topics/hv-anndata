@@ -139,7 +139,7 @@ def ranking(
             hv_sc.ranking(adata, A.varm["PCs"][0], include_lowest=False).opts(aspect=0.6),
         ]).opts(shared_axes=False)
 
-    """  # noqa: E501
+    """  # ruff:ignore[line-too-long]
     [dim] = ref.dims
     if label_dim is None:
         label_dim = getattr(A, dim).index

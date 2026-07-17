@@ -31,5 +31,5 @@ def _consume_inline_attribute(self: GoogleDocstring) -> tuple[str, list[str]]:
 def setup(app: Sphinx) -> ExtensionMetadata:
     """Apply the Napoleon monkeypatch."""
     del app
-    GoogleDocstring._consume_inline_attribute = _consume_inline_attribute  # noqa: SLF001
+    GoogleDocstring._consume_inline_attribute = _consume_inline_attribute  # ruff:ignore[private-member-access]
     return ExtensionMetadata(parallel_read_safe=True)

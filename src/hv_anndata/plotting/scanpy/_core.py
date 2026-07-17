@@ -275,8 +275,8 @@ def _tracksplot2(
     """Tracksplot variant. Faster but Gridspace is generally buggy.
 
     We can switch after <https://github.com/holoviz/holoviews/issues/5438> is fixed.
-    """  # noqa: DOC201
-    assert color is not None  # noqa: S101
+    """  # ruff:ignore[docstring-missing-returns]
+    assert color is not None  # ruff:ignore[assert]
     return hv.GridSpace(
         {
             (0, m): hv
@@ -431,19 +431,19 @@ def stacked_violin(adata: AnnData, /, xdim: AdDim, ydim: AdDim) -> hv.GridSpace:
 
     match next(iter(xdim.dims)), next(iter(ydim.dims)):
         case "obs", "obs":
-            idx = lambda x, y: adata[(xvals == x) & (yvals == y), :]  # noqa: E731
+            idx = lambda x, y: adata[(xvals == x) & (yvals == y), :]  # ruff:ignore[lambda-assignment]
         case "var", "var":
-            idx = lambda x, y: adata[:, (xvals == x) & (yvals == y)]  # noqa: E731
+            idx = lambda x, y: adata[:, (xvals == x) & (yvals == y)]  # ruff:ignore[lambda-assignment]
         case "obs", "var":
-            idx = lambda x, y: adata[xvals == x, yvals == y]  # noqa: E731
+            idx = lambda x, y: adata[xvals == x, yvals == y]  # ruff:ignore[lambda-assignment]
         case "var", "obs":
-            idx = lambda x, y: adata[yvals == y, xvals == x]  # noqa: E731
+            idx = lambda x, y: adata[yvals == y, xvals == x]  # ruff:ignore[lambda-assignment]
         case _:
             raise AssertionError
 
     return hv.GridSpace(
         {
-            # TODO: should Violin vdim be able to be 2D?  # noqa: TD003
+            # TODO: should Violin vdim be able to be 2D?  # ruff:ignore[missing-todo-link]
             (x, y): hv.Violin(idx(x, y), vdims=[A.X[:, :]]).opts(inner=None)
             for x in _get_categories(xvals)
             for y in _get_categories(yvals)
@@ -537,7 +537,7 @@ def matrixplot(
         return _add_hover(heatmap)
     bars = hv.Bars(agg, A.var.index, A.var["totals"]).opts(
         yticks=0,
-        xlabel="",  # TODO: holoviews issue  # noqa: TD003
+        xlabel="",  # TODO: holoviews issue  # ruff:ignore[missing-todo-link]
     )
     return hv.AdjointLayout([_add_hover(heatmap), _add_hover(bars)])
 

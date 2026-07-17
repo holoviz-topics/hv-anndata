@@ -13,7 +13,7 @@ from .interface import (
     register,
 )
 
-A = A  # noqa: PLW0127, RUF067
+A = A  # ruff:ignore[self-assigning-variable, non-empty-init-module]
 """Accessor for anndata.
 
 >>> from hv_anndata import A
@@ -31,7 +31,7 @@ __all__ = [
     "register",
 ]
 
-with suppress(ImportError):  # noqa: RUF067
+with suppress(ImportError):  # ruff:ignore[non-empty-init-module]
     from .components import GeneSelector
     from .plotting import (
         ClusterMap,
