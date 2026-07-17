@@ -219,7 +219,7 @@ class ClusterMap(pn.viewable.Viewer):
             return pn.pane.HoloViews(
                 plot, sizing_mode="stretch_both", min_height=550, min_width=450
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # ruff:ignore[blind-except]
             msg = f"Could not render clustermap: {e}"
             if pn.state.notifications is not None:
                 pn.state.notifications.error(msg)
