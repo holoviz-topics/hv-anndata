@@ -431,10 +431,11 @@ class AnnDataGriddedInterface(AnnDataInterface):
 
     @classmethod
     def shape(cls, dataset: Dataset, *, gridded: bool = False) -> tuple[int, int]:
-        """Retrieve shape of 2D data."""
+        """Retrieve shape of 2D data in reverse-kdim order."""
         del gridded
         ax1, ax2 = cls.dims(dataset)
-        return len(getattr(dataset.data, ax1)), len(getattr(dataset.data, ax2))
+        # Grid convention matches the row-major layout numpy/pcolormesh expect
+        return len(getattr(dataset.data, ax2)), len(getattr(dataset.data, ax1))
 
     @classmethod
     def _iloc_2d(
