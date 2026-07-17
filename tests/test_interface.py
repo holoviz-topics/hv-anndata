@@ -79,7 +79,7 @@ def adata() -> AnnData:
             ("obs", "var"),
             id="heatmap-X",
         ),
-        # TODO: obsm heatmap?  # noqa: TD003
+        # TODO: obsm heatmap?  # ruff:ignore[missing-todo-link]
         pytest.param(
             lambda ad: hv.HeatMap(ad, [A.var.index, A.var.index], A.varp["cons"][:, :]),
             ("var", "var"),
@@ -210,7 +210,7 @@ def _nm(o: object) -> str:
         # 1. pytest.param(hv.dim(A.obs["type"]) == 0, {}, id="expression-eq"),
         # 2. pytest.param(hv.dim(A.obs["type"]).isin([0]), {}, id="expression-isin"),
         pytest.param(
-            # TODO: actually figure out how selection_specs work  # noqa: TD003
+            # TODO: actually figure out how selection_specs work  # ruff:ignore[missing-todo-link]
             (),
             dict(selection_specs=[hv.Dataset]),
             id="specs",
@@ -294,7 +294,7 @@ def test_validate_errors(kdims: list[AdDim], err_msg_pat: str) -> None:
             r"either.*obs.*or.*var",
             id="grid_x_1d",
         ),
-        # TODO: other errors  # noqa: TD003
+        # TODO: other errors  # ruff:ignore[missing-todo-link]
     ],
 )
 def test_axes_errors(kdims: list[AdDim], vdims: list[AdDim], err_msg_pat: str) -> None:

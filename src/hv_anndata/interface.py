@@ -70,7 +70,7 @@ class AnnDataInterface(hv.core.Interface):
     @classmethod
     def init(
         cls,
-        eltype: hv.Element,  # noqa: ARG003
+        eltype: hv.Element,  # ruff:ignore[unused-class-method-argument]
         data: AnnData,
         kdims: list[Dimension] | None,
         vdims: list[Dimension] | None,
@@ -93,7 +93,7 @@ class AnnDataInterface(hv.core.Interface):
 
     @classmethod
     def dims(cls, dataset: Dataset) -> tuple[Literal["obs", "var"], ...]:
-        """Detect if the data is gridded or columnar and which anndata dimensions it spans."""  # noqa: E501
+        """Detect if the data is gridded or columnar and which anndata dimensions it spans."""  # ruff:ignore[line-too-long]
         vdim = cls._dim(dataset, dataset.vdims[0]) if dataset.vdims else None
         if len(dataset.kdims) == 0 and vdim:
             # e.g. Violin plot doesn’t have kdims
@@ -147,7 +147,7 @@ class AnnDataInterface(hv.core.Interface):
         )
 
     @classmethod
-    def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # noqa: FBT001, FBT002
+    def validate(cls, dataset: Dataset, vdims: bool = True) -> None:  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         """Check if all dimensions (or key dimensions if `vdims==False`) are present."""
         dims = "all" if vdims else "key"
         not_found = [
@@ -173,7 +173,7 @@ class AnnDataInterface(hv.core.Interface):
         if len(ref.dims) > 1:
             raise DataError(MSG_1D)
         [dim] = ref.dims
-        # TODO: support ranges and sequences  # noqa: TD003
+        # TODO: support ranges and sequences  # ruff:ignore[missing-todo-link]
         if dim not in {"obs", "var"}:  # pragma: no cover
             msg = f"Cannot {action} along unknown dim: {dim}"
             raise AssertionError(msg)
@@ -255,8 +255,8 @@ class AnnDataInterface(hv.core.Interface):
     def reindex(
         cls,
         dataset: Dataset,
-        kdims: list[Dimension] | None = None,  # noqa: ARG003
-        vdims: list[Dimension] | None = None,  # noqa: ARG003
+        kdims: list[Dimension] | None = None,  # ruff:ignore[unused-class-method-argument]
+        vdims: list[Dimension] | None = None,  # ruff:ignore[unused-class-method-argument]
     ) -> AnnData:
         """Reindex the data (a no-op)."""
         return dataset.data
@@ -267,18 +267,18 @@ class AnnDataInterface(hv.core.Interface):
         data: Dataset,
         ref: Dimension | str,
         /,
-        expanded: bool = True,  # noqa: FBT001, FBT002, ARG003
-        flat: bool = True,  # noqa: FBT001, FBT002
+        expanded: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument, unused-class-method-argument]
+        flat: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         *,
-        compute: bool = True,  # noqa: ARG003
-        keep_index: bool = False,  # noqa: ARG003
+        compute: bool = True,  # ruff:ignore[unused-class-method-argument]
+        keep_index: bool = False,  # ruff:ignore[unused-class-method-argument]
     ) -> ValueType:
         """Retrieve values for a dimension."""
         ref = cls._dim(data, ref)
         adata = cast("AnnData", data.data)
         values = adata[ref]
         if flat and values.ndim > 1:
-            assert not isinstance(values, ExtensionArray)  # noqa: S101
+            assert not isinstance(values, ExtensionArray)  # ruff:ignore[assert]
             values = values.flatten()
         return _simplify_numpy(values)
 
@@ -332,7 +332,7 @@ class AnnDataInterface(hv.core.Interface):
     def _iloc_2d(
         cls,
         dims: tuple[Literal["obs", "var"], ...],
-        rows: slice[int | None],  # noqa: ARG003
+        rows: slice[int | None],  # ruff:ignore[unused-class-method-argument]
         cols: slice[None],
     ) -> tuple[slice[int | None], slice[int | None]] | None:
         """Validate indexing. Overridden in `AnnDataGriddedInterface`."""
@@ -351,7 +351,7 @@ class AnnDataInterface(hv.core.Interface):
         dataset: Dataset,
         kdims: list[Dimension | str],
         function: Callable[[ValueType], ValueType],
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,  # ruff:ignore[any-type]
     ) -> tuple[pd.DataFrame, list[Dimension]]:
         """Aggregate the current view."""
         agg = Dataset(
@@ -364,9 +364,9 @@ class AnnDataInterface(hv.core.Interface):
     @classmethod
     def unpack_scalar(
         cls,
-        dataset: Dataset,  # noqa: ARG003
+        dataset: Dataset,  # ruff:ignore[unused-class-method-argument]
         data: AnnData | pd.DataFrame,
-    ) -> Any:  # noqa: ANN401
+    ) -> Any:  # ruff:ignore[any-type]
         """Unpacks scalar data if it is a DataFrame containing a single value."""
         if isinstance(data, AnnData):
             return data
@@ -381,7 +381,7 @@ class AnnDataInterface(hv.core.Interface):
         dimensions: Sequence[str | AdDim],
         container_type: type[T],
         group_type: type[Dataset | dict] | Literal["raw"],
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,  # ruff:ignore[any-type]
     ) -> T:
         """Group the dataset along the provided dimensions."""
         values = {}
@@ -464,7 +464,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         dataset: Dataset,
         ref: Dimension | str,
         /,
-        ordered: bool = False,  # noqa: FBT001, FBT002
+        ordered: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         *,
         expanded: bool = False,
         edges: bool = False,
@@ -473,14 +473,14 @@ class AnnDataGriddedInterface(AnnDataInterface):
 
         Ordered ensures coordinates are in ascending order and expanded creates
         ND-array matching the dimensionality of the dataset.
-        """  # noqa: DOC201
+        """  # ruff:ignore[docstring-missing-returns]
         ref = cls._dim(dataset, ref)
         vdim = dataset.vdims[0]
         if expanded:
             data = expand_grid_coords(dataset, ref)
             if edges and data.shape == vdim(dataset.data).shape:
-                data = GridInterface._infer_interval_breaks(data, axis=1)  # noqa: SLF001
-                data = GridInterface._infer_interval_breaks(data, axis=0)  # noqa: SLF001
+                data = GridInterface._infer_interval_breaks(data, axis=1)  # ruff:ignore[private-member-access]
+                data = GridInterface._infer_interval_breaks(data, axis=0)  # ruff:ignore[private-member-access]
             return data
 
         data = ref(dataset.data)
@@ -489,7 +489,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         shape = cls.shape(dataset, gridded=True)
         if ref in dataset.kdims:
             idx = dataset.get_dimension_index(ref)
-            # TODO: don’t do this, it’s broken if diff(shape) == 1  # noqa: TD003
+            # TODO: don’t do this, it’s broken if diff(shape) == 1  # ruff:ignore[missing-todo-link]
             is_edges = (
                 ref in dataset.kdims
                 and len(shape) == dataset.ndims
@@ -498,7 +498,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         else:
             is_edges = False
         if edges and not is_edges:
-            data = GridInterface._infer_interval_breaks(data)  # noqa: SLF001
+            data = GridInterface._infer_interval_breaks(data)  # ruff:ignore[private-member-access]
         elif not edges and is_edges:
             data = data[:-1] + np.diff(data) / 2.0
         return data
@@ -508,11 +508,11 @@ class AnnDataGriddedInterface(AnnDataInterface):
         cls,
         data: Dataset,
         ref: Dimension | str,
-        expanded: bool = True,  # noqa: FBT001, FBT002
-        flat: bool = True,  # noqa: FBT001, FBT002
+        expanded: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+        flat: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         *,
-        compute: bool = True,  # noqa: ARG003
-        keep_index: bool = False,  # noqa: ARG003
+        compute: bool = True,  # ruff:ignore[unused-class-method-argument]
+        keep_index: bool = False,  # ruff:ignore[unused-class-method-argument]
     ) -> ValueType:
         """Retrieve values for a dimension."""
         ref = cls._dim(data, ref)
@@ -544,7 +544,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
                 if transpose != flat:
                     values = values.T
             case _:
-                assert ref in data.vdims, "test_init_errors[tab-x_2d] prevents 2D kdims"  # noqa: S101
+                assert ref in data.vdims, "test_init_errors[tab-x_2d] prevents 2D kdims"  # ruff:ignore[assert]
                 error = (
                     "When requesting data for a value dimension, "
                     "it is invalid to request expanded=False. "

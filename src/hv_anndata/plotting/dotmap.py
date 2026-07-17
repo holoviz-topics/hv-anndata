@@ -63,7 +63,7 @@ _DEFAULT_MAX_DOT_SIZE = 20
 _DEFAULT_STANDARD_SCALE = None
 
 
-def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0914, PLR0915
+def _prepare_data(  # ruff:ignore[complex-structure, too-many-branches, too-many-arguments, too-many-locals, too-many-statements]
     adata: ad.AnnData,
     *,
     groupby: str = _DEFAULT_GROUPBY,
@@ -100,8 +100,8 @@ def _prepare_data(  # noqa: C901, PLR0912, PLR0913, PLR0914, PLR0915
 
     missing_genes = set(all_marker_genes) - set(available_var_names)
     if missing_genes:
-        print(  # noqa: T201
-            f"Warning: The following genes are not present in the dataset and will be skipped: {missing_genes}"  # noqa: E501
+        print(  # ruff:ignore[print]
+            f"Warning: The following genes are not present in the dataset and will be skipped: {missing_genes}"  # ruff:ignore[line-too-long]
         )
         available_marker_genes = [g for g in all_marker_genes if g not in missing_genes]
         if not available_marker_genes:
@@ -264,8 +264,8 @@ def _get_opts(
                 "height": 500,
                 "responsive": "width",
                 # Saw layout issues with the dendrogram
-                # "min_height": 300,  # noqa: ERA001
-                # "responsive": True,  # noqa: ERA001
+                # "min_height": 300,  # ruff:ignore[commented-out-code]
+                # "responsive": True,  # ruff:ignore[commented-out-code]
                 "radius": radius_dim / 100 / 2,
                 "sizebar": True,
                 "sizebar_location": "left",
@@ -289,7 +289,7 @@ def _get_cat_obs(adata: ad.AnnData) -> list[str]:
     return sorted(categorical_obs)
 
 
-def create_dotmap_plot(  # noqa: PLR0913
+def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
     adata: ad.AnnData,
     *,
     groupby: str | None = _DEFAULT_GROUPBY,
@@ -562,7 +562,7 @@ def dotmap_from_manifoldmap(
     rx: Reactive expression that updates when the ManifoldMap changes.
 
     """
-    plot = param.rx(mm._plot_view)  # noqa: SLF001
+    plot = param.rx(mm._plot_view)  # ruff:ignore[private-member-access]
 
     # Clear selection when plot updates (if ls exists)
     if mm.ls:
@@ -588,7 +588,7 @@ class DotmapOp(Operation, DotmapParams):
     def _apply(
         self,
         element: Overlay | Element,
-        key: str | None = None,  # noqa: ARG002
+        key: str | None = None,  # ruff:ignore[unused-method-argument]
     ) -> hv.Points:
         # We override ._apply instead of ._process to override the
         # tracking of the dataset and pipeline
@@ -609,7 +609,7 @@ class DotmapOp(Operation, DotmapParams):
     def __call__(
         self,
         element: DynamicMap | Overlay | Element,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,  # ruff:ignore[any-type]
     ) -> DynamicMap | Overlay:
         """Apply the operation."""
         ls = kwargs.pop("ls", self.ls)

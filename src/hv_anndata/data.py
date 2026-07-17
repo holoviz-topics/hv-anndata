@@ -18,7 +18,7 @@ def pbmc68k_processed() -> AnnData:
 
     - ``.layers["counts"]`` instead of ``raw``.
     - UMAP computed.
-    """  # noqa: DOC201
+    """  # ruff:ignore[docstring-missing-returns]
     return _pbmc68k_processed().copy()
 
 
