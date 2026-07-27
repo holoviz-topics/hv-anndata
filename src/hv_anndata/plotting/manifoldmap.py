@@ -24,7 +24,7 @@ from hv_anndata import A
 from .labeller import labeller
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
     from typing import Any, Unpack
 
     from holoviews.streams import Stream
@@ -155,11 +155,21 @@ def create_manifoldmap_plot(  # ruff:ignore[complex-structure, too-many-branches
         # Add a NaN category to handle and display data points with no category
         color_data = np.where(pd.isna(color_data), "NaN", color_data)
 
-        n_unq_cat = len(np.unique(color_data))
+        # All categories present in the full dataset, in a stable order.
+        # Build the colormap as an explicit {category: color} mapping rather
+        # than a positional list: under a linked selection datashader
+        # re-aggregates only the selected subset, and a list color_key is
+        # assigned by the categories *present in that frame*, so a category's
+        # color would shift whenever the selection dropped other categories.
+        # A dict keys each color to its category, keeping colors stable.
+        categories = np.unique(color_data)
+        n_unq_cat = len(categories)
         if cmap is None:
             cmap = DEFAULT_CAT_CMAP
+        elif isinstance(cmap, dict):
+            cmap = list(cmap.values())
         # Use subset of categorical colormap to preserve distinct colors
-        cmap = cmap[:n_unq_cat]
+        cmap = dict(zip(categories, cmap[:n_unq_cat], strict=True))
         colorbar = False
         show_legend = True
     else:
@@ -276,7 +286,7 @@ def _apply_categorical_datashading(
     plot: hv.Element,
     *,
     color_by: str,
-    cmap: Sequence[str],
+    cmap: Mapping[str, str] | Sequence[str],
     legend_position: str = "bottom_right",
 ) -> hv.Element:
     """Apply datashading to categorical data.
@@ -288,7 +298,8 @@ def _apply_categorical_datashading(
     color_by
         Name of the color variable
     cmap
-        Colormap to use
+        Colormap to use. A ``{category: color}`` mapping keeps colors stable
+        across selections; a positional sequence is also accepted.
     legend_position
         Position for the legend
 
