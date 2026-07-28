@@ -22,17 +22,3 @@
    ManifoldMap
    ManifoldMapConfig
    create_manifoldmap_plot
-
-Submodules
-----------
-
-.. autosummary::
-
-   plotting.scanpy
-   plotting.utils
-
-.. toctree::
-   :hidden:
-
-   hv_anndata.plotting.scanpy
-   hv_anndata.plotting.utils
