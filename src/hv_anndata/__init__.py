@@ -44,7 +44,6 @@ with suppress(ImportError):  # ruff:ignore[non-empty-init-module]
         create_manifoldmap_plot,
         dotmap_from_manifoldmap,
         labeller,
-        scanpy,
     )
 
     __all__ += [
@@ -59,5 +58,4 @@ with suppress(ImportError):  # ruff:ignore[non-empty-init-module]
         "create_manifoldmap_plot",
         "dotmap_from_manifoldmap",
         "labeller",
-        "scanpy",
     ]

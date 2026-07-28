@@ -34,9 +34,10 @@ optional-dependencies.panel = [
 dev = [ { include-group = "test" } ]
 test = [
   "nbformat-types",
+  "plotly",
   # for VS Code’s coverage function (not needed for `hatch test -c`)
   "pytest-cov",
-  "scanpy",
+  "scanpy[scanpy2,scrublet]>=1.13.0a1",
 ]
 docs = [
   "furo",
@@ -141,6 +142,7 @@ filterwarnings = [
   "ignore:FNV hashing is not implemented in Numba:UserWarning",
 ]
 strict = true
+testpaths = [ "src", "tests" ]
 
 [tool.coverage]
 run.branch = true
