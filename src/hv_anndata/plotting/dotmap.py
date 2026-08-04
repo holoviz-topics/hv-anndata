@@ -41,6 +41,9 @@ class _CreateDotmapPlotParams(TypedDict):
     standard_scale: NotRequired[Literal["var", "group"] | None]
     use_raw: NotRequired[bool | None]
     mean_only_expressed: NotRequired[bool]
+    responsive: NotRequired[bool]
+    width: NotRequired[int]
+    height: NotRequired[int]
 
 
 class _DotmapPlotParams(_CreateDotmapPlotParams):
@@ -61,6 +64,18 @@ _DEFAULT_EXPRESSION_CUTOFF = 0.0
 _DEFAULT_MEAN_ONLY_EXPRESSED = False
 _DEFAULT_MAX_DOT_SIZE = 20
 _DEFAULT_STANDARD_SCALE = None
+_DEFAULT_RESPONSIVE = True
+# Floor, not fixed, under stretch_both -- the plot stretches to its container
+# in both directions above this.
+_DEFAULT_WIDTH = 300
+_DEFAULT_HEIGHT = 300
+# BaseBar (what sizebar renders as) is shaped for a horizontal bar by default
+# (width=200, height=50). Its height accepts the literal string "max" -- the
+# SizeBar equivalent of the colorbar's "auto" -- so it fills its side panel
+# instead of floating as a small fixed box inside a panel sized to the (tall,
+# stretch_both) plot frame, which is what was leaving the empty space below.
+_DEFAULT_SIZEBAR_WIDTH = 150
+_DEFAULT_SIZEBAR_HEIGHT = 100
 
 
 def _prepare_data(  # ruff:ignore[complex-structure, too-many-branches, too-many-arguments, too-many-locals, too-many-statements]
@@ -230,6 +245,9 @@ def _get_opts(
     vdims: list[str | hv.Dimension] = _DEFAULT_VDIMS,
     marker_genes: dict[str, list[str]] | list[str] | None = None,
     max_dot_size: int = _DEFAULT_MAX_DOT_SIZE,
+    responsive: bool = _DEFAULT_RESPONSIVE,
+    width: int = _DEFAULT_WIDTH,
+    height: int = _DEFAULT_HEIGHT,
     plot_opts: Mapping[str, Any],
 ) -> dict[str, Any]:
     opts = dict(
@@ -241,6 +259,26 @@ def _get_opts(
     )
 
     radius_dim = hv.dim("percentage")
+    # Mirrors create_manifoldmap_plot: full stretch_both, width/height are
+    # floors. NOTE: an earlier attempt found that stretch_both left the
+    # sizebar's legend (dots + tick labels) unrendered until an external
+    # relayout (e.g. a zoom) -- looks like a HoloViews/Bokeh timing issue with
+    # side-panel annotations under stretch_both, not yet filed upstream.
+    # Pinning frame_width (stretch_height only) avoided it but gave up a
+    # width that fills the container; reverted to test whether the sizebar's
+    # now-explicit width/height/margin (below) are enough on their own.
+    if responsive:
+        sizing_opts = {
+            "responsive": True,
+            "min_width": width,
+            "min_height": height,
+        }
+    else:
+        sizing_opts = {
+            "responsive": False,
+            "frame_width": width,
+            "frame_height": height,
+        }
     match hv.Store.current_backend:
         case "matplotlib":
             backend_opts = {"s": radius_dim * max_dot_size}
@@ -251,7 +289,7 @@ def _get_opts(
             ):
                 hover_tooltips.remove("marker_cluster_name")
             backend_opts = {
-                "colorbar_position": "left",
+                "colorbar_position": "right",
                 "clabel": "Mean Expression",
                 "colorbar_opts": {
                     # Does not seem to work
@@ -261,18 +299,18 @@ def _get_opts(
                 "line_color": "k",
                 "tools": ["hover"],
                 "hover_tooltips": hover_tooltips,
-                "height": 500,
-                "responsive": "width",
-                # Saw layout issues with the dendrogram
-                # "min_height": 300,  # ruff:ignore[commented-out-code]
-                # "responsive": True,  # ruff:ignore[commented-out-code]
+                # NOTE: full responsive (stretch_both) was previously backed out
+                # here because of layout issues with the dendrogram.
+                **sizing_opts,
                 "radius": radius_dim / 100 / 2,
                 "sizebar": True,
-                "sizebar_location": "left",
+                "sizebar_location": "right",
                 "sizebar_orientation": "vertical",
                 "sizebar_opts": {
                     "title": "Fraction of\ncells (%)",
                     "title_standoff": 15,
+                    "width": _DEFAULT_SIZEBAR_WIDTH,
+                    "height": _DEFAULT_SIZEBAR_HEIGHT,
                     "formatter": CustomJSTickFormatter(
                         code="return Math.round(tick * 2 * 100, 2) + '%'"
                     ),
@@ -301,6 +339,9 @@ def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
     mean_only_expressed: bool = _DEFAULT_MEAN_ONLY_EXPRESSED,
     standard_scale: Literal["var", "group"] | None = _DEFAULT_STANDARD_SCALE,
     max_dot_size: int = 20,
+    responsive: bool = _DEFAULT_RESPONSIVE,
+    width: int = _DEFAULT_WIDTH,
+    height: int = _DEFAULT_HEIGHT,
     plot_opts: Mapping[str, Any] | None = None,
 ) -> hv.Element:
     """Create a Dotmap plot from an AnnData object.
@@ -332,6 +373,13 @@ def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
         gene, 'group' scales each cell type, by default None
     max_dot_size : int, optional
         Maximum size of the dots, by default 20
+    responsive : bool, optional
+        Whether to make the plot size-responsive, by default True. When True,
+        ``width`` and ``height`` act as minimums.
+    width : int, optional
+        Width of the plot, by default 300. The minimum width if responsive.
+    height : int, optional
+        Height of the plot, by default 300. The minimum height if responsive.
     plot_opts: dict, optional
         HoloViews plot options for the Points element.
 
@@ -361,6 +409,9 @@ def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
         vdims=vdims,
         marker_genes=marker_genes,
         max_dot_size=max_dot_size,
+        responsive=responsive,
+        width=width,
+        height=height,
         plot_opts=plot_opts,
     )
     return plot.opts(**opts)
@@ -423,6 +474,23 @@ class DotmapParams(param.Parameterized):
     mean_only_expressed = param.Boolean(
         default=_DEFAULT_MEAN_ONLY_EXPRESSED,
         doc="If True, gene expression is averaged only over expressing cells.",
+    )
+
+    responsive = param.Boolean(
+        default=_DEFAULT_RESPONSIVE,
+        doc="""\
+        Whether to make the plot size-responsive. When True, width and height
+        act as minimums rather than fixed dimensions.""",
+    )
+
+    width = param.Integer(
+        default=_DEFAULT_WIDTH,
+        doc="Width of the plot; the minimum width when responsive.",
+    )
+
+    height = param.Integer(
+        default=_DEFAULT_HEIGHT,
+        doc="Height of the plot; the minimum height when responsive.",
     )
 
     plot_opts = param.Dict(doc="HoloViews plot options for the Points element.")
