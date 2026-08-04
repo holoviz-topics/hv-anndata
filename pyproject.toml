@@ -72,6 +72,9 @@ envs.hatch-test.matrix = [
   { python = [ "3.14", "3.12" ], feature-set = [ "full" ] },
   { python = [ "3.14" ], feature-set = [ "min", "full" ] },
 ]
+envs.hatch-test.overrides.env.GITHUB_ACTIONS.extra-dependencies = [
+  { value = "pytest-github-actions-annotate-failures", if = [ "true" ] },
+]
 envs.hatch-test.overrides.matrix.feature-set.features = [
   { value = "panel", if = [ "full" ] },
 ]
