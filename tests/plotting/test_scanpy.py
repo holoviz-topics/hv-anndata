@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import scanpy as sc
-import scanpy.plotting._v2 as sc_pl_v2  # ruff: ignore[import-private-name]
+import scanpy.plotting._v2 as sc_pl_v2
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
