@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from itertools import chain
 from typing import TYPE_CHECKING, TypedDict
@@ -12,7 +13,7 @@ import pandas as pd
 import panel as pn
 import panel_material_ui as pmui
 import param
-from bokeh.models import CustomJSTickFormatter
+from bokeh.models import CustomJSTickFormatter, FixedTicker
 from holoviews.core.operation import Operation
 from holoviews.core.overlay import Overlay
 from holoviews.selection import link_selections
@@ -70,12 +71,65 @@ _DEFAULT_RESPONSIVE = True
 _DEFAULT_WIDTH = 300
 _DEFAULT_HEIGHT = 300
 # BaseBar (what sizebar renders as) is shaped for a horizontal bar by default
-# (width=200, height=50). Its height accepts the literal string "max" -- the
-# SizeBar equivalent of the colorbar's "auto" -- so it fills its side panel
-# instead of floating as a small fixed box inside a panel sized to the (tall,
-# stretch_both) plot frame, which is what was leaving the empty space below.
+# (width=200, height=50). ``width`` is always the bar's *primary* axis, so for
+# our vertical bar it is the height on screen and ``height`` is the cross-axis
+# width; BaseBarView.initialize() swaps them into frame_height/frame_width.
 _DEFAULT_SIZEBAR_WIDTH = 150
 _DEFAULT_SIZEBAR_HEIGHT = 100
+# Percentage -> radius. Shared so the sizebar ticks, which are in radius space,
+# and the ``radius`` transform below cannot drift apart.
+_RADIUS_PER_PERCENT = 1 / 100 / 2
+# Reproduce bokeh's SizeBarView._paint and its AdaptiveTicker defaults; see
+# _sizebar_ticks. _SIZEBAR_MANTISSAS is AdaptiveTicker.extended_mantissas for
+# base=10, mantissas=[1, 2, 5]; its order matters, because ties go to the first
+# minimum as bokeh's argmin does.
+_SIZEBAR_EPS = 1e-6
+_SIZEBAR_DESIRED_TICKS = 5
+_SIZEBAR_MANTISSAS = (0.5, 1.0, 2.0, 5.0, 10.0)
+
+
+def _sizebar_ticks(percentages: pd.Series) -> list[float]:
+    """Compute the sizebar's tick locations.
+
+    Needed because bokeh's ``SizeBarView`` only computes its ticks in
+    ``_paint``, after the layout pass that sizes the panel holding the tick
+    labels, so with ``ticker="auto"`` that panel is measured against an empty
+    tick list. Bokeh usually recovers on a later pass -- a standalone plot looks
+    fine -- but inside ``pmui.Page`` it does not, and the sizebar renders dots
+    and tick marks with no labels until a zoom or resize. Whether that belongs
+    to bokeh's ordering or to panel's handling of the relayout bokeh asks for is
+    unresolved; supplying a ticker sidesteps it either way.
+
+    These have to be the values bokeh itself would pick, not rounder ones:
+    ``_paint`` positions the dots from its own AdaptiveTicker whatever this
+    ticker says, so a ticker that disagrees labels the wrong dots.
+
+    Returns
+    -------
+    list[float]
+        Tick locations in radius space, empty if there is no finite data.
+
+    """
+    lo, hi = float(percentages.min()), float(percentages.max())  # NaN-skipping
+    if not (math.isfinite(lo) and math.isfinite(hi)):
+        return []
+    r_min, r_max = lo * _RADIUS_PER_PERCENT, hi * _RADIUS_PER_PERCENT
+    if r_min == r_max:
+        low, high, desired = max(r_min - _SIZEBAR_EPS, 0.0), r_max + _SIZEBAR_EPS, 1
+    else:
+        low, high, desired = r_min, r_max, _SIZEBAR_DESIRED_TICKS
+    if low == 0:
+        low = high * _SIZEBAR_EPS
+    span = high - low
+    if span <= 0:
+        return []
+    magnitude = 10 ** math.floor(math.log10(span / desired))
+    interval = min(
+        (m * magnitude for m in _SIZEBAR_MANTISSAS),
+        key=lambda i: abs(desired - span / i),
+    )
+    factors = range(math.floor(low / interval), math.ceil(high / interval) + 1)
+    return [f * interval for f in factors if low <= f * interval <= high]
 
 
 def _prepare_data(  # ruff:ignore[complex-structure, too-many-branches, too-many-arguments, too-many-locals, too-many-statements]
@@ -239,7 +293,7 @@ def _prepare_data(  # ruff:ignore[complex-structure, too-many-branches, too-many
     return df
 
 
-def _get_opts(
+def _get_opts(  # ruff:ignore[too-many-arguments]
     *,
     kdims: list[str | hv.Dimension] = _DEFAULT_KDIMS,
     vdims: list[str | hv.Dimension] = _DEFAULT_VDIMS,
@@ -248,6 +302,7 @@ def _get_opts(
     responsive: bool = _DEFAULT_RESPONSIVE,
     width: int = _DEFAULT_WIDTH,
     height: int = _DEFAULT_HEIGHT,
+    percentages: pd.Series,
     plot_opts: Mapping[str, Any],
 ) -> dict[str, Any]:
     opts = dict(
@@ -260,13 +315,8 @@ def _get_opts(
 
     radius_dim = hv.dim("percentage")
     # Mirrors create_manifoldmap_plot: full stretch_both, width/height are
-    # floors. NOTE: an earlier attempt found that stretch_both left the
-    # sizebar's legend (dots + tick labels) unrendered until an external
-    # relayout (e.g. a zoom) -- looks like a HoloViews/Bokeh timing issue with
-    # side-panel annotations under stretch_both, not yet filed upstream.
-    # Pinning frame_width (stretch_height only) avoided it but gave up a
-    # width that fills the container; reverted to test whether the sizebar's
-    # now-explicit width/height/margin (below) are enough on their own.
+    # floors. The sizebar labels going missing here was not a stretch_both
+    # problem; see _sizebar_ticks.
     if responsive:
         sizing_opts = {
             "responsive": True,
@@ -302,7 +352,7 @@ def _get_opts(
                 # NOTE: full responsive (stretch_both) was previously backed out
                 # here because of layout issues with the dendrogram.
                 **sizing_opts,
-                "radius": radius_dim / 100 / 2,
+                "radius": radius_dim * _RADIUS_PER_PERCENT,
                 "sizebar": True,
                 "sizebar_location": "right",
                 "sizebar_orientation": "vertical",
@@ -311,8 +361,12 @@ def _get_opts(
                     "title_standoff": 15,
                     "width": _DEFAULT_SIZEBAR_WIDTH,
                     "height": _DEFAULT_SIZEBAR_HEIGHT,
+                    # Without this the labels never render; see _sizebar_ticks.
+                    "ticker": FixedTicker(ticks=_sizebar_ticks(percentages)),
+                    # Undo _RADIUS_PER_PERCENT to get back to a percentage,
+                    # then trim float noise without forcing a fixed precision.
                     "formatter": CustomJSTickFormatter(
-                        code="return Math.round(tick * 2 * 100, 2) + '%'"
+                        code="return (Math.round(tick * 200 * 100) / 100) + '%'"
                     ),
                 },
             }
@@ -412,6 +466,7 @@ def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
         responsive=responsive,
         width=width,
         height=height,
+        percentages=data["percentage"],
         plot_opts=plot_opts,
     )
     return plot.opts(**opts)

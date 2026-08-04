@@ -118,6 +118,7 @@ lint.per-file-ignores."tests/*" = [
   "D",       # Missing docstrings in tests are OK
   "INP001",  # __init__.py should not be in tests
   "PLC1901", # comparing to empty string in tests is clearer
+  "PLC2701", # importing private helpers in tests is fine
   "PLR0917", # tests and fixures don’t have positional arguments
   "PLR2004", # magic-value-comparison
   "RUF018",  # assert with := is fine
