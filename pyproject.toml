@@ -84,48 +84,49 @@ envs.hatch-test.dependency-groups = [ "test" ]
 format.preview = true
 lint.select = [ "ALL" ]
 lint.ignore = [
-  "B019",   # functools.cache is fine to use
-  "C408",   # dict(...) calls are good
-  "COM812", # Incompatible with formatter
-  "CPY001", # No copyright notice necessary
-  "D105",   # magic methods are usually self-explanatory
-  "D203",   # 0 instead of 1 blank lines before class docstring
-  "D213",   # Multi-line docstring summary should start at the first instead of second line
-  "DOC501", # No need to document obvious exceptions like TypeError or ValueError
-  "FIX002", # TODOs are fine
-  "ISC001", # Incompatible with formatter
-  "PD011",  # We actually do want `.values` give us a numpy or extension array
-  "S404",   # Using the subprocess module is fine
-  "S603",   # We don’t want to use `subprocess.run(shell=True)`
-  "S607",   # We don’t run commands with untrusted input
-  "TD002",  # No need to assign TODOs to some person
+  "cached-instance-method",                    # functools.cache is fine to use
+  "docstring-missing-exception",               # No need to document obvious exceptions like TypeError or ValueError
+  "incorrect-blank-line-before-class",         # 0 instead of 1 blank lines before class docstring
+  "line-contains-todo",                        # TODOs are fine
+  "missing-copyright-notice",                  # No copyright notice necessary
+  "missing-todo-author",                       # No need to assign TODOs to some person
+  "missing-trailing-comma",                    # Incompatible with formatter
+  "multi-line-summary-second-line",            # Multi-line docstring summary should start at the first instead of second line
+  "pandas-use-of-dot-values",                  # We actually do want `.values` give us a numpy or extension array
+  "pytest-fixture-autouse",                    # opinionated
+  "single-line-implicit-string-concatenation", # Incompatible with formatter
+  "start-process-with-partial-path",           # We don’t run commands with untrusted input
+  "subprocess-without-shell-equals-true",      # We don’t want to use `subprocess.run(shell=True)`
+  "suspicious-subprocess-import",              # Using the subprocess module is fine
+  "undocumented-magic-method",                 # magic methods are usually self-explanatory
+  "unnecessary-collection-call",               # dict(...) calls are good
 ]
 lint.per-file-ignores."**/*.ipynb" = [
-  "ANN",  # missing annotations in notebooks are OK
-  "D",    # Missing docstrings in notebooks are OK
-  "ERA",  # commented-out code in notebooks is fine
-  "I002", # Missing `from __future__ import annotations` is fine
-  "T201", # print is fine
+  "ANN",                     # missing annotations in notebooks are OK
+  "D",                       # Missing docstrings in notebooks are OK
+  "ERA",                     # commented-out code in notebooks is fine
+  "missing-required-import", # Missing `from __future__ import annotations` is fine
+  "print",                   # print is fine
 ]
 lint.per-file-ignores."docs/**/*.py" = [
-  "INP001", # __init__.py
+  "implicit-namespace-package", # __init__.py
 ]
 lint.per-file-ignores."scripts/*" = [
-  "INP001", # __init__.py
-  "T201",   # print is fine
+  "implicit-namespace-package", # __init__.py
+  "print",                      # print is fine
 ]
 lint.per-file-ignores."src/hv_anndata/__main__.py" = [
-  "T201", # print is fine
+  "print", # print is fine
 ]
 lint.per-file-ignores."tests/*" = [
-  "D",       # Missing docstrings in tests are OK
-  "INP001",  # __init__.py should not be in tests
-  "PLC1901", # comparing to empty string in tests is clearer
-  "PLR0917", # tests and fixures don’t have positional arguments
-  "PLR2004", # magic-value-comparison
-  "RUF018",  # assert with := is fine
-  "S101",    # Use of assert
-  "SLF",     # private member access in tests is fine
+  "assert",                        # Use of assert
+  "assignment-in-assert",          # assert with := is fine
+  "compare-to-empty-string",       # comparing to empty string in tests is clearer
+  "D",                             # Missing docstrings in tests are OK
+  "implicit-namespace-package",    # __init__.py should not be in tests
+  "magic-value-comparison",        # magic-value-comparison
+  "SLF",                           # private member access in tests is fine
+  "too-many-positional-arguments", # tests and fixures don’t have positional arguments
 ]
 lint.allowed-confusables = [ "×", "’" ]
 lint.flake8-type-checking.exempt-modules = []
