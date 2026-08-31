@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from itertools import chain
 from typing import TYPE_CHECKING, TypedDict
@@ -12,7 +13,7 @@ import pandas as pd
 import panel as pn
 import panel_material_ui as pmui
 import param
-from bokeh.models import CustomJSTickFormatter
+from bokeh.models import CustomJSTickFormatter, FixedTicker
 from holoviews.core.operation import Operation
 from holoviews.core.overlay import Overlay
 from holoviews.selection import link_selections
@@ -41,6 +42,9 @@ class _CreateDotmapPlotParams(TypedDict):
     standard_scale: NotRequired[Literal["var", "group"] | None]
     use_raw: NotRequired[bool | None]
     mean_only_expressed: NotRequired[bool]
+    responsive: NotRequired[bool]
+    width: NotRequired[int]
+    height: NotRequired[int]
 
 
 class _DotmapPlotParams(_CreateDotmapPlotParams):
@@ -61,6 +65,71 @@ _DEFAULT_EXPRESSION_CUTOFF = 0.0
 _DEFAULT_MEAN_ONLY_EXPRESSED = False
 _DEFAULT_MAX_DOT_SIZE = 20
 _DEFAULT_STANDARD_SCALE = None
+_DEFAULT_RESPONSIVE = True
+# Floor, not fixed, under stretch_both -- the plot stretches to its container
+# in both directions above this.
+_DEFAULT_WIDTH = 300
+_DEFAULT_HEIGHT = 300
+# BaseBar (what sizebar renders as) is shaped for a horizontal bar by default
+# (width=200, height=50). ``width`` is always the bar's *primary* axis, so for
+# our vertical bar it is the height on screen and ``height`` is the cross-axis
+# width; BaseBarView.initialize() swaps them into frame_height/frame_width.
+_DEFAULT_SIZEBAR_WIDTH = 150
+_DEFAULT_SIZEBAR_HEIGHT = 100
+# Percentage -> radius. Shared so the sizebar ticks, which are in radius space,
+# and the ``radius`` transform below cannot drift apart.
+_RADIUS_PER_PERCENT = 1 / 100 / 2
+# Reproduce bokeh's SizeBarView._paint and its AdaptiveTicker defaults; see
+# _sizebar_ticks. _SIZEBAR_MANTISSAS is AdaptiveTicker.extended_mantissas for
+# base=10, mantissas=[1, 2, 5]; its order matters, because ties go to the first
+# minimum as bokeh's argmin does.
+_SIZEBAR_EPS = 1e-6
+_SIZEBAR_DESIRED_TICKS = 5
+_SIZEBAR_MANTISSAS = (0.5, 1.0, 2.0, 5.0, 10.0)
+
+
+def _sizebar_ticks(percentages: pd.Series) -> list[float]:
+    """Compute the sizebar's tick locations.
+
+    Needed because bokeh's ``SizeBarView`` only computes its ticks in
+    ``_paint``, after the layout pass that sizes the panel holding the tick
+    labels, so with ``ticker="auto"`` that panel is measured against an empty
+    tick list. Bokeh usually recovers on a later pass -- a standalone plot looks
+    fine -- but inside ``pmui.Page`` it does not, and the sizebar renders dots
+    and tick marks with no labels until a zoom or resize. Whether that belongs
+    to bokeh's ordering or to panel's handling of the relayout bokeh asks for is
+    unresolved; supplying a ticker sidesteps it either way.
+
+    These have to be the values bokeh itself would pick, not rounder ones:
+    ``_paint`` positions the dots from its own AdaptiveTicker whatever this
+    ticker says, so a ticker that disagrees labels the wrong dots.
+
+    Returns
+    -------
+    list[float]
+        Tick locations in radius space, empty if there is no finite data.
+
+    """
+    lo, hi = float(percentages.min()), float(percentages.max())  # NaN-skipping
+    if not (math.isfinite(lo) and math.isfinite(hi)):
+        return []
+    r_min, r_max = lo * _RADIUS_PER_PERCENT, hi * _RADIUS_PER_PERCENT
+    if r_min == r_max:
+        low, high, desired = max(r_min - _SIZEBAR_EPS, 0.0), r_max + _SIZEBAR_EPS, 1
+    else:
+        low, high, desired = r_min, r_max, _SIZEBAR_DESIRED_TICKS
+    if low == 0:
+        low = high * _SIZEBAR_EPS
+    span = high - low
+    if span <= 0:
+        return []
+    magnitude = 10 ** math.floor(math.log10(span / desired))
+    interval = min(
+        (m * magnitude for m in _SIZEBAR_MANTISSAS),
+        key=lambda i: abs(desired - span / i),
+    )
+    factors = range(math.floor(low / interval), math.ceil(high / interval) + 1)
+    return [f * interval for f in factors if low <= f * interval <= high]
 
 
 def _prepare_data(  # ruff:ignore[complex-structure, too-many-branches, too-many-arguments, too-many-locals, too-many-statements]
@@ -224,12 +293,16 @@ def _prepare_data(  # ruff:ignore[complex-structure, too-many-branches, too-many
     return df
 
 
-def _get_opts(
+def _get_opts(  # ruff:ignore[too-many-arguments]
     *,
     kdims: list[str | hv.Dimension] = _DEFAULT_KDIMS,
     vdims: list[str | hv.Dimension] = _DEFAULT_VDIMS,
     marker_genes: dict[str, list[str]] | list[str] | None = None,
     max_dot_size: int = _DEFAULT_MAX_DOT_SIZE,
+    responsive: bool = _DEFAULT_RESPONSIVE,
+    width: int = _DEFAULT_WIDTH,
+    height: int = _DEFAULT_HEIGHT,
+    percentages: pd.Series,
     plot_opts: Mapping[str, Any],
 ) -> dict[str, Any]:
     opts = dict(
@@ -241,6 +314,21 @@ def _get_opts(
     )
 
     radius_dim = hv.dim("percentage")
+    # Mirrors create_manifoldmap_plot: full stretch_both, width/height are
+    # floors. The sizebar labels going missing here was not a stretch_both
+    # problem; see _sizebar_ticks.
+    if responsive:
+        sizing_opts = {
+            "responsive": True,
+            "min_width": width,
+            "min_height": height,
+        }
+    else:
+        sizing_opts = {
+            "responsive": False,
+            "frame_width": width,
+            "frame_height": height,
+        }
     match hv.Store.current_backend:
         case "matplotlib":
             backend_opts = {"s": radius_dim * max_dot_size}
@@ -251,7 +339,7 @@ def _get_opts(
             ):
                 hover_tooltips.remove("marker_cluster_name")
             backend_opts = {
-                "colorbar_position": "left",
+                "colorbar_position": "right",
                 "clabel": "Mean Expression",
                 "colorbar_opts": {
                     # Does not seem to work
@@ -261,20 +349,24 @@ def _get_opts(
                 "line_color": "k",
                 "tools": ["hover"],
                 "hover_tooltips": hover_tooltips,
-                "height": 500,
-                "responsive": "width",
-                # Saw layout issues with the dendrogram
-                # "min_height": 300,  # ruff:ignore[commented-out-code]
-                # "responsive": True,  # ruff:ignore[commented-out-code]
-                "radius": radius_dim / 100 / 2,
+                # NOTE: full responsive (stretch_both) was previously backed out
+                # here because of layout issues with the dendrogram.
+                **sizing_opts,
+                "radius": radius_dim * _RADIUS_PER_PERCENT,
                 "sizebar": True,
-                "sizebar_location": "left",
+                "sizebar_location": "right",
                 "sizebar_orientation": "vertical",
                 "sizebar_opts": {
                     "title": "Fraction of\ncells (%)",
                     "title_standoff": 15,
+                    "width": _DEFAULT_SIZEBAR_WIDTH,
+                    "height": _DEFAULT_SIZEBAR_HEIGHT,
+                    # Without this the labels never render; see _sizebar_ticks.
+                    "ticker": FixedTicker(ticks=_sizebar_ticks(percentages)),
+                    # Undo _RADIUS_PER_PERCENT to get back to a percentage,
+                    # then trim float noise without forcing a fixed precision.
                     "formatter": CustomJSTickFormatter(
-                        code="return Math.round(tick * 2 * 100, 2) + '%'"
+                        code="return (Math.round(tick * 200 * 100) / 100) + '%'"
                     ),
                 },
             }
@@ -301,6 +393,9 @@ def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
     mean_only_expressed: bool = _DEFAULT_MEAN_ONLY_EXPRESSED,
     standard_scale: Literal["var", "group"] | None = _DEFAULT_STANDARD_SCALE,
     max_dot_size: int = 20,
+    responsive: bool = _DEFAULT_RESPONSIVE,
+    width: int = _DEFAULT_WIDTH,
+    height: int = _DEFAULT_HEIGHT,
     plot_opts: Mapping[str, Any] | None = None,
 ) -> hv.Element:
     """Create a Dotmap plot from an AnnData object.
@@ -332,6 +427,13 @@ def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
         gene, 'group' scales each cell type, by default None
     max_dot_size : int, optional
         Maximum size of the dots, by default 20
+    responsive : bool, optional
+        Whether to make the plot size-responsive, by default True. When True,
+        ``width`` and ``height`` act as minimums.
+    width : int, optional
+        Width of the plot, by default 300. The minimum width if responsive.
+    height : int, optional
+        Height of the plot, by default 300. The minimum height if responsive.
     plot_opts: dict, optional
         HoloViews plot options for the Points element.
 
@@ -361,6 +463,10 @@ def create_dotmap_plot(  # ruff:ignore[too-many-arguments]
         vdims=vdims,
         marker_genes=marker_genes,
         max_dot_size=max_dot_size,
+        responsive=responsive,
+        width=width,
+        height=height,
+        percentages=data["percentage"],
         plot_opts=plot_opts,
     )
     return plot.opts(**opts)
@@ -423,6 +529,23 @@ class DotmapParams(param.Parameterized):
     mean_only_expressed = param.Boolean(
         default=_DEFAULT_MEAN_ONLY_EXPRESSED,
         doc="If True, gene expression is averaged only over expressing cells.",
+    )
+
+    responsive = param.Boolean(
+        default=_DEFAULT_RESPONSIVE,
+        doc="""\
+        Whether to make the plot size-responsive. When True, width and height
+        act as minimums rather than fixed dimensions.""",
+    )
+
+    width = param.Integer(
+        default=_DEFAULT_WIDTH,
+        doc="Width of the plot; the minimum width when responsive.",
+    )
+
+    height = param.Integer(
+        default=_DEFAULT_HEIGHT,
+        doc="Height of the plot; the minimum height when responsive.",
     )
 
     plot_opts = param.Dict(doc="HoloViews plot options for the Points element.")
