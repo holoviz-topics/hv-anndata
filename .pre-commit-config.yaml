@@ -10,6 +10,7 @@ repos:
   - id: ruff-check
     args: [--fix, --preview]
   - id: ruff-format
+    args: [--preview]
 - repo: https://github.com/tox-dev/pyproject-fmt
   rev: v2.29.0
   hooks:
