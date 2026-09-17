@@ -716,7 +716,6 @@ class ManifoldMap(pn.viewable.Viewer):
 
         return self.plot
 
-    @pn.cache(max_items=1)
     @param.depends(
         # Only include derived parameters to avoid calling create_plot
         # unnecessarily.

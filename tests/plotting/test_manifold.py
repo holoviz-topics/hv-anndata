@@ -280,7 +280,8 @@ def test_manifoldmap_panel_layout(sadata: ad.AnnData) -> None:
 def test_manifoldmap_streams(sadata: ad.AnnData) -> None:
     bounds_xy = hv.streams.BoundsXY()
     mm = ManifoldMap(adata=sadata, streams=[bounds_xy])
-    mm._plot_view.clear()
+    # No cache to clear: _plot_view is a per-instance param.depends method, so
+    # a fresh instance has not built a plot and the stream is unattached.
     assert bounds_xy.source is None
     mm.__panel__()
     assert bounds_xy.source is not None
