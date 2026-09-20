@@ -38,7 +38,7 @@ test = [
   "plotly",
   # for VS Code’s coverage function (not needed for `hatch test -c`)
   "pytest-cov",
-  "scanpy[scanpy2,scrublet]>=1.13.0a1",
+  "scanpy[scanpy2,scrublet]>=1.13.0a1,!=1.13.0a2",
 ]
 docs = [
   "furo",
