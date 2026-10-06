@@ -16,7 +16,7 @@ from anndata import AnnData
 from hv_anndata import A
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     from holoviews.plotting import Renderer
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @contextmanager
-def _renderer(backend: str) -> Iterator[Renderer]:
+def _renderer(backend: str) -> Generator[Renderer]:
     pytest.importorskip(backend)
     if not hv.extension._loaded:
         hv.extension(backend)
@@ -38,13 +38,13 @@ def _renderer(backend: str) -> Iterator[Renderer]:
 
 
 @pytest.fixture
-def bokeh_renderer() -> Iterator[Renderer]:
+def bokeh_renderer() -> Generator[Renderer]:
     with _renderer("bokeh") as renderer:
         yield renderer
 
 
 @pytest.fixture
-def mpl_renderer() -> Iterator[Renderer]:
+def mpl_renderer() -> Generator[Renderer]:
     with _renderer("matplotlib") as renderer:
         yield renderer
 
