@@ -145,6 +145,8 @@ filterwarnings = [
   "error",
   # add ignore filters here if something fails in 3rd party dependencies
   "ignore:FNV hashing is not implemented in Numba:UserWarning",
+  # anndata uses pandas options deprecated in pandas 3.1
+  "ignore:The '(mode.chained_assignment|future.infer_string)' option is deprecated:pandas.errors.Pandas4Warning",
 ]
 strict = true
 testpaths = [ "src", "tests" ]
