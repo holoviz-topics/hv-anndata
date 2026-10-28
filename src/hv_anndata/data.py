@@ -5,8 +5,6 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-import scanpy as sc
-
 if TYPE_CHECKING:
     from anndata import AnnData
 
@@ -24,6 +22,8 @@ def pbmc68k_processed() -> AnnData:
 
 @cache
 def _pbmc68k_processed() -> AnnData:
+    import scanpy as sc  # ruff: ignore[import-outside-top-level]
+
     adata = sc.datasets.pbmc68k_reduced()
     adata.layers["counts"] = adata.raw.X
     del adata.raw
