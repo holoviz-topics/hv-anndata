@@ -22,7 +22,11 @@ WARNING_FILTERS = dict(
     umap=[r"ignore::ImportWarning"],
     heatmap=[r"default:.*Dimension\.name.*:DeprecationWarning"],
     # TODO: remove once scanpy 1.13.0.a2 is released  # ruff: ignore[missing-todo-link]
-    highly_variable_genes=[r"default:.*seurat_v3.*count data.*:UserWarning"],
+    highly_variable_genes=[
+        r"default:.*seurat_v3.*count data.*:UserWarning",
+        # scanpy’s own docstring example still uses `layer=`
+        r"default:The argument layer is deprecated:FutureWarning",
+    ],
 )
 
 _DIRECTIVE_RE = re.compile(r"^(?P<indent>[ \t]*)\.\.[ \t]+holoviews::[ \t]*$")
