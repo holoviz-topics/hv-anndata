@@ -260,6 +260,36 @@ def test_init_errors(
         cls.init(hv.Element, adata, [], vdims)
 
 
+def test_init_wrong_type() -> None:
+    with pytest.raises(TypeError, match=r"only supports"):
+        AnnDataInterface.init(hv.Element, {}, [], [])
+
+
+def test_applies_subclass() -> None:
+    class SubAnnData(AnnData):
+        pass
+
+    assert AnnDataInterface.applies(SubAnnData(shape=(2, 2)))
+    assert not AnnDataInterface.applies({})
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        pytest.param(AnnData(shape=(2, 2)), id="adata"),
+        pytest.param(pd.DataFrame(dict(a=[1, 2])), id="df-multi"),
+    ],
+)
+def test_unpack_scalar_passthrough(data: object) -> None:
+    assert AnnDataInterface.unpack_scalar(hv.Dataset({}), data) is data
+
+
+def test_unpack_scalar() -> None:
+    assert (
+        AnnDataInterface.unpack_scalar(hv.Dataset({}), pd.DataFrame(dict(a=[3]))) == 3
+    )
+
+
 @pytest.mark.parametrize(
     ("kdims", "err_msg_pat"),
     [
