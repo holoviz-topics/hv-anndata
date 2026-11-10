@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 from anndata import AnnData
+from anndata.acc import LayerAcc
 from holoviews.core.data.interface import DataError
 from mudata import MuData
 from pandas.api.extensions import ExtensionArray
@@ -44,7 +45,7 @@ def _registered_interface() -> Iterator[None]:
 
 
 @pytest.fixture
-def adata() -> AnnData | MuData:
+def adata() -> AnnData:
     gen = np.random.default_rng()
     x = gen.random((100, 50), dtype=np.float32)
     layers = dict(a=sp.random(100, 50, rng=gen, format="csr"))
@@ -64,20 +65,13 @@ def adata() -> AnnData | MuData:
     return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
 
 
-@pytest.fixture
-def mdata(adata: AnnData) -> MuData:
+@pytest.fixture(params=[AnnData, MuData], ids=["AnnData", "MuData"])
+def adata_or_mudata(request: pytest.FixtureRequest, adata: AnnData) -> AnnData | MuData:
+    if request.param is AnnData:
+        return adata
     return MuData(
         {"mod1": adata}, obs=adata.obs, var=adata.var, obsm=adata.obsm, varp=adata.varp
     )
-
-
-@pytest.fixture
-def adata_or_mudata(
-    use_adata_or_mudata: Literal["AnnData", "MData"], adata: AnnData, mdata: MuData
-) -> AnnData | MuData:
-    if use_adata_or_mudata == "AnnData":
-        return adata
-    return mdata
 
 
 @pytest.mark.parametrize(
@@ -147,6 +141,8 @@ def test_get_values_table(
     ad_dim: AdDim,
     ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
+    if isinstance(adata_or_mudata, MuData) and isinstance(ad_dim.acc, LayerAcc):
+        pytest.skip("MuData has no .X or .layers")
     if ad_dim.dims == {"obs", "var"}:
         request.applymarker("xfail")
     data = hv.Dataset(adata_or_mudata, [ad_dim])
@@ -164,37 +160,37 @@ def test_get_values_table(
 def test_get_values_grid(
     *,
     adata: AnnData,
-    ad_dim_adata: AdDim,
+    ad_dim: AdDim,
     expanded: bool,
     flat: bool,
-    ad_expected_adata: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
+    ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
-    data = hv.Dataset(adata, [A.var.index, A.obs.index], [A.X[:, :], ad_dim_adata])
+    data = hv.Dataset(adata, [A.var.index, A.obs.index], [A.X[:, :], ad_dim])
     assert data.interface is AnnDataGriddedInterface
     # prepare expected array
-    expected = ad_expected_adata(adata)
+    expected = ad_expected(adata)
     if isinstance(expected, ExtensionArray):
         expected = expected.to_numpy()
     if not isinstance(expected, np.ndarray):
         pytest.fail(f"Unexpected return type {type(expected)}")
     if expanded:
-        if ad_dim_adata.dims == {"var"}:
+        if ad_dim.dims == {"var"}:
             expected = np.broadcast_to(expected, (adata.n_obs, len(expected)))
-        elif ad_dim_adata.dims == {"obs"}:
+        elif ad_dim.dims == {"obs"}:
             expected = np.broadcast_to(expected, (adata.n_vars, len(expected))).T
         else:
-            assert ad_dim_adata.dims == {"var", "obs"}
+            assert ad_dim.dims == {"var", "obs"}
     if flat:  # see comment in AnnDataGriddedInterface.values()
         expected = expected.T.flatten()
 
     vals = None
     with (
         pytest.raises(ValueError, match=r"value dimension.*must cover")
-        if len(ad_dim_adata.dims) == 2 and not expanded
+        if len(ad_dim.dims) == 2 and not expanded
         else contextlib.nullcontext()
     ):
         vals = data.interface.values(
-            data, ad_dim_adata, expanded=expanded, flat=flat, keep_index=False
+            data, ad_dim, expanded=expanded, flat=flat, keep_index=False
         )
     if vals is not None:
         if not isinstance(vals, np.ndarray | ExtensionArray):
@@ -248,7 +244,7 @@ def test_select(
     ds_sel = data.select(*sel_args, **sel_kw)
 
     adata_subset = ds_sel.data
-    assert isinstance(adata_subset, AnnData | MuData)
+    assert type(adata_subset) is type(adata_or_mudata)
     pd.testing.assert_index_equal(
         adata_subset.obs_names,
         adata_or_mudata[adata_or_mudata.obs["type"] == 0].obs_names,
@@ -260,7 +256,7 @@ def test_select_var(adata_or_mudata: AnnData | MuData) -> None:
     assert data.interface is AnnDataInterface
     ds_sel = data.select({A.var["grp"]: "a"})
     adata_subset = ds_sel.data
-    assert isinstance(adata_subset, AnnData | MuData)
+    assert type(adata_subset) is type(adata_or_mudata)
     pd.testing.assert_index_equal(
         adata_subset.var_names,
         adata_or_mudata[:, adata_or_mudata.var["grp"] == "a"].var_names,
@@ -367,10 +363,6 @@ def test_violin_2d(adata: AnnData, vdim: AdDim) -> None:
     """Violin plots don’t have kdims and just do stats on flattened data,
     so they should accept both a 1D and 2D vdim."""
     hv.Violin(adata, [], [vdim])
-
-
-def test_violin_1d(mdata: MuData) -> None:
-    hv.Violin(mdata, [], [A.obsm["umap"][0]])
 
 
 @pytest.mark.parametrize(

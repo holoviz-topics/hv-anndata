@@ -12,13 +12,11 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 from anndata import AnnData
-from anndata.acc import LayerAcc
 
 from hv_anndata import A
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from typing import Literal
 
     from holoviews.plotting import Renderer
 
@@ -74,65 +72,19 @@ PATHS: list[tuple[AdDim, AdDimExpected]] = [
     (A.varp["cons"][:, "gene-46"], lambda ad: ad.varp["cons"][:, 46].toarray()),
 ]
 
-MUDATA_PATHS = [p for p in PATHS if not isinstance(p[0].acc, LayerAcc)]
-
-
-@pytest.fixture(scope="session", params=("AnnData", "MuData"))
-def use_adata_or_mudata(request: pytest.FixtureRequest) -> Literal["AnnData", "MuData"]:
-    return request.param
-
 
 @pytest.fixture(scope="session", params=PATHS, ids=[str(p[0]) for p in PATHS])
-def path_and_expected_fn_adata(
-    request: pytest.FixtureRequest,
-) -> tuple[AdDim, AdDimExpected]:
-    return request.param
-
-
-@pytest.fixture(
-    scope="session", params=MUDATA_PATHS, ids=[str(p[0]) for p in MUDATA_PATHS]
-)
-def path_and_expected_fn_mdata(
+def path_and_expected_fn(
     request: pytest.FixtureRequest,
 ) -> tuple[AdDim, AdDimExpected]:
     return request.param
 
 
 @pytest.fixture(scope="session")
-def ad_dim_adata(path_and_expected_fn_adata: tuple[AdDim, AdDimExpected]) -> AdDim:
-    return path_and_expected_fn_adata[0]
-
-
-@pytest.fixture(scope="session")
-def ad_dim(
-    use_adata_or_mudata: Literal["AnnData", "MuData"],
-    path_and_expected_fn_adata: tuple[AdDim, AdDimExpected],
-    path_and_expected_fn_mdata: tuple[AdDim, AdDimExpected],
-) -> AdDim:
-    path_and_expected_fn = (
-        path_and_expected_fn_adata
-        if use_adata_or_mudata == "AnnData"
-        else path_and_expected_fn_mdata
-    )
+def ad_dim(path_and_expected_fn: tuple[AdDim, AdDimExpected]) -> AdDim:
     return path_and_expected_fn[0]
 
 
 @pytest.fixture(scope="session")
-def ad_expected_adata(
-    path_and_expected_fn_adata: tuple[AdDim, AdDimExpected],
-) -> AdDimExpected:
-    return path_and_expected_fn_adata[1]
-
-
-@pytest.fixture(scope="session")
-def ad_expected(
-    use_adata_or_mudata: Literal["AnnData", "MuData"],
-    path_and_expected_fn_adata: tuple[AdDim, AdDimExpected],
-    path_and_expected_fn_mdata: tuple[AdDim, AdDimExpected],
-) -> AdDimExpected:
-    path_and_expected_fn = (
-        path_and_expected_fn_adata
-        if use_adata_or_mudata == "AnnData"
-        else path_and_expected_fn_mdata
-    )
+def ad_expected(path_and_expected_fn: tuple[AdDim, AdDimExpected]) -> AdDimExpected:
     return path_and_expected_fn[1]

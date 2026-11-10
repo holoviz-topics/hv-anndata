@@ -149,6 +149,8 @@ filterwarnings = [
   "ignore:FNV hashing is not implemented in Numba:UserWarning",
   # anndata uses pandas options deprecated in pandas 3.1
   "ignore:The '(mode.chained_assignment|future.infer_string)' option is deprecated:pandas.errors.Pandas4Warning",
+  # mudata uses `DataFrame.drop(inplace=True)`, deprecated in pandas 3.1
+  "ignore:The inplace keyword in DataFrame.drop is deprecated:pandas.errors.Pandas4Warning",
 ]
 strict = true
 testpaths = [ "src", "tests" ]
