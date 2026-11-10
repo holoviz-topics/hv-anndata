@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import holoviews as hv
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from holoviews.core.data import Dataset
 from holoviews.core.data.grid import GridInterface
@@ -28,11 +29,17 @@ from scipy.sparse import issparse
 
 from ._ref import A, AdDim
 
+try:
+    from mudata import MuData
+except ImportError:
+    _TYPES: tuple[type, ...] = (AnnData,)
+else:
+    _TYPES = (AnnData, MuData)
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
     from typing import Any, Literal, TypeVar
 
-    import pandas as pd
     from anndata.typing import AxisStorable
     from holoviews.core.dimension import Dimension
     from numpy.typing import NDArray
@@ -64,8 +71,13 @@ class Dims(TypedDict):
 class AnnDataInterface(hv.core.Interface):
     """Anndata interface for holoviews."""
 
-    types = (AnnData,)
+    types = _TYPES  # used also by DictInterface and GridInterface
     datatype = "anndata"
+
+    @classmethod
+    def applies(cls, obj: object) -> bool:
+        """Check if the interface handles `obj` (default only checks exact types)."""
+        return isinstance(obj, cls.types)
 
     @classmethod
     def init(
@@ -76,8 +88,8 @@ class AnnDataInterface(hv.core.Interface):
         vdims: list[Dimension] | None,
     ) -> tuple[AnnData, Dims, dict[str, Any]]:
         """Initialize the interface."""
-        if not isinstance(data, AnnData):
-            msg = f"{cls.__name__} only supports AnnData."
+        if not isinstance(data, cls.types):
+            msg = f"{cls.__name__} only supports {cls.types}, not {type(data)}."
             raise TypeError(msg)
         key_dimensions = [AdDim.from_dimension(d) for d in kdims or []]
         value_dimensions = [AdDim.from_dimension(d) for d in vdims or []]
@@ -365,10 +377,10 @@ class AnnDataInterface(hv.core.Interface):
     def unpack_scalar(
         cls,
         dataset: Dataset,  # ruff:ignore[unused-class-method-argument]
-        data: AnnData | pd.DataFrame,
+        data: object,
     ) -> Any:  # ruff:ignore[any-type]
         """Unpacks scalar data if it is a DataFrame containing a single value."""
-        if isinstance(data, AnnData):
+        if not isinstance(data, pd.DataFrame):
             return data
         if len(data) != 1 or len(data.columns) > 1:
             return data
