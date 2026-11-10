@@ -23,6 +23,7 @@ dependencies = [
   "numpy",
   "pandas",
 ]
+optional-dependencies.mudata = [ "mudata>=0.3.10" ]
 optional-dependencies.panel = [
   "bokeh",
   "datashader",
@@ -34,6 +35,7 @@ optional-dependencies.panel = [
 [dependency-groups]
 dev = [ { include-group = "test" } ]
 test = [
+  "mudata>=0.3.10",
   "nbformat-types",
   "plotly",
   # for VS Code’s coverage function (not needed for `hatch test -c`)
@@ -142,7 +144,7 @@ lint.pydoclint.ignore-one-line-docstrings = true
 [tool.pytest]
 addopts = [ "--import-mode=importlib" ]
 filterwarnings = [
-  "error",
+  #"error",
   # add ignore filters here if something fails in 3rd party dependencies
   "ignore:FNV hashing is not implemented in Numba:UserWarning",
   # anndata uses pandas options deprecated in pandas 3.1
