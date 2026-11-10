@@ -31,7 +31,7 @@ from ._ref import A, AdDim
 
 try:
     from mudata import MuData
-except ImportError:
+except ImportError:  # pragma: no cover
     _TYPES: tuple[type, ...] = (AnnData,)
 else:
     _TYPES = (AnnData, MuData)
