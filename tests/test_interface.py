@@ -14,7 +14,9 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 from anndata import AnnData
+from anndata.acc import LayerAcc
 from holoviews.core.data.interface import DataError
+from mudata import MuData
 from pandas.api.extensions import ExtensionArray
 
 from hv_anndata import A
@@ -63,6 +65,15 @@ def adata() -> AnnData:
     return AnnData(x, obs, var, layers=layers, obsm=obsm, varm={}, obsp={}, varp=varp)
 
 
+@pytest.fixture(params=[AnnData, MuData], ids=["AnnData", "MuData"])
+def adata_or_mudata(request: pytest.FixtureRequest, adata: AnnData) -> AnnData | MuData:
+    if request.param is AnnData:
+        return adata
+    return MuData(
+        {"mod1": adata}, obs=adata.obs, var=adata.var, obsm=adata.obsm, varp=adata.varp
+    )
+
+
 @pytest.mark.parametrize(
     ("hv_obj", "axes_or_err"),
     [
@@ -105,17 +116,20 @@ def adata() -> AnnData:
     ],
 )
 def test_interface_selection(
-    adata: AnnData,
+    adata_or_mudata: AnnData | MuData,
     hv_obj: Callable[[AnnData], hv.Dataset],
     axes_or_err: Exception | list[Literal["obs", "var"]],
+    request: pytest.FixtureRequest,
 ) -> None:
+    if isinstance(adata_or_mudata, MuData) and "heatmap-X" in request.node.callspec.id:
+        pytest.skip("MuData has no .X")
     if isinstance(axes_or_err, Exception):
         with pytest.raises(type(axes_or_err), match=re.escape(str(axes_or_err))):
-            hv_obj(adata)
+            hv_obj(adata_or_mudata)
         return
     iface_expected = {1: AnnDataInterface, 2: AnnDataGriddedInterface}[len(axes_or_err)]
 
-    dataset = hv_obj(adata)
+    dataset = hv_obj(adata_or_mudata)
     assert issubclass(dataset.interface, AnnDataInterface)
     assert dataset.interface is iface_expected
     assert dataset.interface.dims(dataset) == axes_or_err
@@ -123,20 +137,22 @@ def test_interface_selection(
 
 def test_get_values_table(
     request: pytest.FixtureRequest,
-    adata: AnnData,
+    adata_or_mudata: AnnData | MuData,
     ad_dim: AdDim,
     ad_expected: Callable[[AnnData], np.ndarray | sp.coo_array | pd.Series],
 ) -> None:
+    if isinstance(adata_or_mudata, MuData) and isinstance(ad_dim.acc, LayerAcc):
+        pytest.skip("MuData has no .X or .layers")
     if ad_dim.dims == {"obs", "var"}:
         request.applymarker("xfail")
-    data = hv.Dataset(adata, [ad_dim])
+    data = hv.Dataset(adata_or_mudata, [ad_dim])
 
     assert data.interface is AnnDataInterface
     vals = data.interface.values(data, ad_dim, keep_index=True)
 
     if not isinstance(vals, np.ndarray | ExtensionArray):  # pragma: no cover
         pytest.fail(f"Unexpected return type {type(vals)}")
-    np.testing.assert_array_equal(vals, ad_expected(adata), strict=True)
+    np.testing.assert_array_equal(vals, ad_expected(adata_or_mudata), strict=True)
 
 
 @pytest.mark.parametrize("expanded", [True, False], ids=["expanded", "normal"])
@@ -219,27 +235,31 @@ def _nm(o: object) -> str:
     ],
 )
 def test_select(
-    adata: AnnData, sel_args: tuple[Any, ...], sel_kw: dict[str, Any]
+    adata_or_mudata: AnnData | MuData, sel_args: tuple[Any, ...], sel_kw: dict[str, Any]
 ) -> None:
-    data = hv.Dataset(adata, A.obsm["umap"][0], [A.obsm["umap"][1], A.obs["type"]])
+    data = hv.Dataset(
+        adata_or_mudata, A.obsm["umap"][0], [A.obsm["umap"][1], A.obs["type"]]
+    )
     assert data.interface is AnnDataInterface
     ds_sel = data.select(*sel_args, **sel_kw)
 
     adata_subset = ds_sel.data
-    assert isinstance(adata_subset, AnnData)
+    assert type(adata_subset) is type(adata_or_mudata)
     pd.testing.assert_index_equal(
-        adata_subset.obs_names, adata[adata.obs["type"] == 0].obs_names
+        adata_subset.obs_names,
+        adata_or_mudata[adata_or_mudata.obs["type"] == 0].obs_names,
     )
 
 
-def test_select_var(adata: AnnData) -> None:
-    data = hv.Dataset(adata, A.var.index, [A.var["grp"]])
+def test_select_var(adata_or_mudata: AnnData | MuData) -> None:
+    data = hv.Dataset(adata_or_mudata, A.var.index, [A.var["grp"]])
     assert data.interface is AnnDataInterface
     ds_sel = data.select({A.var["grp"]: "a"})
     adata_subset = ds_sel.data
-    assert isinstance(adata_subset, AnnData)
+    assert type(adata_subset) is type(adata_or_mudata)
     pd.testing.assert_index_equal(
-        adata_subset.var_names, adata[:, adata.var["grp"] == "a"].var_names
+        adata_subset.var_names,
+        adata_or_mudata[:, adata_or_mudata.var["grp"] == "a"].var_names,
     )
 
 
