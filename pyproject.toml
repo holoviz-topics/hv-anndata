@@ -144,7 +144,7 @@ lint.pydoclint.ignore-one-line-docstrings = true
 [tool.pytest]
 addopts = [ "--import-mode=importlib" ]
 filterwarnings = [
-  #"error",
+  "error",
   # add ignore filters here if something fails in 3rd party dependencies
   "ignore:FNV hashing is not implemented in Numba:UserWarning",
   # anndata uses pandas options deprecated in pandas 3.1
