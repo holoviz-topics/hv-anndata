@@ -31,8 +31,10 @@ from ._ref import A, AdDim
 
 try:
     from mudata import MuData
-except ImportError:
-    MuData = type("MuData", (), {"__module__": "mudata"})
+except ImportError:  # pragma: no cover
+    _TYPES: tuple[type, ...] = (AnnData,)
+else:
+    _TYPES = (AnnData, MuData)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -69,12 +71,13 @@ class Dims(TypedDict):
 class AnnDataInterface(hv.core.Interface):
     """Anndata interface for holoviews."""
 
+    types = _TYPES  # used also by DictInterface and GridInterface
     datatype = "anndata"
 
     @classmethod
     def applies(cls, obj: object) -> bool:
-        """Indicate whether the interface works for the object."""
-        return isinstance(obj, AnnData | MuData)
+        """Check if the interface handles `obj` (default only checks exact types)."""
+        return isinstance(obj, cls.types)
 
     @classmethod
     def init(
@@ -85,8 +88,8 @@ class AnnDataInterface(hv.core.Interface):
         vdims: list[Dimension] | None,
     ) -> tuple[AnnData, Dims, dict[str, Any]]:
         """Initialize the interface."""
-        if not isinstance(data, AnnData | MuData):
-            msg = f"{cls.__name__} only supports AnnData and MuData."
+        if not isinstance(data, cls.types):
+            msg = f"{cls.__name__} only supports {cls.types}, not {type(data)}."
             raise TypeError(msg)
         key_dimensions = [AdDim.from_dimension(d) for d in kdims or []]
         value_dimensions = [AdDim.from_dimension(d) for d in vdims or []]
@@ -374,14 +377,14 @@ class AnnDataInterface(hv.core.Interface):
     def unpack_scalar(
         cls,
         dataset: Dataset,  # ruff:ignore[unused-class-method-argument]
-        data: AnnData | pd.DataFrame,
+        data: object,
     ) -> Any:  # ruff:ignore[any-type]
         """Unpacks scalar data if it is a DataFrame containing a single value."""
-        if isinstance(data, pd.DataFrame):
-            if len(data) != 1 or len(data.columns) > 1:
-                return data
-            return data.iloc[0, 0]
-        return data
+        if not isinstance(data, pd.DataFrame):
+            return data
+        if len(data) != 1 or len(data.columns) > 1:
+            return data
+        return data.iloc[0, 0]
 
     @classmethod
     def groupby(
