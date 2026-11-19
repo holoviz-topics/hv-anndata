@@ -14,7 +14,6 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "ext"))
 # inherited by notebook kernels, so `sc.datasets.*` don’t download into their CWD
 os.environ["SCANPY_DATASETDIR"] = str(HERE / "_build" / "data")
-
 _info = metadata("hv-anndata")
 
 # specify project details
@@ -65,6 +64,10 @@ holoviews_backends = ["bokeh", "matplotlib", "plotly"]
 exec_jupyter_code = """
 import hv_anndata, matplotlib
 matplotlib.use('module://matplotlib_inline.backend_inline')
+# https://github.com/tqdm/tqdm/issues/1927
+from functools import partialmethod
+import tqdm.notebook
+tqdm.notebook.tqdm.__init__ = partialmethod(tqdm.notebook.tqdm.__init__, disable=True)
 """
 exec_jupyter_kernel = "hv-anndata"
 
