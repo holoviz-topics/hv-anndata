@@ -35,6 +35,7 @@ optional-dependencies.panel = [
 [dependency-groups]
 dev = [ { include-group = "test" } ]
 test = [
+  "dask[array]",
   "mudata>=0.3.10",
   "nbformat-types",
   "plotly",

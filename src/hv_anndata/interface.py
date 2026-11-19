@@ -282,7 +282,7 @@ class AnnDataInterface(hv.core.Interface):
         expanded: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument, unused-class-method-argument]
         flat: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         *,
-        compute: bool = True,  # ruff:ignore[unused-class-method-argument]
+        compute: bool = True,
         keep_index: bool = False,  # ruff:ignore[unused-class-method-argument]
     ) -> ValueType:
         """Retrieve values for a dimension."""
@@ -292,7 +292,7 @@ class AnnDataInterface(hv.core.Interface):
         if flat and values.ndim > 1:
             assert not isinstance(values, ExtensionArray)  # ruff:ignore[assert]
             values = values.flatten()
-        return _simplify_numpy(values)
+        return _simplify_numpy(values, compute=compute)
 
     @classmethod
     def dtype(
@@ -524,7 +524,7 @@ class AnnDataGriddedInterface(AnnDataInterface):
         expanded: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         flat: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         *,
-        compute: bool = True,  # ruff:ignore[unused-class-method-argument]
+        compute: bool = True,
         keep_index: bool = False,  # ruff:ignore[unused-class-method-argument]
     ) -> ValueType:
         """Retrieve values for a dimension."""
@@ -566,10 +566,13 @@ class AnnDataGriddedInterface(AnnDataInterface):
                 )
                 raise ValueError(error)
 
-        return cls._simplify(values, flat=flat)
+        return cls._simplify(values, flat=flat, compute=compute)
 
     @classmethod
-    def _simplify(cls, values: AxisStorable, *, flat: bool = True) -> ValueType:
+    def _simplify(
+        cls, values: AxisStorable, *, flat: bool = True, compute: bool = True
+    ) -> ValueType:
+        values = _simplify_numpy(values, compute=compute)
         # TODO: move into `flat` branch when this is fixed: https://github.com/holoviz/holoviews/issues/6686
         if issparse(values):
             values = values.toarray()
@@ -593,7 +596,9 @@ class AnnDataGriddedInterface(AnnDataInterface):
         return False
 
 
-def _simplify_numpy(values: ValueType) -> ValueType:
+def _simplify_numpy(values: ValueType, *, compute: bool = False) -> ValueType:
+    if compute and hasattr(values, "compute"):  # e.g. dask arrays from `read_lazy`
+        values = values.compute()
     if isinstance(values, np.ndarray) and type(values) is not np.ndarray:
         return values.view(np.ndarray)
     if isinstance(values, NumpyExtensionArray):

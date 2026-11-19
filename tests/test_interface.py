@@ -198,6 +198,24 @@ def test_get_values_grid(
         np.testing.assert_array_equal(vals, expected, strict=True)
 
 
+@pytest.mark.parametrize("gridded", [False, True], ids=["table", "grid"])
+@pytest.mark.parametrize("compute", [True, False], ids=["compute", "lazy"])
+def test_get_values_dask(adata: AnnData, *, gridded: bool, compute: bool) -> None:
+    da = pytest.importorskip("dask.array")
+    adata.X = da.from_array(adata.X, chunks=(10, 50))
+    adata.obsm["umap"] = da.from_array(adata.obsm["umap"], chunks=(10, 2))
+    dim = A.X[:, :] if gridded else A.obsm["umap"][0]
+    kdims = [A.var.index, A.obs.index] if gridded else [dim]
+    data = hv.Dataset(adata, kdims, [dim] if gridded else [])
+
+    vals = data.interface.values(data, dim, compute=compute)
+
+    assert isinstance(vals, np.ndarray if compute else da.Array)
+    np.testing.assert_array_equal(
+        vals, adata.X.T.flatten() if gridded else adata.obsm["umap"][:, 0]
+    )
+
+
 def _nm(o: object) -> str:
     if isinstance(o, slice):
         return f"slice[{_nm(o.start)}, {_nm(o.stop)}]"
