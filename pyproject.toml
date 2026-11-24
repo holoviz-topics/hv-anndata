@@ -51,7 +51,7 @@ docs = [
   "plotly",
   "pooch",
   "scanpy[scrublet]",
-  "scverse-doc[full]",
+  "scverse-doc[full]>=0.5.2",
   "sphinx",
   "sphinx-autodoc-typehints",
   "sphinx-exec-jupyter[holoviews]",

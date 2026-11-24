@@ -17,7 +17,6 @@ os.environ["SCANPY_DATASETDIR"] = str(HERE / "_build" / "data")
 _info = metadata("hv-anndata")
 
 # specify project details
-master_doc = "index"
 project = _info.get("Name")
 
 source_repository = "https://github.com/holoviz-topics/hv-anndata"
@@ -33,16 +32,6 @@ extensions = [
     "napoleon_attrdoc_fix",
 ]
 templates_path = ["_templates"]
-# not a scverse project: no scverse footer, ecosystem dropdown or announcement
-html_theme_options = dict(
-    article_header_end=[
-        "theme-switcher",
-        "navbar-icon-links",
-        "toggle-secondary-sidebar",
-    ],
-    footer_start=["copyright", "last-updated"],
-    announcement="",
-)
 suppress_warnings = [
     "mystnb.unknown_mime_type",
 ]
@@ -72,8 +61,3 @@ tqdm.notebook.tqdm.__init__ = partialmethod(tqdm.notebook.tqdm.__init__, disable
 exec_jupyter_kernel = "hv-anndata"
 
 run(["hatch", "-v", "run", "docs:install-kernel"], check=True)
-
-# autodoc/autosummary
-autodoc_default_options = {
-    "members": False,
-}
